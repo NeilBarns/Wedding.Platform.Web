@@ -3,6 +3,8 @@ import { GuestRoute, ProtectedRoute, RootRedirect } from '../features/auth/Route
 import { LoginPage } from '../pages/LoginPage'
 import { MyEventsPage } from '../pages/MyEventsPage'
 import { RegisterPage } from '../pages/RegisterPage'
+import { AuthenticatedLayout } from '../layouts/AuthenticatedLayout'
+import { EventWorkspacePlaceholderPage } from '../pages/EventWorkspacePlaceholderPage'
 
 export const router = createBrowserRouter([
   {
@@ -26,8 +28,17 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute />,
     children: [
       {
-        path: '/events',
-        element: <MyEventsPage />,
+        element: <AuthenticatedLayout />,
+        children: [
+          {
+            path: '/events',
+            element: <MyEventsPage />,
+          },
+          {
+            path: '/events/:eventId',
+            element: <EventWorkspacePlaceholderPage />,
+          },
+        ],
       },
     ],
   },
