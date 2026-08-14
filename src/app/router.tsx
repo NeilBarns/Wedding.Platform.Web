@@ -1,5 +1,5 @@
 import { createBrowserRouter } from 'react-router-dom'
-import { HomePage } from '../pages/HomePage'
+import { GuestRoute, ProtectedRoute, RootRedirect } from '../features/auth/RouteGuards'
 import { LoginPage } from '../pages/LoginPage'
 import { MyEventsPage } from '../pages/MyEventsPage'
 import { RegisterPage } from '../pages/RegisterPage'
@@ -7,18 +7,28 @@ import { RegisterPage } from '../pages/RegisterPage'
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <HomePage />,
+    element: <RootRedirect />,
   },
   {
-    path: '/login',
-    element: <LoginPage />,
+    element: <GuestRoute />,
+    children: [
+      {
+        path: '/login',
+        element: <LoginPage />,
+      },
+      {
+        path: '/register',
+        element: <RegisterPage />,
+      },
+    ],
   },
   {
-    path: '/register',
-    element: <RegisterPage />,
-  },
-  {
-    path: '/events',
-    element: <MyEventsPage />,
+    element: <ProtectedRoute />,
+    children: [
+      {
+        path: '/events',
+        element: <MyEventsPage />,
+      },
+    ],
   },
 ])
