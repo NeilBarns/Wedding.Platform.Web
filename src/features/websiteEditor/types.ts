@@ -29,12 +29,23 @@ export type WebsiteSection =
   | SectionBase<'rsvp', RsvpContent>
   | SectionBase<string, Record<string, unknown>>
 
-export type WebsiteTemplateSummary = { key: string; displayName: string }
+export type ColorTheme = 'terracotta' | 'olive' | 'sage' | 'burgundy' | 'neutral'
+export type FontSet = 'editorial' | 'romantic' | 'modern'
+export type ArtStyle = 'minimal' | 'botanical' | 'woven' | 'clean'
+export type WebsiteDesignSettings = { colorTheme: ColorTheme; fontSet: FontSet; artStyle: ArtStyle }
+export type DesignOption = { key: string; displayName: string }
+export type WebsiteDesignOptions = {
+  colorThemes: DesignOption[]
+  fontSets: DesignOption[]
+  artStyles: DesignOption[]
+}
+export type WebsiteTemplateSummary = { key: string; displayName: string; designOptions: WebsiteDesignOptions }
 
 export type WebsiteDraft = {
   id: string
   eventId: string
   templateKey: string
+  designSettings: WebsiteDesignSettings
   template: WebsiteTemplateSummary | null
   sections: WebsiteSection[]
 }

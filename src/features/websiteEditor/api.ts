@@ -1,7 +1,7 @@
 import { apiRequest, ensureCsrfCookie } from '../../lib/api'
 import type { ApiResource } from '../../lib/api'
 import { parseWebsiteDraft } from './schemas'
-import type { WebsiteDraft } from './types'
+import type { WebsiteDesignSettings, WebsiteDraft } from './types'
 
 async function mutation(eventId: string, path: string, body: unknown): Promise<WebsiteDraft> {
   await ensureCsrfCookie()
@@ -18,6 +18,10 @@ export async function getWebsiteDraft(eventId: string, signal?: AbortSignal): Pr
 
 export function updateWebsiteTemplate(eventId: string, templateKey: string) {
   return mutation(eventId, '/template', { templateKey })
+}
+
+export function updateWebsiteDesignSettings(eventId: string, designSettings: WebsiteDesignSettings) {
+  return mutation(eventId, '/design', { designSettings })
 }
 
 export function updateWebsiteSectionContent(eventId: string, sectionId: string, content: Record<string, unknown>) {

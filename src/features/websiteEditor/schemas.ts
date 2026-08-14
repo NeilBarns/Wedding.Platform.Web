@@ -39,7 +39,20 @@ const draftSchema = z.object({
   id: z.string(),
   eventId: z.string(),
   templateKey: z.string(),
-  template: z.object({ key: z.string(), displayName: z.string() }).nullable(),
+  designSettings: z.object({
+    colorTheme: z.enum(['terracotta', 'olive', 'sage', 'burgundy', 'neutral']),
+    fontSet: z.enum(['editorial', 'romantic', 'modern']),
+    artStyle: z.enum(['minimal', 'botanical', 'woven', 'clean']),
+  }).strict(),
+  template: z.object({
+    key: z.string(),
+    displayName: z.string(),
+    designOptions: z.object({
+      colorThemes: z.array(z.object({ key: z.string(), displayName: z.string() })),
+      fontSets: z.array(z.object({ key: z.string(), displayName: z.string() })),
+      artStyles: z.array(z.object({ key: z.string(), displayName: z.string() })),
+    }),
+  }).nullable(),
   sections: z.array(sectionSchema),
 })
 
