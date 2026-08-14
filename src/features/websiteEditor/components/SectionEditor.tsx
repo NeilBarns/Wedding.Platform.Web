@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useFieldArray, useForm } from 'react-hook-form'
+import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 import { ApiError } from '../../../lib/api'
 import { faqContentSchema, scheduleContentSchema } from '../schemas'
@@ -12,28 +12,35 @@ type EditorProps = {
   onSave: (content: Record<string, unknown>) => Promise<WebsiteDraft>
   onSaved: (draft: WebsiteDraft) => void
   onDirtyChange: (dirty: boolean) => void
+  onPreviewContentChange: (content: Record<string, unknown> | null) => void
 }
 
 type Field = { name: string; label: string; multiline?: boolean; note?: string }
 type SimpleValues = Record<string, string>
 const simpleSchema = z.record(z.string(), z.string())
+const emptyGalleryItems = { items: [] }
 
 function errorText(error: unknown): string {
   if (error instanceof ApiError) return error.validationErrors.content?.[0] ?? error.message
   return 'Unable to save this section. Please try again.'
 }
 
-function SimpleEditor({ section, fields, fixed = {}, onSave, onSaved, onDirtyChange }: EditorProps & {
+function SimpleEditor({ section, fields, fixed = {}, onSave, onSaved, onDirtyChange, onPreviewContentChange }: EditorProps & {
   fields: Field[]
   fixed?: Record<string, unknown>
 }) {
   const [error, setError] = useState<string | null>(null)
   const content = section.content as Record<string, unknown>
   const defaults = Object.fromEntries(fields.map(({ name }) => [name, String(content[name] ?? '')]))
-  const { register, handleSubmit, reset, formState: { errors, isDirty, isSubmitting } } = useForm<SimpleValues>({
+  const { control, register, handleSubmit, reset, formState: { errors, isDirty, isSubmitting } } = useForm<SimpleValues>({
     resolver: zodResolver(simpleSchema), defaultValues: defaults,
   })
+  const values = useWatch({ control })
   useEffect(() => onDirtyChange(isDirty), [isDirty, onDirtyChange])
+  useEffect(() => {
+    const parsed = simpleSchema.safeParse(values)
+    onPreviewContentChange(isDirty && parsed.success ? { ...parsed.data, ...fixed } : null)
+  }, [fixed, isDirty, onPreviewContentChange, values])
 
   const submit = handleSubmit(async (values) => {
     setError(null)
@@ -62,11 +69,16 @@ function SimpleEditor({ section, fields, fixed = {}, onSave, onSaved, onDirtyCha
 
 type ScheduleValues = z.infer<typeof scheduleContentSchema>
 function ScheduleEditor(props: EditorProps) {
-  const { section, onDirtyChange } = props
+  const { section, onDirtyChange, onPreviewContentChange } = props
   const [error, setError] = useState<string | null>(null)
   const { control, register, handleSubmit, reset, formState: { isDirty, isSubmitting } } = useForm<ScheduleValues>({ resolver: zodResolver(scheduleContentSchema), defaultValues: section.content as ScheduleValues })
   const { fields, append, remove, swap } = useFieldArray({ control, name: 'items' })
+  const values = useWatch({ control })
   useEffect(() => onDirtyChange(isDirty), [isDirty, onDirtyChange])
+  useEffect(() => {
+    const parsed = scheduleContentSchema.safeParse(values)
+    onPreviewContentChange(isDirty && parsed.success ? parsed.data : null)
+  }, [isDirty, onPreviewContentChange, values])
   const submit = handleSubmit(async (values) => { try { setError(null); const draft = await props.onSave(values); props.onSaved(draft); reset(values) } catch (saveError) { setError(errorText(saveError)) } })
   return <form className="space-y-4" onSubmit={submit}>
     {error && <p className="rounded-xl bg-danger-muted p-3 text-sm text-danger">{error}</p>}
@@ -84,11 +96,16 @@ function ScheduleEditor(props: EditorProps) {
 
 type FaqValues = z.infer<typeof faqContentSchema>
 function FaqEditor(props: EditorProps) {
-  const { section, onDirtyChange } = props
+  const { section, onDirtyChange, onPreviewContentChange } = props
   const [error, setError] = useState<string | null>(null)
   const { control, register, handleSubmit, reset, formState: { isDirty, isSubmitting } } = useForm<FaqValues>({ resolver: zodResolver(faqContentSchema), defaultValues: section.content as FaqValues })
   const { fields, append, remove, swap } = useFieldArray({ control, name: 'items' })
+  const values = useWatch({ control })
   useEffect(() => onDirtyChange(isDirty), [isDirty, onDirtyChange])
+  useEffect(() => {
+    const parsed = faqContentSchema.safeParse(values)
+    onPreviewContentChange(isDirty && parsed.success ? parsed.data : null)
+  }, [isDirty, onPreviewContentChange, values])
   const submit = handleSubmit(async (values) => { try { setError(null); const draft = await props.onSave(values); props.onSaved(draft); reset(values) } catch (saveError) { setError(errorText(saveError)) } })
   return <form className="space-y-4" onSubmit={submit}>
     {error && <p className="rounded-xl bg-danger-muted p-3 text-sm text-danger">{error}</p>}
@@ -129,7 +146,7 @@ export function SectionEditor(props: EditorProps) {
     case 'schedule': return <ScheduleEditor {...common} />
     case 'venue': return <SimpleEditor {...common} fields={[{ name: 'heading', label: 'Heading' }, { name: 'name', label: 'Venue name' }, { name: 'address', label: 'Address', multiline: true }, { name: 'description', label: 'Description', multiline: true }]} />
     case 'dressCode': return <SimpleEditor {...common} fields={[{ name: 'heading', label: 'Heading' }, { name: 'description', label: 'Description', multiline: true }]} />
-    case 'gallery': return <SimpleEditor {...common} fields={[{ name: 'heading', label: 'Heading', note: 'Photo management will be added in a later phase.' }]} fixed={{ items: [] }} />
+    case 'gallery': return <SimpleEditor {...common} fields={[{ name: 'heading', label: 'Heading', note: 'Photo management will be added in a later phase.' }]} fixed={emptyGalleryItems} />
     case 'faq': return <FaqEditor {...common} />
     case 'rsvp': return <SimpleEditor {...common} fields={[{ name: 'heading', label: 'Heading' }, { name: 'description', label: 'Description', multiline: true }, { name: 'buttonLabel', label: 'Button label', note: 'This controls Website presentation only. Guest RSVP configuration is managed separately.' }]} />
     default: return <div className="rounded-xl bg-surface-muted p-4 text-sm text-foreground-muted">This section type is not supported by this version of the editor.</div>

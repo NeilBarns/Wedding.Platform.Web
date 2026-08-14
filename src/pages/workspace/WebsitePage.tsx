@@ -1,13 +1,14 @@
-import { FileWarning, LayoutTemplate, RefreshCw } from 'lucide-react'
-import { useState } from 'react'
-import { WorkspaceSection } from '../../features/events/workspace/WorkspaceSection'
+import { FileWarning, LayoutTemplate, Monitor, RefreshCw, Smartphone } from 'lucide-react'
+import { useCallback, useMemo, useState } from 'react'
 import { useEventWorkspace } from '../../features/events/workspace/EventWorkspaceContext'
+import { WorkspaceSection } from '../../features/events/workspace/WorkspaceSection'
 import { reorderWebsiteSections, setWebsiteSectionEnabled, updateWebsiteSectionContent } from '../../features/websiteEditor/api'
 import { DiscardChangesDialog } from '../../features/websiteEditor/components/DiscardChangesDialog'
 import { SectionEditor } from '../../features/websiteEditor/components/SectionEditor'
 import { SectionNavigator } from '../../features/websiteEditor/components/SectionNavigator'
 import type { WebsiteDraft, WebsiteSection } from '../../features/websiteEditor/types'
 import { useWebsiteDraft } from '../../features/websiteEditor/useWebsiteDraft'
+import { WebsiteRenderer } from '../../features/websiteRenderer/WebsiteRenderer'
 import { ApiError } from '../../lib/api'
 
 function messageFor(error: unknown): string {
@@ -23,11 +24,17 @@ export function WebsitePage() {
   const [isDirty, setIsDirty] = useState(false)
   const [listPending, setListPending] = useState(false)
   const [listError, setListError] = useState<string | null>(null)
+  const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop')
+  const [previewOverride, setPreviewOverride] = useState<{ sectionId: string; content: Record<string, unknown> } | null>(null)
+
+  const effectiveSelectedId = draft?.sections.some(({ id }) => id === selectedId)
+    ? selectedId
+    : draft?.sections[0]?.id ?? null
 
   function selectSection(id: string) {
     if (id === effectiveSelectedId) return
     if (isDirty) setPendingSelection(id)
-    else setSelectedId(id)
+    else { setSelectedId(id); setPreviewOverride(null) }
   }
 
   async function mutateList(operation: () => Promise<WebsiteDraft>) {
@@ -50,58 +57,91 @@ export function WebsitePage() {
     void mutateList(() => reorderWebsiteSections(event.id, ids))
   }
 
-  if (isLoading) return <EditorLoading />
-  if (error || !draft) return <EditorError message={messageFor(error)} retry={retry} />
+  const updatePreviewContent = useCallback((content: Record<string, unknown> | null) => {
+    setPreviewOverride(content && effectiveSelectedId ? { sectionId: effectiveSelectedId, content } : null)
+  }, [effectiveSelectedId])
 
-  const effectiveSelectedId = draft.sections.some(({ id }) => id === selectedId)
-    ? selectedId
-    : draft.sections[0]?.id ?? null
+  const previewDraft = useMemo(() => {
+    if (!draft || !previewOverride) return draft
+    return {
+      ...draft,
+      sections: draft.sections.map((section) => section.id === previewOverride.sectionId
+        ? { ...section, content: previewOverride.content }
+        : section),
+    } as WebsiteDraft
+  }, [draft, previewOverride])
+
+  if (isLoading) return <EditorLoading />
+  if (error || !draft || !previewDraft) return <EditorError message={messageFor(error)} retry={retry} />
+
   const selected = draft.sections.find(({ id }) => id === effectiveSelectedId) ?? null
 
   return (
-    <WorkspaceSection eyebrow="Event workspace" title="Website" description="Shape the structured content and visibility of your Event website.">
+    <WorkspaceSection eyebrow="Event workspace" title="Website" description="Edit structured content alongside a live view of your Wedding website.">
       <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-border bg-surface px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <span className="rounded-xl bg-surface-muted p-2 text-secondary-accent"><LayoutTemplate size={19} /></span>
           <div><p className="text-xs text-foreground-muted">Template</p><p className="text-sm font-semibold">{draft.template?.displayName ?? draft.templateKey}</p></div>
         </div>
-        <p className="text-xs text-foreground-muted">Section changes save explicitly. Visibility and order save immediately.</p>
+        <div className="flex w-fit items-center gap-1 rounded-xl bg-surface-muted p-1" aria-label="Preview size">
+          <PreviewModeButton active={previewMode === 'desktop'} label="Desktop" onClick={() => setPreviewMode('desktop')}><Monitor size={14} /></PreviewModeButton>
+          <PreviewModeButton active={previewMode === 'mobile'} label="Mobile" onClick={() => setPreviewMode('mobile')}><Smartphone size={14} /></PreviewModeButton>
+        </div>
       </div>
 
       {listError && <p className="mb-4 rounded-xl bg-danger-muted p-3 text-sm text-danger" role="alert">{listError}</p>}
 
       {draft.sections.length === 0 ? <EmptyEditor /> : (
-        <div className="grid items-start gap-5 lg:grid-cols-[minmax(230px,280px)_minmax(0,1fr)]">
-          <SectionNavigator sections={draft.sections} selectedId={effectiveSelectedId} pending={listPending} onSelect={selectSection} onToggle={toggle} onMove={move} />
-          <section className="min-w-0 rounded-2xl border border-border bg-surface p-4 sm:p-6">
-            {selected && <>
-              <div className="mb-5 border-b border-border pb-4">
-                <div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-semibold">{selected.displayName}</h2>{!selected.isEnabled && <span className="rounded-full bg-surface-muted px-2 py-1 text-[11px] font-medium text-foreground-muted">Hidden on website</span>}</div>
-                <p className="mt-1 text-sm text-foreground-muted">Edit this section’s semantic content.</p>
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(350px,0.65fr)]">
+          <section className="min-w-0 rounded-2xl border border-border bg-surface p-3 sm:p-4" aria-label="Live Website preview">
+            <div className="mb-3 flex items-center justify-between px-1">
+              <div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-accent">Live preview</p><p className="mt-0.5 text-xs text-foreground-muted">Valid unsaved edits appear here before saving.</p></div>
+              {previewOverride && <span className="rounded-full bg-danger-muted px-2 py-1 text-[10px] font-medium text-danger">Unsaved preview</span>}
+            </div>
+            <div className="overflow-x-auto rounded-xl bg-surface-muted p-2 sm:p-3">
+              <div className={`mx-auto h-[min(72vh,760px)] overflow-y-auto rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)] transition-[max-width] ${previewMode === 'mobile' ? 'max-w-[390px]' : 'max-w-full'}`}>
+                <WebsiteRenderer event={event} website={previewDraft} mode="editor" selectedSectionId={effectiveSelectedId} onSectionSelect={selectSection} />
               </div>
-              <SectionEditor
-                key={selected.id}
-                section={selected}
-                onDirtyChange={setIsDirty}
-                onSave={(content) => updateWebsiteSectionContent(event.id, selected.id, content)}
-                onSaved={(updated) => { setDraft(updated); setIsDirty(false) }}
-              />
-            </>}
+            </div>
           </section>
+
+          <div className="space-y-5">
+            <SectionNavigator sections={draft.sections} selectedId={effectiveSelectedId} pending={listPending} onSelect={selectSection} onToggle={toggle} onMove={move} />
+            <section className="min-w-0 rounded-2xl border border-border bg-surface p-4 sm:p-5">
+              {selected && <>
+                <div className="mb-5 border-b border-border pb-4">
+                  <div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-semibold">{selected.displayName}</h2>{!selected.isEnabled && <span className="rounded-full bg-surface-muted px-2 py-1 text-[11px] font-medium text-foreground-muted">Hidden on website</span>}</div>
+                  <p className="mt-1 text-sm text-foreground-muted">Edit this section’s semantic content.</p>
+                </div>
+                <SectionEditor
+                  key={selected.id}
+                  section={selected}
+                  onDirtyChange={setIsDirty}
+                  onPreviewContentChange={updatePreviewContent}
+                  onSave={(content) => updateWebsiteSectionContent(event.id, selected.id, content)}
+                  onSaved={(updated) => { setDraft(updated); setIsDirty(false); setPreviewOverride(null) }}
+                />
+              </>}
+            </section>
+          </div>
         </div>
       )}
 
       <DiscardChangesDialog
         open={pendingSelection !== null}
         onCancel={() => setPendingSelection(null)}
-        onDiscard={() => { setSelectedId(pendingSelection); setPendingSelection(null); setIsDirty(false) }}
+        onDiscard={() => { setSelectedId(pendingSelection); setPendingSelection(null); setIsDirty(false); setPreviewOverride(null) }}
       />
     </WorkspaceSection>
   )
 }
 
+function PreviewModeButton({ active, label, onClick, children }: { active: boolean; label: string; onClick: () => void; children: React.ReactNode }) {
+  return <button className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs ${active ? 'bg-surface font-medium shadow-sm' : 'text-foreground-muted'}`} type="button" onClick={onClick} aria-pressed={active}>{children}{label}</button>
+}
+
 function EditorLoading() {
-  return <WorkspaceSection eyebrow="Event workspace" title="Website" description="Loading your Website draft…"><div className="grid animate-pulse gap-5 lg:grid-cols-[260px_1fr]"><div className="h-80 rounded-2xl bg-surface-muted" /><div className="h-96 rounded-2xl bg-surface-muted" /></div></WorkspaceSection>
+  return <WorkspaceSection eyebrow="Event workspace" title="Website" description="Loading your Website draft…"><div className="grid animate-pulse gap-5 xl:grid-cols-[1.35fr_0.65fr]"><div className="h-[70vh] rounded-2xl bg-surface-muted" /><div className="h-96 rounded-2xl bg-surface-muted" /></div></WorkspaceSection>
 }
 
 function EditorError({ message, retry }: { message: string; retry: () => void }) {
