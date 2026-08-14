@@ -1,8 +1,10 @@
 import { createContext, use } from 'react'
 
 export type ThemePreference = 'system' | 'light' | 'dark'
+export type ResolvedTheme = 'light' | 'dark'
 export type ThemeContextValue = {
   preference: ThemePreference
+  resolvedTheme: ResolvedTheme
   setPreference: (preference: ThemePreference) => void
 }
 

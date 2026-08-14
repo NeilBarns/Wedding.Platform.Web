@@ -14,6 +14,10 @@ export type Event = {
   updatedAt: string
 }
 
+export type EventDetail = Omit<Event, 'membershipRole'> & {
+  membershipRole: EventMembershipRole | null
+}
+
 export type CreateEventRequest = {
   name: string
   type: EventType
