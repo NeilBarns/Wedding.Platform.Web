@@ -38,6 +38,18 @@ export function validateSectionContent(type: string, content: Record<string, unk
 const sectionSchema = z.object({
   id: z.string(), type: z.string(), displayName: z.string(), sortOrder: z.number(),
   isEnabled: z.boolean(), content: z.record(z.string(), z.unknown()),
+  appearance: z.object({
+    headingAlignment: z.enum(['inherit', 'left', 'center', 'right']),
+    bodyAlignment: z.enum(['inherit', 'left', 'center', 'right']),
+    backgroundTreatment: z.enum(['inherit', 'plain', 'soft', 'accent']),
+    emphasis: z.enum(['inherit', 'standard', 'featured', 'subtle']),
+  }).strict(),
+  appearanceOptions: z.object({
+    headingAlignments: z.array(z.object({ key: z.string(), displayName: z.string() }).strict()),
+    bodyAlignments: z.array(z.object({ key: z.string(), displayName: z.string() }).strict()),
+    backgroundTreatments: z.array(z.object({ key: z.string(), displayName: z.string() }).strict()),
+    emphasisOptions: z.array(z.object({ key: z.string(), displayName: z.string() }).strict()),
+  }).strict().nullable(),
 })
 
 const draftSchema = z.object({

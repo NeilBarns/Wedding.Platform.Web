@@ -17,6 +17,8 @@ export function AuthenticatedLayout() {
     () => localStorage.getItem(SIDEBAR_STORAGE_KEY) === "collapsed",
   );
   const inWorkspace = useMatch("/events/:eventId/*") !== null;
+  const inWebsiteBuilder = useMatch("/events/:eventId/website") !== null;
+  const showWorkspaceSidebar = inWorkspace && !inWebsiteBuilder;
 
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed((collapsed) => {
@@ -50,13 +52,13 @@ export function AuthenticatedLayout() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
       <header
-        className={`relative z-20 shrink-0 backdrop-blur-lg transition-[margin] duration-200 ${inWorkspace ? `border-b border-border/60 bg-header-surface shadow-[var(--shadow-header)] ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-60"}` : "border-b border-border bg-background/92"}`}
+        className={`relative z-20 shrink-0 backdrop-blur-lg transition-[margin] duration-200 ${inWorkspace ? `border-b border-border/60 bg-header-surface shadow-[var(--shadow-header)] ${showWorkspaceSidebar ? (sidebarCollapsed ? "lg:ml-16" : "lg:ml-60") : ""}` : "border-b border-border bg-background/92"}`}
       >
         <div
           className={`flex h-14 items-center gap-2.5 px-4 sm:px-5 lg:px-6 ${inWorkspace ? "justify-end" : "mx-auto max-w-[1360px]"}`}
         >
           <NavLink
-            className={`mr-auto items-center gap-2 text-sm font-semibold tracking-tight ${inWorkspace ? "flex lg:hidden" : "flex"}`}
+            className={`mr-auto items-center gap-2 text-sm font-semibold tracking-tight ${showWorkspaceSidebar ? "flex lg:hidden" : "flex"}`}
             to="/events"
           >
             <span className="grid size-7 place-items-center rounded-lg bg-accent text-xs text-accent-foreground">
@@ -105,7 +107,7 @@ export function AuthenticatedLayout() {
         )}
       </header>
       <div
-        className={`min-h-0 flex-1 overflow-y-auto transition-[padding] duration-200 ${inWorkspace ? (sidebarCollapsed ? "lg:pl-16" : "lg:pl-60") : ""}`}
+        className={`min-h-0 flex-1 transition-[padding] duration-200 ${inWebsiteBuilder ? "overflow-hidden" : "overflow-y-auto"} ${showWorkspaceSidebar ? (sidebarCollapsed ? "lg:pl-16" : "lg:pl-60") : ""}`}
       >
         <WorkspaceSidebarContext value={sidebarValue}>
           <Outlet />

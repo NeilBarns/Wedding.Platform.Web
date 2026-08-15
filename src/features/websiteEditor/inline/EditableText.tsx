@@ -39,14 +39,14 @@ export function EditableText(props: Props) {
   function change(value: string) { editor?.updateValue(props.sectionId, props.path, value) }
 
   if (active) {
-    const controlClass = `w-full min-w-0 resize-y overflow-hidden border-0 border-b border-[var(--cf-accent)] bg-[color-mix(in_srgb,var(--cf-surface)_92%,transparent)] px-1 py-0.5 text-inherit outline-none ring-2 ring-[color-mix(in_srgb,var(--cf-accent)_25%,transparent)] ${props.className ?? ''}`
+    const controlClass = `w-full min-w-0 resize-y overflow-hidden border-0 border-b border-[var(--editor-chrome-focus)] bg-[var(--editor-chrome-surface)] px-1 py-0.5 text-[var(--editor-chrome-on-surface)] outline-none ring-2 ring-[color-mix(in_srgb,var(--editor-chrome-focus)_38%,transparent)] ${props.className ?? ''}`
     return <span className="relative z-30 inline-flex w-full max-w-full flex-col items-stretch gap-1" onClick={(event) => event.stopPropagation()}>
       {props.multiline
         ? <textarea ref={(node) => { inputRef.current = node }} rows={3} aria-label={props.label} className={controlClass} value={props.value} onChange={(event) => change(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); cancel() } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); done() } }} />
         : <input ref={(node) => { inputRef.current = node }} aria-label={props.label} className={controlClass} value={props.value} onChange={(event) => change(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); done() } else if (event.key === 'Escape') { event.preventDefault(); cancel() } }} />}
       <span className="flex justify-end gap-1 text-[10px] font-sans font-normal leading-none">
-        <button type="button" className="rounded-full bg-[var(--cf-accent)] p-1.5 text-white" onClick={done} aria-label={`Done editing ${props.label}`} title="Done"><Check size={12} /></button>
-        <button type="button" className="rounded-full bg-white/90 p-1.5 text-[var(--cf-text)] shadow-sm" onClick={cancel} aria-label={`Cancel editing ${props.label}`} title="Cancel"><X size={12} /></button>
+        <button type="button" className="rounded-full bg-[var(--editor-chrome-strong)] p-1.5 text-[var(--editor-chrome-on-strong)] shadow-[var(--editor-chrome-shadow)]" onClick={done} aria-label={`Done editing ${props.label}`} title="Done"><Check size={12} /></button>
+        <button type="button" className="rounded-full border border-[color-mix(in_srgb,var(--editor-chrome-focus)_30%,transparent)] bg-[var(--editor-chrome-surface)] p-1.5 text-[var(--editor-chrome-on-surface)] shadow-[var(--editor-chrome-shadow)]" onClick={cancel} aria-label={`Cancel editing ${props.label}`} title="Cancel"><X size={12} /></button>
       </span>
     </span>
   }

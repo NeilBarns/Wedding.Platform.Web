@@ -2,10 +2,10 @@ import { ArrowLeft, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { EventLoadError } from './useEventDetail'
 
-export function EventWorkspaceLoading() {
+export function EventWorkspaceLoading({ focused = false }: { focused?: boolean }) {
   return (
     <div className="flex h-full" aria-label="Loading Event workspace">
-      <div className="hidden w-60 shrink-0 animate-pulse border-r border-border bg-surface lg:block" />
+      {!focused && <div className="hidden w-60 shrink-0 animate-pulse border-r border-border bg-surface lg:block" />}
       <div className="flex-1 p-6 sm:p-8">
         <div className="h-7 w-40 animate-pulse rounded bg-surface-muted" />
         <div className="mt-3 h-4 w-72 max-w-full animate-pulse rounded bg-surface-muted" />

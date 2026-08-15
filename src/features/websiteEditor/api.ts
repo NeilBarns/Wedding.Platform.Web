@@ -1,7 +1,7 @@
 import { apiRequest, ensureCsrfCookie } from '../../lib/api'
 import type { ApiResource } from '../../lib/api'
 import { parseWebsiteDraft } from './schemas'
-import type { WebsiteDesignSettings, WebsiteDraft } from './types'
+import type { WebsiteDesignSettings, WebsiteDraft, WebsiteSectionAppearance } from './types'
 
 async function mutation(eventId: string, path: string, body: unknown): Promise<WebsiteDraft> {
   await ensureCsrfCookie()
@@ -26,6 +26,10 @@ export function updateWebsiteDesignSettings(eventId: string, designSettings: Web
 
 export function updateWebsiteSectionContent(eventId: string, sectionId: string, content: Record<string, unknown>) {
   return mutation(eventId, `/sections/${encodeURIComponent(sectionId)}`, { content })
+}
+
+export function updateWebsiteSectionAppearance(eventId: string, sectionId: string, appearance: WebsiteSectionAppearance) {
+  return mutation(eventId, `/sections/${encodeURIComponent(sectionId)}/appearance`, { appearance })
 }
 
 export function setWebsiteSectionEnabled(eventId: string, sectionId: string, isEnabled: boolean) {

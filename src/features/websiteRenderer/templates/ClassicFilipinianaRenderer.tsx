@@ -2,6 +2,7 @@ import type { DateContent, DressCodeContent, FaqContent, GalleryContent, HeroCon
 import { formatDateOnly } from '../formatDateOnly'
 import type { WebsiteRendererProps } from '../types'
 import { ClassicFilipinianaDate, ClassicFilipinianaDressCode, ClassicFilipinianaFaq, ClassicFilipinianaGallery, ClassicFilipinianaHero, ClassicFilipinianaRsvp, ClassicFilipinianaSchedule, ClassicFilipinianaStory, ClassicFilipinianaVenue } from './classicFilipiniana/sections'
+import { resolveClassicFilipinianaSectionAppearance } from './classicFilipiniana/appearance'
 import { resolveClassicFilipinianaDesign } from './classicFilipiniana/design'
 
 export function ClassicFilipinianaRenderer({ event, website, mode = 'public', selectedSectionId, onSectionSelect }: WebsiteRendererProps) {
@@ -9,9 +10,12 @@ export function ClassicFilipinianaRenderer({ event, website, mode = 'public', se
 
   return <article className="min-h-full bg-[var(--cf-page)] font-[family-name:var(--cf-body-font)] text-[var(--cf-text)]" style={resolveClassicFilipinianaDesign(website.designSettings)}>
     {enabledSections.length === 0 && <div className="flex min-h-96 items-center justify-center px-8 text-center text-sm italic text-[var(--cf-muted)]">Enabled sections will appear here.</div>}
-    {enabledSections.map((section, index) => (
+    {enabledSections.map((section, index) => {
+      const appearance = resolveClassicFilipinianaSectionAppearance(section.type, website.designSettings, section.appearance, index)
+      return (
       <section
-        className={`${index % 2 ? 'bg-[color-mix(in_srgb,var(--cf-surface)_58%,transparent)]' : ''} relative cursor-default border-b border-[color-mix(in_srgb,var(--cf-border)_18%,transparent)] transition-shadow ${mode === 'editor' && selectedSectionId === section.id ? 'z-10 outline-2 outline-offset-[-3px] outline-[var(--cf-accent)]' : ''}`}
+        className={`${appearance.sectionClass} relative cursor-default border-b border-[color-mix(in_srgb,var(--cf-border)_18%,transparent)] transition-shadow ${mode === 'editor' && selectedSectionId === section.id ? 'z-10 outline-2 outline-offset-[-3px] outline-[var(--editor-chrome-focus)]' : ''}`}
+        style={appearance.sectionStyle}
         data-preview-section={section.id}
         key={section.id}
         onClick={mode === 'editor' ? () => onSectionSelect?.(section.id) : undefined}
@@ -23,10 +27,11 @@ export function ClassicFilipinianaRenderer({ event, website, mode = 'public', se
         aria-label={mode === 'editor' ? `${section.displayName} section` : undefined}
         tabIndex={mode === 'editor' ? 0 : undefined}
       >
-        {mode === 'editor' && selectedSectionId === section.id && <span className="absolute right-3 top-3 z-20 rounded-full bg-[var(--cf-accent)] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wider text-white">Editing</span>}
+        {mode === 'editor' && selectedSectionId === section.id && <span className="absolute right-3 top-3 z-20 rounded-full bg-[var(--editor-chrome-strong)] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wider text-[var(--editor-chrome-on-strong)] shadow-[var(--editor-chrome-shadow)]">Editing</span>}
         <Section section={section} eventName={event.name} eventDate={event.eventDate} mode={mode} />
       </section>
-    ))}
+      )
+    })}
   </article>
 }
 

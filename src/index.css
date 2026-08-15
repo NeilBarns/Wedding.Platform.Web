@@ -17,6 +17,12 @@
   --focus-ring: #b9664e;
   --shadow-header: 0 2px 8px rgb(55 45 40 / 6%);
   --shadow-dialog: 0 24px 70px rgb(65 45 35 / 18%);
+  --editor-chrome-strong: #302b29;
+  --editor-chrome-on-strong: #fffaf5;
+  --editor-chrome-surface: rgb(255 250 245 / 96%);
+  --editor-chrome-on-surface: #302b29;
+  --editor-chrome-focus: #302b29;
+  --editor-chrome-shadow: 0 2px 8px rgb(32 24 21 / 22%);
 }
 
 :root[data-theme="dark"] {
@@ -73,8 +79,8 @@ button, input, select { font: inherit; }
 
 .inline-edit-target:hover,
 .inline-edit-target:focus-visible {
-  background: color-mix(in srgb, var(--cf-accent) 8%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cf-accent) 12%, transparent);
+  background: color-mix(in srgb, var(--editor-chrome-surface) 72%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--editor-chrome-focus) 38%, transparent);
 }
 
 .inline-edit-placeholder {

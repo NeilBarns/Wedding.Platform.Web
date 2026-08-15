@@ -15,6 +15,24 @@ type SectionBase<TType extends string, TContent> = {
   sortOrder: number
   isEnabled: boolean
   content: TContent
+  appearance: WebsiteSectionAppearance
+  appearanceOptions: WebsiteSectionAppearanceOptions | null
+}
+
+export type SectionAlignment = 'inherit' | 'left' | 'center' | 'right'
+export type BackgroundTreatment = 'inherit' | 'plain' | 'soft' | 'accent'
+export type SectionEmphasis = 'inherit' | 'standard' | 'featured' | 'subtle'
+export type WebsiteSectionAppearance = {
+  headingAlignment: SectionAlignment
+  bodyAlignment: SectionAlignment
+  backgroundTreatment: BackgroundTreatment
+  emphasis: SectionEmphasis
+}
+export type WebsiteSectionAppearanceOptions = {
+  headingAlignments: DesignOption[]
+  bodyAlignments: DesignOption[]
+  backgroundTreatments: DesignOption[]
+  emphasisOptions: DesignOption[]
 }
 
 export type WebsiteSection =

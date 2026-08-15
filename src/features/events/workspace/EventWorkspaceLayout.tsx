@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Outlet, useParams } from 'react-router-dom'
+import { Outlet, useMatch, useParams } from 'react-router-dom'
 import { EventWorkspaceContext } from './EventWorkspaceContext'
 import { EventWorkspaceError, EventWorkspaceLoading } from './EventWorkspaceState'
 import { EventWorkspaceMobileNav } from './EventWorkspaceMobileNav'
@@ -10,24 +10,25 @@ export function EventWorkspaceLayout() {
   const { eventId = '' } = useParams()
   const { event, error, isLoading, retry } = useEventDetail(eventId)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const focusedBuilder = useMatch('/events/:eventId/website') !== null
 
-  if (isLoading) return <EventWorkspaceLoading />
+  if (isLoading) return <EventWorkspaceLoading focused={focusedBuilder} />
   if (error) return <EventWorkspaceError error={error} retry={retry} />
   if (!event) return null
 
   return (
     <EventWorkspaceContext value={event}>
       <div className="flex h-full min-h-0 overflow-hidden">
-        <EventWorkspaceSidebar event={event} />
+        {!focusedBuilder && <EventWorkspaceSidebar event={event} />}
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <EventWorkspaceMobileNav
+          {!focusedBuilder && <EventWorkspaceMobileNav
             event={event}
             open={mobileNavOpen}
             onOpen={() => setMobileNavOpen(true)}
             onClose={() => setMobileNavOpen(false)}
-          />
-          <main className="min-h-0 flex-1 overflow-y-auto">
+          />}
+          <main className={`min-h-0 flex-1 ${focusedBuilder ? 'overflow-hidden' : 'overflow-y-auto'}`}>
             <Outlet />
           </main>
         </div>
