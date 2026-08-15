@@ -1,5 +1,7 @@
 import { AlignCenter, AlignLeft, AlignRight, Check, Save } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
+import { IconButton } from "../../../components/ui/IconButton";
+import { Tooltip } from "../../../components/ui/Tooltip";
 import type {
   DesignOption,
   WebsiteSectionAppearance,
@@ -125,7 +127,13 @@ function OptionGrid({
   alignment?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div
+      className={
+        alignment
+          ? "flex flex-wrap items-center gap-2"
+          : "grid grid-cols-2 gap-2"
+      }
+    >
       {options.map((option) => {
         const selected = option.key === value;
         const Icon =
@@ -136,20 +144,39 @@ function OptionGrid({
               : option.key === "center"
                 ? AlignCenter
                 : null;
+        if (alignment && Icon) {
+          const label = `Align ${option.key}`;
+          return (
+            <Tooltip key={option.key} label={label}>
+              <IconButton
+                className="border border-border border-2 aria-pressed:border-accent aria-pressed:bg-surface-muted aria-pressed:text-foreground xl:size-9!"
+                size="md"
+                type="button"
+                aria-label={label}
+                aria-pressed={selected}
+                onClick={() => onSelect(option.key)}
+              >
+                <Icon size={16} aria-hidden="true" />
+              </IconButton>
+            </Tooltip>
+          );
+        }
+
         return (
-          <button
+          <Button
+            className={`min-h-11 gap-1.5 px-3 py-2 font-normal! xl:min-h-9 xl:py-1.5 ${alignment ? "min-w-28" : "px-2"} ${selected ? "border-accent! border-2 bg-surface-muted" : ""}`}
             key={option.key}
+            size="sm"
+            variant="secondary"
             type="button"
             aria-pressed={selected}
-            className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-xs xl:min-h-9 xl:rounded-md xl:py-1.5 ${selected ? "border-accent bg-surface-muted" : "border-border hover:bg-surface-muted"}`}
             onClick={() => onSelect(option.key)}
           >
-            {alignment && Icon && <Icon size={14} />}
             <span>{option.displayName}</span>
             {selected && !alignment && (
               <Check size={13} className="text-accent" />
             )}
-          </button>
+          </Button>
         );
       })}
     </div>
