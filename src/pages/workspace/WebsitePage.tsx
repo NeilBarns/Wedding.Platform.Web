@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   FileWarning,
   LayoutTemplate,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { Button } from "../../components/ui/Button";
 import { Heading } from "../../components/ui/Heading";
 import { SegmentedControl } from "../../components/ui/SegmentedControl";
 import { Text } from "../../components/ui/Text";
@@ -20,6 +22,7 @@ import {
   updateWebsiteDesignSettings,
   updateWebsiteSectionAppearance,
   updateWebsiteSectionContent,
+  updateWebsiteTemplate,
 } from "../../features/websiteEditor/api";
 import { AppearancePanel } from "../../features/websiteEditor/components/AppearancePanel";
 import { DesignPanel } from "../../features/websiteEditor/components/DesignPanel";
@@ -39,6 +42,9 @@ import type {
 } from "../../features/websiteEditor/types";
 import { useWebsiteDraft } from "../../features/websiteEditor/useWebsiteDraft";
 import { WebsiteRenderer } from "../../features/websiteRenderer/WebsiteRenderer";
+import { TemplateChangeDialog } from "../../features/websiteTemplates/components/TemplateChangeDialog";
+import { TemplatePicker } from "../../features/websiteTemplates/components/TemplatePicker";
+import type { WebsiteTemplateOption } from "../../features/websiteTemplates/types";
 import { ApiError } from "../../lib/api";
 
 type BuilderMode = "content" | "design";
@@ -90,6 +96,11 @@ export function WebsitePage() {
     useState<WebsiteDesignSettings | null>(null);
   const [designSaving, setDesignSaving] = useState(false);
   const [designError, setDesignError] = useState<string | null>(null);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [templateCandidate, setTemplateCandidate] = useState<WebsiteTemplateOption | null>(null);
+  const [pendingTemplate, setPendingTemplate] = useState<WebsiteTemplateOption | null>(null);
+  const [templateSaving, setTemplateSaving] = useState(false);
+  const [templateError, setTemplateError] = useState<string | null>(null);
 
   const effectiveSelectedId = draft?.sections.some(
     ({ id }) => id === selectedId,
@@ -172,6 +183,27 @@ export function WebsitePage() {
       return;
     }
     changeMode(next === "design" ? "design" : "content", next);
+  }
+
+  function chooseTemplate(template: WebsiteTemplateOption) {
+    if (template.key === draft?.templateKey) return;
+    setTemplateError(null);
+    if (sectionDirty || designDirty) setPendingTemplate(template);
+    else setTemplateCandidate(template);
+  }
+
+  async function confirmTemplateChange() {
+    if (!templateCandidate) return;
+    setTemplateSaving(true); setTemplateError(null);
+    try {
+      setDraft(await updateWebsiteTemplate(event.id, templateCandidate.key));
+      setContentOverride(null); setAppearanceOverride(null); setDesignOverride(null); setActiveInlineTarget(null);
+      setTemplateCandidate(null); setTemplatePickerOpen(false);
+    } catch (changeError) {
+      setTemplateError(messageFor(changeError));
+    } finally {
+      setTemplateSaving(false);
+    }
   }
 
   async function mutateList(operation: () => Promise<WebsiteDraft>) {
@@ -425,7 +457,7 @@ export function WebsitePage() {
           <ArrowLeft size={16} aria-hidden="true" /> Back to Event
         </Link>
         <div className="hidden h-6 w-px bg-border sm:block" />
-        <div className="mr-auto flex min-w-0 items-center gap-2 rounded-lg px-2">
+        <Button className="mr-auto min-w-0 justify-start px-2 font-normal" variant="ghost" size="sm" type="button" onClick={() => setTemplatePickerOpen(true)} aria-label={`Choose Template. Current Template: ${draft.template?.displayName ?? draft.templateKey}`}>
           <LayoutTemplate size={16} className="shrink-0 text-accent" />
           <span className="hidden text-xs text-foreground-muted sm:inline">
             Template
@@ -433,7 +465,8 @@ export function WebsitePage() {
           <span className="truncate text-sm font-semibold">
             {draft.template?.displayName ?? draft.templateKey}
           </span>
-        </div>
+          <ChevronRight className="shrink-0 text-foreground-muted" size={15} aria-hidden="true" />
+        </Button>
         <div className="hidden xl:block">
           <SegmentedControl
             value={mode}
@@ -523,24 +556,30 @@ export function WebsitePage() {
         </div>
       )}
 
+      <TemplatePicker open={templatePickerOpen} eventId={event.id} currentTemplateKey={draft.templateKey} onClose={() => setTemplatePickerOpen(false)} onChoose={chooseTemplate} />
+      <TemplateChangeDialog template={templateCandidate} saving={templateSaving} error={templateError} onCancel={() => { if (!templateSaving) { setTemplateCandidate(null); setTemplateError(null) } }} onConfirm={() => void confirmTemplateChange()} />
+
       <DiscardChangesDialog
-        open={pendingSelection !== null || pendingMode !== null}
+        open={pendingSelection !== null || pendingMode !== null || pendingTemplate !== null}
         onCancel={() => {
           setPendingSelection(null);
           setPendingMode(null);
           setPendingDrawerMode(null);
           setPendingInlineTarget(null);
+          setPendingTemplate(null);
         }}
         onDiscard={() => {
           if (pendingSelection) setSelectedId(pendingSelection);
           if (pendingMode) setMode(pendingMode);
           if (pendingDrawerMode) applyDrawerMode(pendingDrawerMode);
           if (pendingInlineTarget) applyDrawerMode("content");
+          if (pendingTemplate) setTemplateCandidate(pendingTemplate);
           setActiveInlineTarget(pendingInlineTarget);
           setPendingInlineTarget(null);
           setPendingSelection(null);
           setPendingMode(null);
           setPendingDrawerMode(null);
+          setPendingTemplate(null);
           setContentOverride(null);
           setAppearanceOverride(null);
           setDesignOverride(null);
