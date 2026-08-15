@@ -1,4 +1,9 @@
 import { Check, Palette, Save, Sparkles, Type } from "lucide-react";
+import { Button } from "../../../components/ui/Button";
+import { DesignGroup } from "../../../components/ui/DesignGroup";
+import { Heading } from "../../../components/ui/Heading";
+import { SelectableCard } from "../../../components/ui/SelectableCard";
+import { Text } from "../../../components/ui/Text";
 import type { WebsiteDesignOptions, WebsiteDesignSettings } from "../types";
 import { colorSwatches } from "../../websiteRenderer/templates/classicFilipiniana/design";
 
@@ -24,28 +29,29 @@ export function DesignPanel({
   return (
     <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5 xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0">
       <div className="mb-5 xl:mb-4">
-        <h2 className="text-xl font-semibold xl:text-base">Design</h2>
-        <p className="mt-1 text-sm text-foreground-muted xl:text-xs">
+        <Heading className="xl:text-base!" level={2} variant="panel">Design</Heading>
+        <Text className="mt-1 xl:text-xs" variant="muted">
           Customize this Template with curated visual choices.
-        </p>
+        </Text>
       </div>
       {error && (
-        <p
-          className="mb-4 rounded-xl bg-danger-muted p-3 text-sm text-danger"
+        <Text
+          className="mb-4 rounded-xl bg-danger-muted p-3"
+          variant="error"
           role="alert"
         >
           {error}
-        </p>
+        </Text>
       )}
       <DesignGroup icon={<Palette size={16} />} title="Color">
         <div className="grid grid-cols-2 gap-2">
           {options.colorThemes.map((option) => {
             const selected = settings.colorTheme === option.key;
             return (
-              <button
-                className={`flex items-center gap-2 rounded-xl border p-2.5 text-left text-sm! xl:rounded-md xl:p-2 cursor-pointer xl:text-xs! ${selected ? "border-accent border-2 bg-surface-muted" : "border-border hover:bg-surface-muted"}`}
+              <SelectableCard
+                className="flex items-center gap-2 p-2.5 text-sm! data-[selected=true]:bg-surface-muted xl:p-2 xl:text-xs!"
                 key={option.key}
-                type="button"
+                selected={selected}
                 onClick={() =>
                   onChange({
                     ...settings,
@@ -53,7 +59,6 @@ export function DesignPanel({
                       option.key as WebsiteDesignSettings["colorTheme"],
                   })
                 }
-                aria-pressed={selected}
               >
                 <span
                   className="h-6 w-6 rounded-full border border-black/10"
@@ -66,7 +71,7 @@ export function DesignPanel({
                 />{" "}
                 <span className="flex-1">{option.displayName}</span>
                 {selected && <Check size={14} className="text-accent" />}
-              </button>
+              </SelectableCard>
             );
           })}
         </div>
@@ -82,17 +87,16 @@ export function DesignPanel({
                   ? "[font-family:Palatino,Georgia,serif]"
                   : "font-serif";
             return (
-              <button
-                className={`w-full rounded-xl border p-3 text-left xl:rounded-md xl:p-2.5 cursor-pointer ${selected ? "border-accent border-2 bg-surface-muted" : "border-border hover:bg-surface-muted"}`}
+              <SelectableCard
+                className="w-full p-3 data-[selected=true]:bg-surface-muted xl:p-2.5"
                 key={option.key}
-                type="button"
+                selected={selected}
                 onClick={() =>
                   onChange({
                     ...settings,
                     fontSet: option.key as WebsiteDesignSettings["fontSet"],
                   })
                 }
-                aria-pressed={selected}
               >
                 <span className="flex items-center justify-between text-sm! xl:text-xs! font-medium">
                   <span>{option.displayName}</span>
@@ -101,7 +105,7 @@ export function DesignPanel({
                 <span className={`mt-1 block truncate text-lg ${family}`}>
                   {eventName}
                 </span>
-              </button>
+              </SelectableCard>
             );
           })}
         </div>
@@ -111,60 +115,40 @@ export function DesignPanel({
           {options.artStyles.map((option) => {
             const selected = settings.artStyle === option.key;
             return (
-              <button
-                className={`overflow-hidden rounded-xl border text-left xl:rounded-md cursor-pointer ${selected ? "border-accent border-2" : "border-border"}`}
+              <SelectableCard
+                className="overflow-hidden"
                 key={option.key}
-                type="button"
+                selected={selected}
                 onClick={() =>
                   onChange({
                     ...settings,
                     artStyle: option.key as WebsiteDesignSettings["artStyle"],
                   })
                 }
-                aria-pressed={selected}
               >
                 <span className={`block h-12 ${artPreview(option.key)}`} />
                 <span className="flex items-center justify-between px-2.5 py-2 text-sm! xl:text-xs!">
                   {option.displayName}
                   {selected && <Check size={14} className="text-accent" />}
                 </span>
-              </button>
+              </SelectableCard>
             );
           })}
         </div>
       </DesignGroup>
       <div className="mt-5 flex justify-end border-t border-border pt-4">
-        <button
-          className="flex items-center gap-2 rounded-sm bg-accent px-4 py-2 text-lg! xl:text-sm! font-medium! text-accent-foreground disabled:opacity-50 xl:rounded-sm xl:px-3 xl:py-1.5 cursor-pointer"
+        <Button
+          className="rounded-sm! text-lg! xl:px-3 xl:py-1.5 xl:text-sm!"
+          size="sm"
           type="button"
           disabled={!dirty || saving}
           onClick={onSave}
         >
           <Save size={15} />
           {saving ? "Saving…" : "Save changes"}
-        </button>
+        </Button>
       </div>
     </section>
-  );
-}
-
-function DesignGroup({
-  icon,
-  title,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <fieldset className="mb-5">
-      <legend className="mb-2 flex items-center gap-2 text-sm font-semibold">
-        {icon}
-        {title}
-      </legend>
-      {children}
-    </fieldset>
   );
 }
 

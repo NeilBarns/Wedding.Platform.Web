@@ -10,6 +10,9 @@ import {
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { Heading } from "../../components/ui/Heading";
+import { SegmentedControl } from "../../components/ui/SegmentedControl";
+import { Text } from "../../components/ui/Text";
 import { useEventWorkspace } from "../../features/events/workspace/EventWorkspaceContext";
 import {
   reorderWebsiteSections,
@@ -432,24 +435,25 @@ export function WebsitePage() {
           </span>
         </div>
         <div className="hidden xl:block">
-          <Segmented
+          <SegmentedControl
             value={mode}
             options={[
-              ["content", "Content"],
-              ["design", "Design"],
+              { value: "content", label: "Content" },
+              { value: "design", label: "Design" },
             ]}
-            onChange={(value) => changeMode(value as BuilderMode)}
+            label="Builder mode"
+            onChange={changeMode}
           />
         </div>
         <div className="hidden xl:block">
-          <Segmented
+          <SegmentedControl
             value={previewMode}
             options={[
-              ["desktop", "Desktop"],
-              ["mobile", "Mobile"],
+              { value: "desktop", label: "Desktop", icon: <Monitor size={14} /> },
+              { value: "mobile", label: "Mobile", icon: <Smartphone size={14} /> },
             ]}
-            icons={[<Monitor size={14} />, <Smartphone size={14} />]}
-            onChange={(value) => setPreviewMode(value as "desktop" | "mobile")}
+            label="Preview width"
+            onChange={setPreviewMode}
           />
         </div>
       </header>
@@ -865,9 +869,9 @@ function SectionInspector({
       <div className="mb-5 border-b border-border pb-4 xl:mb-4 xl:pb-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold xl:text-base">
+            <Heading className="xl:text-base!" level={2} variant="panel">
               {selected.displayName}
-            </h2>
+            </Heading>
             {!selected.isEnabled && (
               <span className="rounded-full bg-surface-muted px-2 py-1 text-[10px] text-foreground-muted">
                 Hidden
@@ -875,21 +879,22 @@ function SectionInspector({
             )}
           </div>
           {showModeSwitch && (
-            <Segmented
+            <SegmentedControl
               value={panelMode}
               options={[
-                ["content", "Content"],
-                ["appearance", "Appearance"],
+                { value: "content", label: "Content" },
+                { value: "appearance", label: "Appearance" },
               ]}
-              onChange={(value) => onPanelModeChange(value as SectionPanelMode)}
+              label="Section editor mode"
+              onChange={onPanelModeChange}
             />
           )}
         </div>
-        <p className="mt-2 text-xs text-foreground-muted xl:mt-1">
+        <Text className="mt-2 xl:mt-1" variant="helper">
           {panelMode === "content"
             ? "Edit semantic content."
             : "Customize this Section’s presentation."}
-        </p>
+        </Text>
       </div>
       {panelMode === "content" ? (
         <SectionEditor
@@ -920,34 +925,6 @@ function SectionInspector({
   );
 }
 
-function Segmented({
-  value,
-  options,
-  icons,
-  onChange,
-}: {
-  value: string;
-  options: Array<[string, string]>;
-  icons?: React.ReactNode[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="flex items-center gap-1 rounded-md bg-surface-muted p-1">
-      {options.map(([key, label], index) => (
-        <button
-          className={`flex min-h-8 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs! ${value === key ? "bg-surface font-medium shadow-sm" : "text-foreground-muted"}`}
-          key={key}
-          type="button"
-          onClick={() => onChange(key)}
-          aria-pressed={value === key}
-        >
-          {icons?.[index]}
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
 function EditorLoading({ eventId }: { eventId: string }) {
   return (
     <div className="flex h-full min-h-0 flex-col">

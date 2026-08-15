@@ -1,4 +1,7 @@
 import { ArrowDown, ArrowUp, Eye, EyeOff } from "lucide-react";
+import { IconButton } from "../../../components/ui/IconButton";
+import { Heading } from "../../../components/ui/Heading";
+import { Text } from "../../../components/ui/Text";
 import type { WebsiteSection } from "../types";
 
 type Props = {
@@ -24,10 +27,10 @@ export function SectionNavigator({
       aria-label="Website sections"
     >
       <div className="px-2 py-2">
-        <h2 className="text-sm font-semibold">Sections</h2>
-        <p className="mt-0.5 text-xs text-foreground-muted">
+        <Heading level={2} variant="section">Sections</Heading>
+        <Text className="mt-0.5" variant="helper">
           Select, reorder, or change visibility.
-        </p>
+        </Text>
       </div>
       <div className="mt-1 space-y-1">
         {sections.map((section, index) => (
@@ -48,26 +51,29 @@ export function SectionNavigator({
                 {section.isEnabled ? "Visible" : "Hidden"}
               </span>
             </button>
-            <button
-              className="rounded-lg p-2 text-foreground-muted hover:bg-background hover:text-foreground disabled:opacity-30"
+            <IconButton
+              className="hover:bg-background!"
+              size="sm"
               type="button"
               disabled={pending || index === 0}
               onClick={() => onMove(index, -1)}
               aria-label={`Move ${section.displayName} up`}
             >
               <ArrowUp size={15} />
-            </button>
-            <button
-              className="rounded-lg p-2 text-foreground-muted hover:bg-background hover:text-foreground disabled:opacity-30"
+            </IconButton>
+            <IconButton
+              className="hover:bg-background!"
+              size="sm"
               type="button"
               disabled={pending || index === sections.length - 1}
               onClick={() => onMove(index, 1)}
               aria-label={`Move ${section.displayName} down`}
             >
               <ArrowDown size={15} />
-            </button>
-            <button
-              className="rounded-lg p-2 text-foreground-muted hover:bg-background hover:text-foreground disabled:opacity-50"
+            </IconButton>
+            <IconButton
+              className="hover:bg-background! disabled:opacity-50"
+              size="sm"
               type="button"
               disabled={pending}
               onClick={() => onToggle(section)}
@@ -75,7 +81,7 @@ export function SectionNavigator({
               aria-pressed={section.isEnabled}
             >
               {section.isEnabled ? <Eye size={16} /> : <EyeOff size={16} />}
-            </button>
+            </IconButton>
           </div>
         ))}
       </div>

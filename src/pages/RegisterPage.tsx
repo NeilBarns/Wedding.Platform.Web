@@ -2,6 +2,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
+import { Button } from '../components/ui/Button'
+import { Heading } from '../components/ui/Heading'
+import { Input } from '../components/ui/Input'
+import { Text } from '../components/ui/Text'
 import { useAuth } from '../features/auth/AuthContext'
 import { authErrorMessage } from '../features/auth/errorMessage'
 import { registerSchema, type RegisterFormValues } from '../features/auth/schemas'
@@ -39,43 +43,43 @@ export function RegisterPage() {
     <main className="grid min-h-screen place-items-center bg-background p-6 text-foreground">
       <section className="w-full max-w-md space-y-6 rounded-2xl border border-border bg-surface p-6">
         <div>
-          <h1 className="text-2xl font-semibold">Create an account</h1>
-          <p className="mt-1 text-sm text-foreground-muted">Start managing your events.</p>
+          <Heading level={1} variant="title">Create an account</Heading>
+          <Text className="mt-1" variant="muted">Start managing your events.</Text>
         </div>
 
         <form className="space-y-4" onSubmit={onSubmit} noValidate>
-          {formError && <p className="rounded-xl bg-danger-muted p-3 text-sm text-danger" role="alert">{formError}</p>}
+          {formError && <Text className="rounded-xl bg-danger-muted p-3" variant="error" role="alert">{formError}</Text>}
 
           <div>
             <label className="block text-sm font-medium" htmlFor="name">Name</label>
-            <input className="mt-1 w-full rounded-[10px] border border-border bg-background px-3 py-2" id="name" type="text" autoComplete="name" {...register('name')} />
-            {errors.name && <p className="mt-1 text-sm text-danger">{errors.name.message}</p>}
+            <Input className="mt-1" id="name" type="text" autoComplete="name" {...register('name')} />
+            {errors.name && <Text className="mt-1" variant="error">{errors.name.message}</Text>}
           </div>
 
           <div>
             <label className="block text-sm font-medium" htmlFor="email">Email</label>
-            <input className="mt-1 w-full rounded-[10px] border border-border bg-background px-3 py-2" id="email" type="email" autoComplete="email" {...register('email')} />
-            {errors.email && <p className="mt-1 text-sm text-danger">{errors.email.message}</p>}
+            <Input className="mt-1" id="email" type="email" autoComplete="email" {...register('email')} />
+            {errors.email && <Text className="mt-1" variant="error">{errors.email.message}</Text>}
           </div>
 
           <div>
             <label className="block text-sm font-medium" htmlFor="password">Password</label>
-            <input className="mt-1 w-full rounded-[10px] border border-border bg-background px-3 py-2" id="password" type="password" autoComplete="new-password" {...register('password')} />
-            {errors.password && <p className="mt-1 text-sm text-danger">{errors.password.message}</p>}
+            <Input className="mt-1" id="password" type="password" autoComplete="new-password" {...register('password')} />
+            {errors.password && <Text className="mt-1" variant="error">{errors.password.message}</Text>}
           </div>
 
           <div>
             <label className="block text-sm font-medium" htmlFor="passwordConfirmation">Confirm password</label>
-            <input className="mt-1 w-full rounded-[10px] border border-border bg-background px-3 py-2" id="passwordConfirmation" type="password" autoComplete="new-password" {...register('passwordConfirmation')} />
-            {errors.passwordConfirmation && <p className="mt-1 text-sm text-danger">{errors.passwordConfirmation.message}</p>}
+            <Input className="mt-1" id="passwordConfirmation" type="password" autoComplete="new-password" {...register('passwordConfirmation')} />
+            {errors.passwordConfirmation && <Text className="mt-1" variant="error">{errors.passwordConfirmation.message}</Text>}
           </div>
 
-          <button className="w-full rounded-[10px] bg-accent px-4 py-2 text-accent-foreground hover:bg-accent-hover disabled:opacity-60" type="submit" disabled={isSubmitting}>
+          <Button className="w-full" type="submit" disabled={isSubmitting}>
             {isSubmitting ? 'Creating account…' : 'Create account'}
-          </button>
+          </Button>
         </form>
 
-        <p className="text-sm text-foreground-muted">Already have an account? <Link className="font-medium text-accent underline" to="/login">Sign in</Link></p>
+        <Text variant="muted">Already have an account? <Link className="font-medium text-accent underline" to="/login">Sign in</Link></Text>
       </section>
     </main>
   )

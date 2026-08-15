@@ -1,5 +1,11 @@
 # React + TypeScript + Vite
 
+## UI development
+
+Before creating a generic UI control, inspect `src/components/ui` and reuse or extend an existing shared primitive. Do not create page-local variants of buttons, inputs, textareas, tabs, dialogs, badges, or other generic controls unless there is a concrete reason the shared primitive cannot support the requirement.
+
+Reuse shared typography roles for platform/editor chrome when the same semantic role already exists. Do not create page-local typography variants for common page titles, panel titles, helper text, labels, and captions without first checking the shared UI layer. Template renderer typography remains template-owned.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

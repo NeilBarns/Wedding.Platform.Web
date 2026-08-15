@@ -1,4 +1,5 @@
 import { AlignCenter, AlignLeft, AlignRight, Check, Save } from "lucide-react";
+import { Button } from "../../../components/ui/Button";
 import type {
   DesignOption,
   WebsiteSectionAppearance,
@@ -97,15 +98,16 @@ export function AppearancePanel({
         <span className="text-xs text-foreground-muted">
           {dirty ? "Unsaved appearance" : "Appearance saved"}
         </span>
-        <button
-          className="flex items-center gap-2 rounded-sm bg-accent px-4 py-2 text-lg! xl:text-sm! font-medium! text-accent-foreground disabled:opacity-50 xl:rounded-sm xl:px-3 xl:py-1.5 cursor-pointer"
+        <Button
+          className="rounded-sm! text-lg! xl:px-3 xl:py-1.5 xl:text-sm!"
+          size="sm"
           type="button"
           disabled={!dirty || saving}
           onClick={onSave}
         >
           <Save size={15} />
           {saving ? "Saving..." : "Save changes"}
-        </button>
+        </Button>
       </div>
     </div>
   );

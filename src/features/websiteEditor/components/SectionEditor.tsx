@@ -1,5 +1,9 @@
 import { ArrowDown, ArrowUp, Plus, Save, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { Button } from "../../../components/ui/Button";
+import { IconButton } from "../../../components/ui/IconButton";
+import { Input } from "../../../components/ui/Input";
+import { Textarea } from "../../../components/ui/Textarea";
 import { ApiError } from "../../../lib/api";
 import { validateSectionContent } from "../schemas";
 import type { WebsiteDraft, WebsiteSection } from "../types";
@@ -259,14 +263,15 @@ function EditorForm({
         <span className="text-xs text-foreground-muted">
           {dirty ? "Unsaved changes" : "All changes saved"}
         </span>
-        <button
-          className="flex items-center gap-2 rounded-sm bg-accent px-4 py-2 text-lg! xl:text-sm! font-medium! text-accent-foreground disabled:opacity-50 xl:rounded-sm xl:px-3 xl:py-1.5 cursor-pointer"
+        <Button
+          className="rounded-sm! text-lg! xl:px-3 xl:py-1.5 xl:text-sm!"
+          size="sm"
           disabled={!dirty || saving}
           type="submit"
         >
           <Save size={15} />
           {saving ? "Saving..." : "Save changes"}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -296,16 +301,16 @@ function TextField({
         {label}
       </label>
       {multiline ? (
-        <textarea
+        <Textarea
           id={id}
-          className="mt-1 min-h-20 w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm! xl:text-xs! xl:rounded-sm xl:py-1.5"
+          className="mt-1 rounded-sm! bg-surface text-sm! xl:py-1.5 xl:text-xs!"
           value={value}
           onChange={(event) => onChange(event.target.value)}
         />
       ) : (
-        <input
+        <Input
           id={id}
-          className="mt-1 w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm! xl:text-xs! xl:rounded-sm xl:py-1.5"
+          className="mt-1 bg-surface text-sm! xl:py-1.5 xl:text-xs!"
           value={value}
           onChange={(event) => onChange(event.target.value)}
         />
@@ -328,13 +333,14 @@ function ItemList({
     <div>
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-sm font-semibold">{title}</h3>
-        <button
-          className="flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs hover:bg-surface-muted xl:rounded-md"
+        <IconButton
+          aria-label={`Add ${title.toLowerCase()}`}
+          size="sm"
           type="button"
           onClick={onAdd}
         >
-          <Plus size={14} /> Add item
-        </button>
+          <Plus size={18} aria-hidden="true" />
+        </IconButton>
       </div>
       <div className="space-y-3">{children}</div>
     </div>
@@ -355,32 +361,33 @@ function ItemActions({
 }) {
   return (
     <div className="mt-2 flex justify-end gap-1">
-      <button
+      <IconButton
         type="button"
-        className="p-2 disabled:opacity-30"
+        size="sm"
         disabled={index === 0}
         onClick={() => onMove(index - 1)}
         aria-label={`Move ${label} up`}
       >
         <ArrowUp size={15} />
-      </button>
-      <button
+      </IconButton>
+      <IconButton
         type="button"
-        className="p-2 disabled:opacity-30"
+        size="sm"
         disabled={index === length - 1}
         onClick={() => onMove(index + 1)}
         aria-label={`Move ${label} down`}
       >
         <ArrowDown size={15} />
-      </button>
-      <button
+      </IconButton>
+      <IconButton
         type="button"
-        className="p-2 text-danger"
+        size="sm"
+        variant="danger"
         onClick={onRemove}
         aria-label={`Remove ${label}`}
       >
         <Trash2 size={15} />
-      </button>
+      </IconButton>
     </div>
   );
 }

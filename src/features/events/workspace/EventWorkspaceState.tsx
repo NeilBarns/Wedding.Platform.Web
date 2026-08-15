@@ -1,5 +1,7 @@
 import { ArrowLeft, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { Heading } from '../../../components/ui/Heading'
+import { Text } from '../../../components/ui/Text'
 import type { EventLoadError } from './useEventDetail'
 
 export function EventWorkspaceLoading({ focused = false }: { focused?: boolean }) {
@@ -21,10 +23,10 @@ export function EventWorkspaceError({ error, retry }: { error: EventLoadError; r
   return (
     <main className="grid h-full place-items-center p-6">
       <section className="max-w-md rounded-2xl border border-border bg-surface p-6 text-center">
-        <h1 className="text-lg font-semibold">{title}</h1>
-        <p className="mt-2 text-sm text-foreground-muted">
+        <Heading level={1} variant="panel">{title}</Heading>
+        <Text className="mt-2" variant="muted">
           {error === 'failed' ? 'Check your connection and try again.' : 'Return to My Events to choose another workspace.'}
-        </p>
+        </Text>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           <Link className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-border px-3.5 py-2 text-sm hover:bg-surface-muted" to="/events">
             <ArrowLeft aria-hidden="true" size={16} /> My Events
