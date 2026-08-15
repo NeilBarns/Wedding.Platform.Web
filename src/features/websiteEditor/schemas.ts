@@ -30,6 +30,11 @@ const contentSchemas: Record<string, z.ZodType> = {
   rsvp: rsvpContentSchema,
 }
 
+export function validateSectionContent(type: string, content: Record<string, unknown>) {
+  const schema = contentSchemas[type]
+  return schema ? schema.safeParse(content) : { success: false as const, error: null }
+}
+
 const sectionSchema = z.object({
   id: z.string(), type: z.string(), displayName: z.string(), sortOrder: z.number(),
   isEnabled: z.boolean(), content: z.record(z.string(), z.unknown()),

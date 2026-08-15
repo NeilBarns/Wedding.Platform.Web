@@ -1,5 +1,5 @@
 import { FileWarning, LayoutTemplate, Monitor, RefreshCw, Smartphone } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useEventWorkspace } from '../../features/events/workspace/EventWorkspaceContext'
 import { WorkspaceSection } from '../../features/events/workspace/WorkspaceSection'
 import { reorderWebsiteSections, setWebsiteSectionEnabled, updateWebsiteDesignSettings, updateWebsiteSectionContent } from '../../features/websiteEditor/api'
@@ -7,6 +7,8 @@ import { DesignPanel } from '../../features/websiteEditor/components/DesignPanel
 import { DiscardChangesDialog } from '../../features/websiteEditor/components/DiscardChangesDialog'
 import { SectionEditor } from '../../features/websiteEditor/components/SectionEditor'
 import { SectionNavigator } from '../../features/websiteEditor/components/SectionNavigator'
+import { InlineEditProvider } from '../../features/websiteEditor/inline/InlineEditContext'
+import type { InlineFieldPath, InlineFieldTarget } from '../../features/websiteEditor/inline/types'
 import type { WebsiteDesignSettings, WebsiteDraft, WebsiteSection } from '../../features/websiteEditor/types'
 import { useWebsiteDraft } from '../../features/websiteEditor/useWebsiteDraft'
 import { WebsiteRenderer } from '../../features/websiteRenderer/WebsiteRenderer'
@@ -22,28 +24,32 @@ export function WebsitePage() {
   const [pendingSelection, setPendingSelection] = useState<string | null>(null)
   const [pendingMode, setPendingMode] = useState<BuilderMode | null>(null)
   const [mode, setMode] = useState<BuilderMode>('content')
-  const [isDirty, setIsDirty] = useState(false)
   const [listPending, setListPending] = useState(false)
   const [listError, setListError] = useState<string | null>(null)
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop')
   const [contentOverride, setContentOverride] = useState<{ sectionId: string; content: Record<string, unknown> } | null>(null)
+  const [activeInlineTarget, setActiveInlineTarget] = useState<InlineFieldTarget | null>(null)
+  const [pendingInlineTarget, setPendingInlineTarget] = useState<InlineFieldTarget | null>(null)
   const [designOverride, setDesignOverride] = useState<WebsiteDesignSettings | null>(null)
   const [designSaving, setDesignSaving] = useState(false)
   const [designError, setDesignError] = useState<string | null>(null)
 
   const effectiveSelectedId = draft?.sections.some(({ id }) => id === selectedId) ? selectedId : draft?.sections[0]?.id ?? null
+  const authoritativeSelected = draft?.sections.find(({ id }) => id === effectiveSelectedId) ?? null
+  const workingContent = contentOverride?.sectionId === effectiveSelectedId ? contentOverride.content : authoritativeSelected?.content as Record<string, unknown> | undefined
+  const isDirty = Boolean(authoritativeSelected && workingContent && JSON.stringify(workingContent) !== JSON.stringify(authoritativeSelected.content))
   const designDirty = Boolean(draft && designOverride && JSON.stringify(designOverride) !== JSON.stringify(draft.designSettings))
 
   function selectSection(id: string) {
     if (id === effectiveSelectedId) return
     if (isDirty) setPendingSelection(id)
-    else { setSelectedId(id); setContentOverride(null) }
+    else { setSelectedId(id); setContentOverride(null); setActiveInlineTarget(null) }
   }
 
   function changeMode(next: BuilderMode) {
     if (next === mode) return
     if ((mode === 'content' && isDirty) || (mode === 'design' && designDirty)) setPendingMode(next)
-    else { setMode(next); setContentOverride(null); setDesignOverride(null) }
+    else { setMode(next); setContentOverride(null); setDesignOverride(null); setActiveInlineTarget(null) }
   }
 
   async function mutateList(operation: () => Promise<WebsiteDraft>) {
@@ -59,9 +65,35 @@ export function WebsitePage() {
     void mutateList(() => reorderWebsiteSections(event.id, ids))
   }
 
-  const updatePreviewContent = useCallback((content: Record<string, unknown> | null) => {
-    setContentOverride(content && effectiveSelectedId ? { sectionId: effectiveSelectedId, content } : null)
-  }, [effectiveSelectedId])
+  function updateWorkingContent(content: Record<string, unknown>) {
+    if (effectiveSelectedId) setContentOverride({ sectionId: effectiveSelectedId, content })
+  }
+
+  function requestInlineEdit(target: InlineFieldTarget) {
+    if (target.sectionId === effectiveSelectedId) { setActiveInlineTarget(target); return }
+    if (isDirty) { setPendingSelection(target.sectionId); setPendingInlineTarget(target); return }
+    const targetSection = draft?.sections.find(({ id }) => id === target.sectionId)
+    setSelectedId(target.sectionId)
+    if (targetSection) setContentOverride({ sectionId: target.sectionId, content: targetSection.content as Record<string, unknown> })
+    setActiveInlineTarget(target)
+  }
+
+  function updateInlineValue(sectionId: string, path: InlineFieldPath, value: string) {
+    if (sectionId !== effectiveSelectedId || !workingContent) return
+    const next = structuredClone(workingContent)
+    let cursor: unknown = next
+    path.forEach((part, index) => {
+      if (Array.isArray(cursor) && typeof part === 'number') {
+        if (index === path.length - 1) cursor[part] = value
+        else cursor = cursor[part]
+      } else if (cursor && typeof cursor === 'object' && typeof part === 'string') {
+        const record = cursor as Record<string, unknown>
+        if (index === path.length - 1) record[part] = value
+        else cursor = record[part]
+      }
+    })
+    setContentOverride({ sectionId, content: next })
+  }
 
   const previewDraft = useMemo(() => {
     if (!draft) return null
@@ -81,7 +113,7 @@ export function WebsitePage() {
 
   if (isLoading) return <EditorLoading />
   if (error || !draft || !previewDraft) return <EditorError message={messageFor(error)} retry={retry} />
-  const selected = draft.sections.find(({ id }) => id === effectiveSelectedId) ?? null
+  const selected = authoritativeSelected
   const designSettings = designOverride ?? draft.designSettings
 
   return <WorkspaceSection wide eyebrow="Event workspace" title="Website" description="Build content and customize the visual direction of your Wedding website.">
@@ -95,22 +127,21 @@ export function WebsitePage() {
     {listError && <p className="mb-4 rounded-xl bg-danger-muted p-3 text-sm text-danger" role="alert">{listError}</p>}
     {draft.sections.length === 0 ? <EmptyEditor /> : <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(360px,410px)]">
       <section className="min-w-0 rounded-2xl border border-border bg-surface p-3 sm:p-4" aria-label="Live Website preview">
-        <div className="mb-3 flex items-center justify-between px-1"><div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-accent">Live preview</p><p className="mt-0.5 text-xs text-foreground-muted">Unsaved valid changes appear here before saving.</p></div>{(contentOverride || designDirty) && <span className="rounded-full bg-danger-muted px-2 py-1 text-[10px] font-medium text-danger">Unsaved preview</span>}</div>
-        <div className="overflow-x-auto rounded-xl bg-surface-muted p-2 sm:p-3"><div className={`mx-auto h-[min(74vh,820px)] overflow-y-auto rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)] transition-[max-width] ${previewMode === 'mobile' ? 'max-w-[390px]' : 'max-w-full'}`}><WebsiteRenderer event={event} website={previewDraft} mode="editor" selectedSectionId={mode === 'content' ? effectiveSelectedId : null} onSectionSelect={(id) => {
+        <div className="mb-3 flex items-center justify-between px-1"><div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-accent">Live preview</p><p className="mt-0.5 text-xs text-foreground-muted">Unsaved valid changes appear here before saving.</p></div>{(isDirty || designDirty) && <span className="rounded-full bg-danger-muted px-2 py-1 text-[10px] font-medium text-danger">Unsaved preview</span>}</div>
+        <div className="overflow-x-auto rounded-xl bg-surface-muted p-2 sm:p-3"><div className={`mx-auto h-[min(74vh,820px)] overflow-y-auto rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)] transition-[max-width] ${previewMode === 'mobile' ? 'max-w-[390px]' : 'max-w-full'}`}><InlineEditProvider value={mode === 'content' ? { activeTarget: activeInlineTarget, requestEdit: requestInlineEdit, updateValue: updateInlineValue, finishEdit: () => setActiveInlineTarget(null) } : null}><WebsiteRenderer event={event} website={previewDraft} mode="editor" selectedSectionId={mode === 'content' ? effectiveSelectedId : null} onSectionSelect={(id) => {
           if (mode === 'content') selectSection(id)
-          else if (designDirty) { setPendingMode('content'); setPendingSelection(id) }
-          else { setMode('content'); setSelectedId(id); setDesignOverride(null) }
-        }} /></div></div>
+          else setSelectedId(id)
+        }} /></InlineEditProvider></div></div>
       </section>
       <div className="space-y-5">{mode === 'design' && draft.template ? <DesignPanel settings={designSettings} options={draft.template.designOptions} dirty={designDirty} saving={designSaving} error={designError} eventName={event.name} onChange={setDesignOverride} onSave={() => void saveDesign()} /> : <>
         <SectionNavigator sections={draft.sections} selectedId={effectiveSelectedId} pending={listPending} onSelect={selectSection} onToggle={toggle} onMove={move} />
-        <section className="min-w-0 rounded-2xl border border-border bg-surface p-4 sm:p-5">{selected && <><div className="mb-5 border-b border-border pb-4"><div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-semibold">{selected.displayName}</h2>{!selected.isEnabled && <span className="rounded-full bg-surface-muted px-2 py-1 text-[11px] font-medium text-foreground-muted">Hidden on website</span>}</div><p className="mt-1 text-sm text-foreground-muted">Edit this section’s semantic content.</p></div><SectionEditor key={selected.id} section={selected} onDirtyChange={setIsDirty} onPreviewContentChange={updatePreviewContent} onSave={(content) => updateWebsiteSectionContent(event.id, selected.id, content)} onSaved={(updated) => { setDraft(updated); setIsDirty(false); setContentOverride(null) }} /></>}</section>
+        <section className="min-w-0 rounded-2xl border border-border bg-surface p-4 sm:p-5">{selected && workingContent && <><div className="mb-5 border-b border-border pb-4"><div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-semibold">{selected.displayName}</h2>{!selected.isEnabled && <span className="rounded-full bg-surface-muted px-2 py-1 text-[11px] font-medium text-foreground-muted">Hidden on website</span>}</div><p className="mt-1 text-sm text-foreground-muted">Edit this section’s semantic content.</p></div><SectionEditor key={selected.id} section={selected} content={workingContent} dirty={isDirty} onChange={updateWorkingContent} onSave={(content) => updateWebsiteSectionContent(event.id, selected.id, content)} onSaved={(updated) => { setDraft(updated); setContentOverride(null); setActiveInlineTarget(null) }} /></>}</section>
       </>}</div>
     </div>}
-    <DiscardChangesDialog open={pendingSelection !== null || pendingMode !== null} onCancel={() => { setPendingSelection(null); setPendingMode(null) }} onDiscard={() => {
+    <DiscardChangesDialog open={pendingSelection !== null || pendingMode !== null} onCancel={() => { setPendingSelection(null); setPendingMode(null); setPendingInlineTarget(null) }} onDiscard={() => {
       if (pendingSelection) setSelectedId(pendingSelection)
       if (pendingMode) setMode(pendingMode)
-      setPendingSelection(null); setPendingMode(null); setIsDirty(false); setContentOverride(null); setDesignOverride(null)
+      setActiveInlineTarget(pendingInlineTarget); setPendingInlineTarget(null); setPendingSelection(null); setPendingMode(null); setContentOverride(null); setDesignOverride(null)
     }} />
   </WorkspaceSection>
 }

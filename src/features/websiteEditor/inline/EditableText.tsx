@@ -1,0 +1,61 @@
+import { Check, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useInlineEdit } from './InlineEditContext'
+import { inlineTargetKey, type InlineFieldPath } from './types'
+
+type Props = {
+  sectionId: string
+  path: InlineFieldPath
+  value: string
+  fallback?: string
+  showFallbackInEditor?: boolean
+  placeholder: string
+  label: string
+  multiline?: boolean
+  className?: string
+}
+
+export function EditableText(props: Props) {
+  const editor = useInlineEdit()
+  const target = { sectionId: props.sectionId, path: props.path, label: props.label, multiline: props.multiline }
+  const active = editor?.activeTarget && inlineTargetKey(editor.activeTarget) === inlineTargetKey(target)
+  const [entryValue, setEntryValue] = useState(props.value)
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (active) requestAnimationFrame(() => inputRef.current?.focus())
+  }, [active])
+
+  if (!editor) {
+    const display = props.value.trim() || props.fallback || null
+    return props.multiline ? <span className="whitespace-pre-line">{display}</span> : <>{display}</>
+  }
+
+  function cancel() {
+    editor?.updateValue(props.sectionId, props.path, entryValue)
+    editor?.finishEdit()
+  }
+  function done() { editor?.finishEdit() }
+  function change(value: string) { editor?.updateValue(props.sectionId, props.path, value) }
+
+  if (active) {
+    const controlClass = `w-full min-w-0 resize-y overflow-hidden border-0 border-b border-[var(--cf-accent)] bg-[color-mix(in_srgb,var(--cf-surface)_92%,transparent)] px-1 py-0.5 text-inherit outline-none ring-2 ring-[color-mix(in_srgb,var(--cf-accent)_25%,transparent)] ${props.className ?? ''}`
+    return <span className="relative z-30 inline-flex w-full max-w-full flex-col items-stretch gap-1" onClick={(event) => event.stopPropagation()}>
+      {props.multiline
+        ? <textarea ref={(node) => { inputRef.current = node }} rows={3} aria-label={props.label} className={controlClass} value={props.value} onChange={(event) => change(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); cancel() } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); done() } }} />
+        : <input ref={(node) => { inputRef.current = node }} aria-label={props.label} className={controlClass} value={props.value} onChange={(event) => change(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); done() } else if (event.key === 'Escape') { event.preventDefault(); cancel() } }} />}
+      <span className="flex justify-end gap-1 text-[10px] font-sans font-normal leading-none">
+        <button type="button" className="rounded-full bg-[var(--cf-accent)] p-1.5 text-white" onClick={done} aria-label={`Done editing ${props.label}`} title="Done"><Check size={12} /></button>
+        <button type="button" className="rounded-full bg-white/90 p-1.5 text-[var(--cf-text)] shadow-sm" onClick={cancel} aria-label={`Cancel editing ${props.label}`} title="Cancel"><X size={12} /></button>
+      </span>
+    </span>
+  }
+
+  const display = props.value.trim() ? props.value : props.showFallbackInEditor ? props.fallback : null
+  return <button
+    type="button"
+    className={`inline-edit-target max-w-full cursor-text rounded-sm border-0 bg-transparent p-0 text-inherit outline-none ${props.multiline ? 'whitespace-pre-line' : ''} ${props.className ?? ''}`}
+    aria-label={`Edit ${props.label}`}
+    onClick={(event) => { event.stopPropagation(); setEntryValue(props.value); editor.requestEdit(target) }}
+  >{display || <span className="inline-edit-placeholder">{props.placeholder}</span>}</button>
+}
