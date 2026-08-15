@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { ClassicFilipinianaRenderer } from './templates/ClassicFilipinianaRenderer'
+import { ModernEditorialRenderer } from './templates/ModernEditorialRenderer'
 import type { WebsiteRendererProps } from './types'
 
 const templateRenderers = {
   'classic-filipiniana-v1': ClassicFilipinianaRenderer,
+  'modern-editorial-v1': ModernEditorialRenderer,
 } as const
 
 export function WebsiteRenderer(props: WebsiteRendererProps) {

@@ -3,11 +3,12 @@ import { apiRequest } from '../../lib/api'
 import type { ApiResource } from '../../lib/api'
 import type { WebsiteTemplateOption } from './types'
 
+const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Required')
 const templateSchema = z.object({
-  key: z.string(),
-  displayName: z.string(),
-  description: z.string(),
-  styleTags: z.array(z.string()),
+  key: nonEmptyString,
+  displayName: nonEmptyString,
+  description: nonEmptyString,
+  styleTags: z.array(nonEmptyString),
   isSelected: z.boolean(),
 }).strict()
 

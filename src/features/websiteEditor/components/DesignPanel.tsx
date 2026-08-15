@@ -5,7 +5,6 @@ import { Heading } from "../../../components/ui/Heading";
 import { SelectableCard } from "../../../components/ui/SelectableCard";
 import { Text } from "../../../components/ui/Text";
 import type { WebsiteDesignOptions, WebsiteDesignSettings } from "../types";
-import { colorSwatches } from "../../websiteRenderer/templates/classicFilipiniana/design";
 
 export function DesignPanel({
   settings,
@@ -63,10 +62,7 @@ export function DesignPanel({
                 <span
                   className="h-6 w-6 rounded-full border border-black/10"
                   style={{
-                    background:
-                      colorSwatches[
-                        option.key as WebsiteDesignSettings["colorTheme"]
-                      ],
+                    background: colorSwatch(option.key),
                   }}
                 />{" "}
                 <span className="flex-1">{option.displayName}</span>
@@ -158,5 +154,15 @@ function artPreview(key: string): string {
   if (key === "woven")
     return "bg-[repeating-linear-gradient(45deg,#e7ddd0_0_4px,#f4eee5_4px_8px)]";
   if (key === "clean") return "bg-[#f8f4ee]";
+  if (key === "rule") return "bg-[linear-gradient(90deg,transparent_0_22%,#202020_22%_24%,transparent_24%_100%)] bg-[#f3f1ed]";
+  if (key === "frame") return "border-[10px] border-[#dedbd5] bg-[#faf9f7]";
+  if (key === "offset") return "bg-[linear-gradient(135deg,#202020_0_42%,#e9e5de_42%_58%,#faf9f7_58%)]";
   return "bg-[radial-gradient(#a7654f_1px,transparent_1px)] bg-[#f4ece1] bg-[size:8px_8px]";
+}
+
+function colorSwatch(key: string): string {
+  return ({
+    terracotta: "#9d5b45", olive: "#70764e", sage: "#748a70", burgundy: "#7d3443", neutral: "#74645a",
+    ink: "#171717", stone: "#817b72", blush: "#b17879", plum: "#5f405f", navy: "#263c5a",
+  } as Record<string, string>)[key] ?? "#777";
 }

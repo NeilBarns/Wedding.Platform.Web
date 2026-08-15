@@ -47,9 +47,9 @@ export type WebsiteSection =
   | SectionBase<'rsvp', RsvpContent>
   | SectionBase<string, Record<string, unknown>>
 
-export type ColorTheme = 'terracotta' | 'olive' | 'sage' | 'burgundy' | 'neutral'
-export type FontSet = 'editorial' | 'romantic' | 'modern'
-export type ArtStyle = 'minimal' | 'botanical' | 'woven' | 'clean'
+export type ColorTheme = string
+export type FontSet = string
+export type ArtStyle = string
 export type WebsiteDesignSettings = { colorTheme: ColorTheme; fontSet: FontSet; artStyle: ArtStyle }
 export type DesignOption = { key: string; displayName: string }
 export type WebsiteDesignOptions = {

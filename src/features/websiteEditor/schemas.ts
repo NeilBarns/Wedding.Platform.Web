@@ -2,6 +2,8 @@ import { z } from 'zod'
 import type { WebsiteDraft, WebsiteSection } from './types'
 
 const text = z.string()
+const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Required')
+const designOptionSchema = z.object({ key: nonEmptyString, displayName: nonEmptyString }).strict()
 export const heroContentSchema = z.object({ headline: text, subheadline: text }).strict()
 export const dateContentSchema = z.object({ heading: text, description: text }).strict()
 export const storyContentSchema = z.object({ heading: text, body: text }).strict()
@@ -57,20 +59,39 @@ const draftSchema = z.object({
   eventId: z.string(),
   templateKey: z.string(),
   designSettings: z.object({
-    colorTheme: z.enum(['terracotta', 'olive', 'sage', 'burgundy', 'neutral']),
-    fontSet: z.enum(['editorial', 'romantic', 'modern']),
-    artStyle: z.enum(['minimal', 'botanical', 'woven', 'clean']),
+    colorTheme: nonEmptyString,
+    fontSet: nonEmptyString,
+    artStyle: nonEmptyString,
   }).strict(),
   template: z.object({
-    key: z.string(),
-    displayName: z.string(),
+    key: nonEmptyString,
+    displayName: nonEmptyString,
     designOptions: z.object({
-      colorThemes: z.array(z.object({ key: z.string(), displayName: z.string() })),
-      fontSets: z.array(z.object({ key: z.string(), displayName: z.string() })),
-      artStyles: z.array(z.object({ key: z.string(), displayName: z.string() })),
-    }),
-  }).nullable(),
+      colorThemes: z.array(designOptionSchema).min(1),
+      fontSets: z.array(designOptionSchema).min(1),
+      artStyles: z.array(designOptionSchema).min(1),
+    }).strict(),
+  }).strict().nullable(),
   sections: z.array(sectionSchema),
+}).superRefine((draft, context) => {
+  if (!draft.template) return
+
+  const optionGroups = {
+    colorTheme: draft.template.designOptions.colorThemes,
+    fontSet: draft.template.designOptions.fontSets,
+    artStyle: draft.template.designOptions.artStyles,
+  }
+
+  for (const [setting, options] of Object.entries(optionGroups)) {
+    const value = draft.designSettings[setting as keyof typeof draft.designSettings]
+    if (!options.some((option) => option.key === value)) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Design setting is not supported by the selected Template',
+        path: ['designSettings', setting],
+      })
+    }
+  }
 })
 
 export function parseWebsiteDraft(value: unknown): WebsiteDraft {
