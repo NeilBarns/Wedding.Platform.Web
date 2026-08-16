@@ -8,7 +8,7 @@ import { useEventDetail } from './useEventDetail'
 
 export function EventWorkspaceLayout() {
   const { eventId = '' } = useParams()
-  const { event, error, isLoading, retry } = useEventDetail(eventId)
+  const { event, setEvent, error, isLoading, retry } = useEventDetail(eventId)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const focusedBuilder = useMatch('/events/:eventId/website') !== null
 
@@ -17,7 +17,7 @@ export function EventWorkspaceLayout() {
   if (!event) return null
 
   return (
-    <EventWorkspaceContext value={event}>
+    <EventWorkspaceContext value={{ event, setEvent }}>
       <div className="flex h-full min-h-0 overflow-hidden">
         {!focusedBuilder && <EventWorkspaceSidebar event={event} />}
 

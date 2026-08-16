@@ -14,6 +14,7 @@ Reuse shared typography roles for platform/editor chrome when the same semantic 
 - Frontend renderer registration and Template-local visual adapters own presentation. Unknown renderer keys must remain explicit and must not fall back to another Template.
 - Template-specific Design tokens, Appearance interpretation, and Section composition stay inside their Template implementation.
 - An Event may exist without a Website. First-time Website initialization requires an explicit Template selection; once created, a Website always has a valid non-null Template and later changes use the Template assignment flow.
+- Event date and start time are local wall-clock values at the Event location. `timeZone` is an IANA identifier selected by the user, while `startsAtUtc` is derived by the API and never entered independently. Website Sections consume Event timing and must not duplicate it in Section content.
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

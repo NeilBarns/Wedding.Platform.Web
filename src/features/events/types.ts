@@ -8,6 +8,9 @@ export type Event = {
   name: string
   slug: string
   eventDate: string | null
+  startTime: string | null
+  timeZone: string | null
+  startsAtUtc: string | null
   status: EventStatus
   membershipRole: EventMembershipRole
   createdAt: string
@@ -24,3 +27,11 @@ export type CreateEventRequest = {
   eventDate?: string
   slug?: string
 }
+
+export type EventTimingRequest = {
+  eventDate: string | null
+  startTime: string | null
+  timeZone: string | null
+}
+
+export type TimeZoneOption = { id: string; displayName: string }

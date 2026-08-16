@@ -44,5 +44,5 @@ export function useEventDetail(eventId: string) {
     return () => controller.abort()
   }, [eventId, reloadKey, refreshUser])
 
-  return { event, error, isLoading, retry }
+  return { event, setEvent, error, isLoading, retry }
 }

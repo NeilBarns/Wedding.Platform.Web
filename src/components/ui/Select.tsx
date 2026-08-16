@@ -93,7 +93,7 @@ export function Select({
       </button>
       {open && (
         <div
-          className="absolute z-50 mt-1 w-full overflow-hidden rounded-[10px] border border-border bg-surface p-1 shadow-[var(--shadow-dialog)]"
+          className="absolute z-50 mt-1 max-h-72 w-full overflow-y-auto rounded-[10px] border border-border bg-surface p-1 shadow-[var(--shadow-dialog)]"
           id={listboxId}
           role="listbox"
           aria-labelledby={id}
