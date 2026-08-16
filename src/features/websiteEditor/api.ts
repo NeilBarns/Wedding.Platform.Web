@@ -16,6 +16,14 @@ export async function getWebsiteDraft(eventId: string, signal?: AbortSignal): Pr
   return parseWebsiteDraft(response.data)
 }
 
+export async function initializeWebsite(eventId: string, templateKey: string): Promise<WebsiteDraft> {
+  await ensureCsrfCookie()
+  const response = await apiRequest<ApiResource<unknown>>(`/api/events/${encodeURIComponent(eventId)}/website`, {
+    method: 'POST', body: { templateKey },
+  })
+  return parseWebsiteDraft(response.data)
+}
+
 export function updateWebsiteTemplate(eventId: string, templateKey: string) {
   return mutation(eventId, '/template', { templateKey })
 }

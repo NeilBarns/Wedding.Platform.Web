@@ -1,5 +1,6 @@
 import { CalendarHeart, Plus, RefreshCw } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { Heading } from "../components/ui/Heading";
 import { Text } from "../components/ui/Text";
@@ -33,6 +34,7 @@ function LoadingGrid() {
 export function MyEventsPage() {
   const { events, isLoading, error, reload, prependEvent } = useMyEvents();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <main className="mx-auto max-w-[1360px] px-4 py-7 sm:px-5 sm:py-9 lg:px-6">
@@ -107,7 +109,10 @@ export function MyEventsPage() {
       <CreateEventDialog
         open={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onCreated={prependEvent}
+        onCreated={(event) => {
+          prependEvent(event);
+          navigate(`/events/${event.id}`);
+        }}
       />
     </main>
   );

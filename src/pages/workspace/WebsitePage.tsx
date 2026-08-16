@@ -44,6 +44,7 @@ import { useWebsiteDraft } from "../../features/websiteEditor/useWebsiteDraft";
 import { WebsiteRenderer } from "../../features/websiteRenderer/WebsiteRenderer";
 import { TemplateChangeDialog } from "../../features/websiteTemplates/components/TemplateChangeDialog";
 import { TemplatePicker } from "../../features/websiteTemplates/components/TemplatePicker";
+import { WebsiteTemplateOnboarding } from "../../features/websiteTemplates/components/WebsiteTemplateOnboarding";
 import type { WebsiteTemplateOption } from "../../features/websiteTemplates/types";
 import { ApiError } from "../../lib/api";
 
@@ -59,7 +60,7 @@ function messageFor(error: unknown): string {
 
 export function WebsitePage() {
   const event = useEventWorkspace();
-  const { draft, setDraft, error, isLoading, retry } = useWebsiteDraft(
+  const { draft, setDraft, error, isLoading, isUninitialized, retry } = useWebsiteDraft(
     event.id,
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -339,6 +340,8 @@ export function WebsitePage() {
   }
 
   if (isLoading) return <EditorLoading eventId={event.id} />;
+  if (isUninitialized)
+    return <WebsiteTemplateOnboarding eventId={event.id} onInitialized={setDraft} />;
   if (error || !draft || !previewDraft)
     return (
       <EditorError

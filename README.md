@@ -13,6 +13,7 @@ Reuse shared typography roles for platform/editor chrome when the same semantic 
 - A Design key shared by multiple Templates represents intentionally compatible semantic meaning and is preserved during Template switching.
 - Frontend renderer registration and Template-local visual adapters own presentation. Unknown renderer keys must remain explicit and must not fall back to another Template.
 - Template-specific Design tokens, Appearance interpretation, and Section composition stay inside their Template implementation.
+- An Event may exist without a Website. First-time Website initialization requires an explicit Template selection; once created, a Website always has a valid non-null Template and later changes use the Template assignment flow.
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
