@@ -6,6 +6,14 @@ Before creating a generic UI control, inspect `src/components/ui` and reuse or e
 
 Reuse shared typography roles for platform/editor chrome when the same semantic role already exists. Do not create page-local typography variants for common page titles, panel titles, helper text, labels, and captions without first checking the shared UI layer. Template renderer typography remains template-owned.
 
+## Website Template boundaries
+
+- The API Template registry is authoritative for availability, compatibility, product metadata, Design defaults/options, and Section Appearance capabilities.
+- Design option keys are runtime Template-defined strings. Generic frontend code must not enumerate every Template-specific value; it validates selected values against the options returned with the Website draft.
+- A Design key shared by multiple Templates represents intentionally compatible semantic meaning and is preserved during Template switching.
+- Frontend renderer registration and Template-local visual adapters own presentation. Unknown renderer keys must remain explicit and must not fall back to another Template.
+- Template-specific Design tokens, Appearance interpretation, and Section composition stay inside their Template implementation.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

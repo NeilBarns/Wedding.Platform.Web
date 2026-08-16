@@ -84,7 +84,7 @@ button, input, select { font: inherit; }
 }
 
 .inline-edit-placeholder {
-  color: color-mix(in srgb, var(--cf-muted) 72%, transparent);
+  color: color-mix(in srgb, var(--editor-chrome-on-surface) 62%, transparent);
   font-style: italic;
 }
 dialog::backdrop { background: rgb(31 25 21 / 58%); backdrop-filter: blur(3px); }

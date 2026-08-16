@@ -369,6 +369,7 @@ export function WebsitePage() {
         saving={designSaving}
         error={designError}
         eventName={event.name}
+        templateKey={draft.templateKey}
         onChange={setDesignOverride}
         onSave={() => void saveDesign()}
       />
@@ -413,6 +414,7 @@ export function WebsitePage() {
         saving={designSaving}
         error={designError}
         eventName={event.name}
+        templateKey={draft.templateKey}
         onChange={setDesignOverride}
         onSave={() => void saveDesign()}
       />

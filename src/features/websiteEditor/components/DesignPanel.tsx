@@ -5,6 +5,7 @@ import { Heading } from "../../../components/ui/Heading";
 import { SelectableCard } from "../../../components/ui/SelectableCard";
 import { Text } from "../../../components/ui/Text";
 import type { WebsiteDesignOptions, WebsiteDesignSettings } from "../types";
+import { designPreviewFor } from "../../websiteTemplates/designPreviews";
 
 export function DesignPanel({
   settings,
@@ -13,6 +14,7 @@ export function DesignPanel({
   saving,
   error,
   eventName,
+  templateKey,
   onChange,
   onSave,
 }: {
@@ -22,9 +24,11 @@ export function DesignPanel({
   saving: boolean;
   error: string | null;
   eventName: string;
+  templateKey: string;
   onChange: (settings: WebsiteDesignSettings) => void;
   onSave: () => void;
 }) {
+  const preview = designPreviewFor(templateKey);
   return (
     <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5 xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0">
       <div className="mb-5 xl:mb-4">
@@ -62,7 +66,7 @@ export function DesignPanel({
                 <span
                   className="h-6 w-6 rounded-full border border-black/10"
                   style={{
-                    background: colorSwatch(option.key),
+                    background: preview?.colorSwatches[option.key] ?? "#777",
                   }}
                 />{" "}
                 <span className="flex-1">{option.displayName}</span>
@@ -76,12 +80,7 @@ export function DesignPanel({
         <div className="space-y-2">
           {options.fontSets.map((option) => {
             const selected = settings.fontSet === option.key;
-            const family =
-              option.key === "modern"
-                ? "font-sans"
-                : option.key === "romantic"
-                  ? "[font-family:Palatino,Georgia,serif]"
-                  : "font-serif";
+            const family = preview?.fontClasses[option.key] ?? "font-sans";
             return (
               <SelectableCard
                 className="w-full p-3 data-[selected=true]:bg-surface-muted xl:p-2.5"
@@ -122,7 +121,7 @@ export function DesignPanel({
                   })
                 }
               >
-                <span className={`block h-12 ${artPreview(option.key)}`} />
+                <span className={`block h-12 ${preview?.artClasses[option.key] ?? "bg-surface-muted"}`} />
                 <span className="flex items-center justify-between px-2.5 py-2 text-sm! xl:text-xs!">
                   {option.displayName}
                   {selected && <Check size={14} className="text-accent" />}
@@ -146,23 +145,4 @@ export function DesignPanel({
       </div>
     </section>
   );
-}
-
-function artPreview(key: string): string {
-  if (key === "botanical")
-    return "bg-[radial-gradient(ellipse_at_20%_20%,#8a9b75_0_12%,transparent_13%),radial-gradient(ellipse_at_75%_70%,#b97861_0_15%,transparent_16%)] bg-[#f3ede1]";
-  if (key === "woven")
-    return "bg-[repeating-linear-gradient(45deg,#e7ddd0_0_4px,#f4eee5_4px_8px)]";
-  if (key === "clean") return "bg-[#f8f4ee]";
-  if (key === "rule") return "bg-[linear-gradient(90deg,transparent_0_22%,#202020_22%_24%,transparent_24%_100%)] bg-[#f3f1ed]";
-  if (key === "frame") return "border-[10px] border-[#dedbd5] bg-[#faf9f7]";
-  if (key === "offset") return "bg-[linear-gradient(135deg,#202020_0_42%,#e9e5de_42%_58%,#faf9f7_58%)]";
-  return "bg-[radial-gradient(#a7654f_1px,transparent_1px)] bg-[#f4ece1] bg-[size:8px_8px]";
-}
-
-function colorSwatch(key: string): string {
-  return ({
-    terracotta: "#9d5b45", olive: "#70764e", sage: "#748a70", burgundy: "#7d3443", neutral: "#74645a",
-    ink: "#171717", stone: "#817b72", blush: "#b17879", plum: "#5f405f", navy: "#263c5a",
-  } as Record<string, string>)[key] ?? "#777";
 }
