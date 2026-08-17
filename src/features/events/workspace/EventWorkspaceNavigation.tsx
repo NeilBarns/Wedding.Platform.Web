@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarDays, Globe2, Mail, Settings } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Globe2, Images, Mail, Settings } from 'lucide-react'
 import { NavLink, Link } from 'react-router-dom'
 import type { EventDetail } from '../types'
 import { Tooltip } from '../../../components/ui/Tooltip'
@@ -11,6 +11,7 @@ type Props = {
 
 const sections = [
   { path: 'website', label: 'Website', icon: Globe2 },
+  { path: 'media', label: 'Media', icon: Images },
   { path: 'invitations', label: 'Invitations', icon: Mail },
   { path: 'settings', label: 'Settings', icon: Settings },
 ]

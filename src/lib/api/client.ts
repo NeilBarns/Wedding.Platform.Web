@@ -55,10 +55,14 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   const headers = new Headers(options.headers)
   headers.set('Accept', 'application/json')
 
-  let body: string | undefined
+  let body: BodyInit | undefined
   if (options.body !== undefined) {
-    headers.set('Content-Type', 'application/json')
-    body = JSON.stringify(options.body)
+    if (options.body instanceof FormData) {
+      body = options.body
+    } else {
+      headers.set('Content-Type', 'application/json')
+      body = JSON.stringify(options.body)
+    }
   }
 
   if (!SAFE_METHODS.has(method)) {

@@ -8,6 +8,7 @@ import { EventWorkspaceLayout } from '../features/events/workspace/EventWorkspac
 import { WebsitePage } from '../pages/workspace/WebsitePage'
 import { InvitationsPage } from '../pages/workspace/InvitationsPage'
 import { EventSettingsPage } from '../pages/workspace/EventSettingsPage'
+import { MediaLibraryPage } from '../pages/workspace/MediaLibraryPage'
 
 export const router = createBrowserRouter([
   {
@@ -48,6 +49,10 @@ export const router = createBrowserRouter([
               {
                 path: 'website',
                 element: <WebsitePage />,
+              },
+              {
+                path: 'media',
+                element: <MediaLibraryPage />,
               },
               {
                 path: 'invitations',

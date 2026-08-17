@@ -9,13 +9,14 @@ export type DialogProps = {
   titleId?: string;
   descriptionId?: string;
   closeDisabled?: boolean;
-  size?: "sm" | "lg";
+  size?: "sm" | "lg" | "xl";
   className?: string;
 };
 
 const sizes = {
   sm: "w-[calc(100%-2rem)] max-w-sm p-5",
   lg: "max-h-[calc(100dvh-1.5rem)] w-[calc(100%-1.5rem)] max-w-lg overflow-y-auto p-0 sm:w-full",
+  xl: "max-h-[90dvh] w-[calc(100%-1rem)] max-w-[1400px] overflow-y-auto p-0 sm:w-[92vw]",
 };
 
 export function Dialog({

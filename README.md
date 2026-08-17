@@ -1,5 +1,7 @@
 # React + TypeScript + Vite
 
+The Event Media Library supports multi-image selection and drag-and-drop. The frontend runs a sequential queue with one existing backend request per file, so each upload succeeds or fails independently and backend duplicate detection remains authoritative. Its CSS-column masonry layout affects presentation only; Media ordering and domain data are unchanged.
+
 ## UI development
 
 Before creating a generic UI control, inspect `src/components/ui` and reuse or extend an existing shared primitive. Do not create page-local variants of buttons, inputs, textareas, tabs, dialogs, badges, or other generic controls unless there is a concrete reason the shared primitive cannot support the requirement.
