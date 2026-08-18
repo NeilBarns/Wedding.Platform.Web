@@ -1,15 +1,11 @@
 import { CalendarDays } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { Event } from './types'
+import { formatEventDate, formatEventType } from './formatEventDetails'
 
 function initials(name: string): string {
   const words = name.split(/\s*(?:&|and)\s*|\s+/i).filter(Boolean)
   return words.slice(0, 2).map((word) => word[0]?.toUpperCase()).join('') || 'E'
-}
-
-function formatDate(date: string | null): string {
-  if (!date) return 'Date to be announced'
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`))
 }
 
 function FallbackEventVisual({ event }: { event: Event }) {
@@ -20,7 +16,7 @@ function FallbackEventVisual({ event }: { event: Event }) {
       <div className="absolute inset-x-8 top-8 h-px bg-foreground/10" />
       <div className="relative text-center">
         <span className="block text-4xl font-light tracking-[0.12em] text-foreground">{initials(event.name)}</span>
-        <span className="mt-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground-muted">Wedding event</span>
+        <span className="mt-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground-muted">{formatEventType(event.type)} event</span>
       </div>
     </div>
   )
@@ -37,7 +33,7 @@ export function EventCard({ event }: { event: Event }) {
       <div className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-secondary-accent">Wedding</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-secondary-accent">{formatEventType(event.type)}</p>
             <h2 className="mt-0.5 text-lg font-semibold tracking-tight group-hover:text-accent">{event.name}</h2>
           </div>
           <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-foreground-muted">
@@ -46,7 +42,7 @@ export function EventCard({ event }: { event: Event }) {
         </div>
         <p className="flex items-center gap-2 text-sm text-foreground-muted">
           <CalendarDays aria-hidden="true" size={16} />
-          {formatDate(event.eventDate)}
+          {formatEventDate(event.eventDate) ?? 'Date to be announced'}
         </p>
       </div>
     </Link>

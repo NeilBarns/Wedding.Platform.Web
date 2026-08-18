@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter } from 'react-router-dom'
 import { GuestRoute, ProtectedRoute, RootRedirect } from '../features/auth/RouteGuards'
 import { LoginPage } from '../pages/LoginPage'
 import { MyEventsPage } from '../pages/MyEventsPage'
@@ -9,6 +9,7 @@ import { WebsitePage } from '../pages/workspace/WebsitePage'
 import { InvitationsPage } from '../pages/workspace/InvitationsPage'
 import { EventSettingsPage } from '../pages/workspace/EventSettingsPage'
 import { MediaLibraryPage } from '../pages/workspace/MediaLibraryPage'
+import { EventOverviewPage } from '../pages/workspace/EventOverviewPage'
 
 export const router = createBrowserRouter([
   {
@@ -44,7 +45,7 @@ export const router = createBrowserRouter([
             children: [
               {
                 index: true,
-                element: <Navigate to="website" replace />,
+                element: <EventOverviewPage />,
               },
               {
                 path: 'website',

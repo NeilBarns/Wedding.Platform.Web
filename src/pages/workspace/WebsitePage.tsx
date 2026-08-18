@@ -457,7 +457,7 @@ export function WebsitePage() {
       <header className="z-20 flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b border-border bg-surface px-3 py-2 sm:px-4">
         <Link
           className="mr-1 inline-flex min-h-9 items-center gap-2 rounded-lg px-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted hover:text-foreground"
-          to={`/events/${event.id}/settings`}
+          to={`/events/${event.id}`}
         >
           <ArrowLeft size={16} aria-hidden="true" /> Back to Event
         </Link>
@@ -975,7 +975,7 @@ function EditorLoading({ eventId }: { eventId: string }) {
       <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-4">
         <Link
           className="flex items-center gap-2 text-sm text-foreground-muted"
-          to={`/events/${eventId}/settings`}
+          to={`/events/${eventId}`}
         >
           <ArrowLeft size={16} /> Back to Event
         </Link>
@@ -1009,7 +1009,7 @@ function EditorError({
         <div className="mt-4 flex justify-center gap-2">
           <Link
             className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm"
-            to={`/events/${eventId}/settings`}
+            to={`/events/${eventId}`}
           >
             <ArrowLeft size={15} /> Back to Event
           </Link>
