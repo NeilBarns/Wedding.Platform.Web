@@ -6,6 +6,17 @@ const mediaVariantSchema = z.object({
   url: z.string().url(),
 }).strict()
 
+const mediaUsageSchema = z.object({
+  isInUse: z.boolean(),
+  website: z.object({
+    sections: z.array(z.object({
+      sectionId: z.string().min(1),
+      type: z.string().min(1),
+      displayName: z.string().min(1),
+    }).strict()),
+  }).strict(),
+}).strict()
+
 export const mediaAssetSchema = z.object({
   id: z.string().min(1),
   originalFilename: z.string().min(1),
@@ -18,4 +29,5 @@ export const mediaAssetSchema = z.object({
     (variants) => variants.thumbnail !== undefined && variants.web !== undefined,
     'Thumbnail and web variants are required.',
   ),
+  usage: mediaUsageSchema,
 }).strict()

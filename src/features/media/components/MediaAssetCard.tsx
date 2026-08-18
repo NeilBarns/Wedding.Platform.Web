@@ -3,8 +3,9 @@ import { ImageOff, Trash2 } from 'lucide-react'
 import { IconButton } from '../../../components/ui/IconButton'
 import type { MediaAsset } from '../types'
 import { formatFileSize } from '../../../lib/formatFileSize'
+import { MediaUsageIndicator } from './MediaUsageIndicator'
 
-export function MediaAssetCard({ asset, deleting, onDelete, onView }: { asset: MediaAsset; deleting: boolean; onDelete: () => void; onView: () => void }) {
+export function MediaAssetCard({ asset, onDelete, onView }: { asset: MediaAsset; onDelete: () => void; onView: () => void }) {
   const [failed, setFailed] = useState(false)
   return (
     <article className="overflow-hidden rounded-xl border border-border bg-surface">
@@ -17,8 +18,9 @@ export function MediaAssetCard({ asset, deleting, onDelete, onView }: { asset: M
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium" title={asset.originalFilename}>{asset.originalFilename}</p>
           <p className="mt-0.5 text-xs text-foreground-muted">{asset.width} × {asset.height} · {formatFileSize(asset.sizeBytes)}</p>
+          <MediaUsageIndicator usage={asset.usage} />
         </div>
-        <IconButton variant="danger" size="sm" aria-label={`Delete ${asset.originalFilename}`} disabled={deleting} onClick={onDelete}>
+        <IconButton variant="danger" size="sm" aria-label={`Delete ${asset.originalFilename}`} onClick={onDelete}>
           <Trash2 aria-hidden="true" size={15} />
         </IconButton>
       </div>

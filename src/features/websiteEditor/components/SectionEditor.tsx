@@ -7,6 +7,11 @@ import { Textarea } from "../../../components/ui/Textarea";
 import { ApiError } from "../../../lib/api";
 import { validateSectionContent } from "../schemas";
 import type { WebsiteDraft, WebsiteSection } from "../types";
+import type { ResolvedWebsiteMedia, SectionMedia } from "../types";
+import type { MediaAsset } from "../../media/types";
+import { useEventWorkspace } from "../../events/workspace/EventWorkspaceContext";
+import { MediaPickerDialog } from "./MediaPickerDialog";
+import { FocalPointEditor } from "./FocalPointEditor";
 
 type EditorProps = {
   section: WebsiteSection;
@@ -15,6 +20,8 @@ type EditorProps = {
   onChange: (content: Record<string, unknown>) => void;
   onSave: (content: Record<string, unknown>) => Promise<WebsiteDraft>;
   onSaved: (draft: WebsiteDraft) => void;
+  resolvedMedia: Record<string, ResolvedWebsiteMedia>;
+  onMediaResolved: (media: ResolvedWebsiteMedia) => void;
 };
 type Field = {
   name: string;
@@ -55,6 +62,7 @@ function SimpleEditor(props: EditorProps & { fields: Field[] }) {
   const { error, saving, save } = useSectionSave(props);
   return (
     <EditorForm error={error} dirty={props.dirty} saving={saving} onSave={save}>
+      {props.section.mediaCapability?.mode === "single" && <SectionMediaEditor {...props} />}
       {props.fields.map((field) => (
         <TextField
           key={field.name}
@@ -70,6 +78,23 @@ function SimpleEditor(props: EditorProps & { fields: Field[] }) {
       ))}
     </EditorForm>
   );
+}
+
+function SectionMediaEditor(props: EditorProps) {
+  const event = useEventWorkspace();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [chosen, setChosen] = useState<MediaAsset | null>(null);
+  const media = (props.content.media ?? null) as SectionMedia;
+  const resolved = media ? props.resolvedMedia[media.assetId] : undefined;
+  const chosenMatches = chosen !== null && chosen.id === media?.assetId;
+  const url = chosenMatches ? chosen?.variants.web.url : resolved?.web.url;
+  const filename = chosenMatches ? chosen?.originalFilename : resolved?.originalFilename;
+  const point = media?.focalPoint ?? { x: 0.5, y: 0.5 };
+  return <section className="rounded-lg border border-border bg-surface-muted p-3">
+    <h3 className="text-sm font-semibold">Image</h3>
+    {media && url ? <div className="mt-3"><FocalPointEditor url={url} point={point} onChange={(focalPoint) => props.onChange({ ...props.content, media: { assetId: media.assetId, focalPoint } })} /><p className="mt-1 truncate text-xs text-foreground-muted">{filename}</p><div className="mt-2 flex gap-2"><Button size="sm" type="button" variant="secondary" onClick={() => setPickerOpen(true)}>Change image</Button><Button size="sm" type="button" variant="ghost" onClick={() => { setChosen(null); props.onChange({ ...props.content, media: null }) }}>Remove image</Button></div></div> : <div className="mt-2"><p className="text-xs text-foreground-muted">No image selected</p><Button className="mt-2" size="sm" type="button" variant="secondary" onClick={() => setPickerOpen(true)}>Choose from Media</Button></div>}
+    <MediaPickerDialog open={pickerOpen} eventId={event.id} selectedAssetId={media?.assetId} onClose={() => setPickerOpen(false)} onSelect={(asset) => { setChosen(asset); props.onMediaResolved({ id: asset.id, originalFilename: asset.originalFilename, width: asset.width, height: asset.height, web: asset.variants.web }); props.onChange({ ...props.content, media: { assetId: asset.id } }); setPickerOpen(false) }} />
+  </section>;
 }
 
 function ScheduleEditor(props: EditorProps) {

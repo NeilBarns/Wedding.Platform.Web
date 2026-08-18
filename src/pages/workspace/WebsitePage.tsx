@@ -102,6 +102,7 @@ export function WebsitePage() {
   const [pendingTemplate, setPendingTemplate] = useState<WebsiteTemplateOption | null>(null);
   const [templateSaving, setTemplateSaving] = useState(false);
   const [templateError, setTemplateError] = useState<string | null>(null);
+  const [mediaOverrides, setMediaOverrides] = useState<WebsiteDraft["media"]>({});
 
   const effectiveSelectedId = draft?.sections.some(
     ({ id }) => id === selectedId,
@@ -290,6 +291,7 @@ export function WebsitePage() {
     if (!draft) return null;
     return {
       ...draft,
+      media: { ...draft.media, ...mediaOverrides },
       designSettings: designOverride ?? draft.designSettings,
       sections: draft.sections.map((section) => ({
         ...section,
@@ -303,7 +305,7 @@ export function WebsitePage() {
             : section.appearance,
       })),
     } as WebsiteDraft;
-  }, [appearanceOverride, contentOverride, designOverride, draft]);
+  }, [appearanceOverride, contentOverride, designOverride, draft, mediaOverrides]);
 
   async function saveDesign() {
     if (!designOverride) return;
@@ -378,6 +380,8 @@ export function WebsitePage() {
       />
     ) : (
       <SectionInspector
+        resolvedMedia={draft.media}
+        onMediaResolved={(media) => setMediaOverrides((current) => ({ ...current, [media.id]: media }))}
         selected={selected}
         workingContent={workingContent}
         workingAppearance={workingAppearance}
@@ -398,6 +402,7 @@ export function WebsitePage() {
           setDraft(updated);
           setContentOverride(null);
           setActiveInlineTarget(null);
+          setMediaOverrides({});
         }}
         onAppearanceChange={(appearance) =>
           selected &&
@@ -423,6 +428,8 @@ export function WebsitePage() {
       />
     ) : (
       <SectionInspector
+        resolvedMedia={draft.media}
+        onMediaResolved={(media) => setMediaOverrides((current) => ({ ...current, [media.id]: media }))}
         selected={selected}
         workingContent={workingContent}
         workingAppearance={workingAppearance}
@@ -443,6 +450,7 @@ export function WebsitePage() {
           setDraft(updated);
           setContentOverride(null);
           setActiveInlineTarget(null);
+          setMediaOverrides({});
         }}
         onAppearanceChange={(appearance) =>
           selected &&
@@ -875,6 +883,8 @@ function PreviewCanvas({
 }
 
 function SectionInspector({
+  resolvedMedia,
+  onMediaResolved,
   selected,
   workingContent,
   workingAppearance,
@@ -891,6 +901,8 @@ function SectionInspector({
   onAppearanceChange,
   onAppearanceSave,
 }: {
+  resolvedMedia: WebsiteDraft["media"];
+  onMediaResolved: (media: WebsiteDraft["media"][string]) => void;
   selected: WebsiteSection | null;
   workingContent?: Record<string, unknown>;
   workingAppearance?: WebsiteSectionAppearance;
@@ -949,6 +961,8 @@ function SectionInspector({
           onChange={onContentChange}
           onSave={onContentSave}
           onSaved={onContentSaved}
+          resolvedMedia={resolvedMedia}
+          onMediaResolved={onMediaResolved}
         />
       ) : selected.appearanceOptions ? (
         <AppearancePanel

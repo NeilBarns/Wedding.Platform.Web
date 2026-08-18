@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button'
 import { WorkspaceSection } from '../../features/events/workspace/WorkspaceSection'
 import { deleteMediaAsset, getMediaAssets, uploadMediaAsset } from '../../features/media/api'
 import { MediaAssetCard } from '../../features/media/components/MediaAssetCard'
+import { MediaDeleteDialog } from '../../features/media/components/MediaDeleteDialog'
 import { MediaAssetViewer } from '../../features/media/components/MediaAssetViewer'
 import { MediaFiltersToolbar } from '../../features/media/components/MediaFiltersToolbar'
 import { MediaUploadPanel } from '../../features/media/components/MediaUploadPanel'
@@ -36,7 +37,7 @@ export function MediaLibraryPage() {
   const [result, setResult] = useState<MediaPage>({ assets: [], currentPage: 1, lastPage: 1, total: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<MediaAsset | null>(null)
   const [viewing, setViewing] = useState<MediaAsset | null>(null)
   const [refresh, setRefresh] = useState(0)
 
@@ -69,8 +70,9 @@ export function MediaLibraryPage() {
   }
 
   return <WorkspaceSection eyebrow="Event workspace" title="Media Library" description="Upload and manage images for this Event. Your images can be reused across your Website.">
-    <MediaUploadPanel onUpload={async (file) => { await uploadMediaAsset(eventId, file); setLoading(true); setRefresh((value) => value + 1) }} />
+    <MediaUploadPanel onUpload={(file) => uploadMediaAsset(eventId, file)} onBatchComplete={({ assets }) => { if (assets.length > 0) { setLoading(true); setRefresh((value) => value + 1) } }} />
     <MediaFiltersToolbar key={search} initialSearch={search} type={type} orientation={orientation} uploaded={uploaded} loading={loading && result.assets.length > 0} onSearchCommit={commitSearch} onFilterChange={(key, value) => updateQuery({ [key]: value })} onClear={clearFilters} />
+    {error && result.assets.length > 0 && <p className="mt-4 rounded-lg bg-danger-muted p-3 text-sm text-danger" role="alert">{error}</p>}
 
     {loading && result.assets.length === 0 ? <p className="mt-6 text-sm text-foreground-muted">Loading images…</p> : error && result.assets.length === 0 ? (
       <div className="mt-6"><p className="text-sm text-danger">Unable to load the Media Library.</p><Button className="mt-3" variant="secondary" onClick={() => { setLoading(true); setRefresh((value) => value + 1) }}>Try again</Button></div>
@@ -79,9 +81,15 @@ export function MediaLibraryPage() {
     ) : result.assets.length === 0 ? (
       <section className="mt-6 rounded-xl border border-dashed border-border py-12 text-center"><Images className="mx-auto text-foreground-muted" aria-hidden="true" /><h2 className="mt-3 font-semibold">No images yet</h2><p className="mt-1 text-sm text-foreground-muted">Upload your first image to start building your Event Media Library.</p></section>
     ) : <>
-      <div className="mt-6 columns-1 gap-4 sm:columns-2 lg:columns-3 xl:columns-4">{result.assets.map((asset) => <div className="mb-4 break-inside-avoid" key={asset.id}><MediaAssetCard asset={asset} deleting={deleting === asset.id} onView={() => setViewing(asset)} onDelete={async () => { if (!window.confirm(`Delete ${asset.originalFilename}?`)) return; setDeleting(asset.id); setError(null); try { await deleteMediaAsset(eventId, asset.id); setLoading(true); setRefresh((value) => value + 1) } catch (reason) { setError(message(reason)) } finally { setDeleting(null) } }} /></div>)}</div>
+      <div className="mt-6 columns-1 gap-4 sm:columns-2 lg:columns-3 xl:columns-4">{result.assets.map((asset) => <div className="mb-4 break-inside-avoid" key={asset.id}><MediaAssetCard asset={asset} onView={() => setViewing(asset)} onDelete={() => setDeleteTarget(asset)} /></div>)}</div>
       {result.lastPage > 1 && <nav className="mt-6 flex items-center justify-center gap-3" aria-label="Media pages"><Button variant="secondary" disabled={result.currentPage <= 1 || loading} onClick={() => goToPage(result.currentPage - 1)}>Previous</Button><span className="text-sm text-foreground-muted">Page {result.currentPage} of {result.lastPage}</span><Button variant="secondary" disabled={result.currentPage >= result.lastPage || loading} onClick={() => goToPage(result.currentPage + 1)}>Next</Button></nav>}
     </>}
     <MediaAssetViewer asset={viewing} onClose={() => setViewing(null)} />
+    <MediaDeleteDialog key={deleteTarget?.id ?? 'closed'} asset={deleteTarget} onClose={() => setDeleteTarget(null)} onDelete={async (asset) => {
+      await deleteMediaAsset(eventId, asset.id)
+      setDeleteTarget(null)
+      setLoading(true)
+      setRefresh((value) => value + 1)
+    }} />
   </WorkspaceSection>
 }

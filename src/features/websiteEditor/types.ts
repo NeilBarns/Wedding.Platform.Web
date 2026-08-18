@@ -1,8 +1,10 @@
-export type HeroContent = { headline: string; subheadline: string }
+export type SectionMedia = { assetId: string; focalPoint?: { x: number; y: number } } | null
+type WithMedia = { media?: SectionMedia }
+export type HeroContent = { headline: string; subheadline: string } & WithMedia
 export type DateContent = { heading: string; description: string }
-export type StoryContent = { heading: string; body: string }
+export type StoryContent = { heading: string; body: string } & WithMedia
 export type ScheduleContent = { heading: string; items: Array<{ time: string; title: string; description: string }> }
-export type VenueContent = { heading: string; name: string; address: string; description: string }
+export type VenueContent = { heading: string; name: string; address: string; description: string } & WithMedia
 export type DressCodeContent = { heading: string; description: string }
 export type GalleryContent = { heading: string; items: [] }
 export type FaqContent = { heading: string; items: Array<{ question: string; answer: string }> }
@@ -17,6 +19,7 @@ type SectionBase<TType extends string, TContent> = {
   content: TContent
   appearance: WebsiteSectionAppearance
   appearanceOptions: WebsiteSectionAppearanceOptions | null
+  mediaCapability: { mode: 'single' | 'multiple' } | null
 }
 
 export type SectionAlignment = 'inherit' | 'left' | 'center' | 'right'
@@ -66,4 +69,13 @@ export type WebsiteDraft = {
   designSettings: WebsiteDesignSettings
   template: WebsiteTemplateSummary | null
   sections: WebsiteSection[]
+  media: Record<string, ResolvedWebsiteMedia>
+}
+
+export type ResolvedWebsiteMedia = {
+  id: string
+  originalFilename: string
+  width: number
+  height: number
+  web: { width: number; height: number; url: string }
 }

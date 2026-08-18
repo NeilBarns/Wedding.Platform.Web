@@ -4,14 +4,15 @@ import type { WebsiteDraft, WebsiteSection } from './types'
 const text = z.string()
 const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Required')
 const designOptionSchema = z.object({ key: nonEmptyString, displayName: nonEmptyString }).strict()
-export const heroContentSchema = z.object({ headline: text, subheadline: text }).strict()
+const sectionMediaSchema = z.object({ assetId: nonEmptyString, focalPoint: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().optional() }).strict().nullable().optional()
+export const heroContentSchema = z.object({ headline: text, subheadline: text, media: sectionMediaSchema }).strict()
 export const dateContentSchema = z.object({ heading: text, description: text }).strict()
-export const storyContentSchema = z.object({ heading: text, body: text }).strict()
+export const storyContentSchema = z.object({ heading: text, body: text, media: sectionMediaSchema }).strict()
 export const scheduleContentSchema = z.object({
   heading: text,
   items: z.array(z.object({ time: text, title: text, description: text }).strict()),
 }).strict()
-export const venueContentSchema = z.object({ heading: text, name: text, address: text, description: text }).strict()
+export const venueContentSchema = z.object({ heading: text, name: text, address: text, description: text, media: sectionMediaSchema }).strict()
 export const dressCodeContentSchema = z.object({ heading: text, description: text }).strict()
 export const galleryContentSchema = z.object({ heading: text, items: z.tuple([]) }).strict()
 export const faqContentSchema = z.object({
@@ -52,6 +53,7 @@ const sectionSchema = z.object({
     backgroundTreatments: z.array(z.object({ key: z.string(), displayName: z.string() }).strict()),
     emphasisOptions: z.array(z.object({ key: z.string(), displayName: z.string() }).strict()),
   }).strict().nullable(),
+  mediaCapability: z.object({ mode: z.enum(['single', 'multiple']) }).strict().nullable(),
 })
 
 const draftSchema = z.object({
@@ -73,6 +75,10 @@ const draftSchema = z.object({
     }).strict(),
   }).strict().nullable(),
   sections: z.array(sectionSchema),
+  media: z.record(z.string(), z.object({
+    id: z.string(), originalFilename: z.string(), width: z.number(), height: z.number(),
+    web: z.object({ width: z.number(), height: z.number(), url: z.string().url() }).strict(),
+  }).strict()),
 }).superRefine((draft, context) => {
   if (!draft.template) return
 

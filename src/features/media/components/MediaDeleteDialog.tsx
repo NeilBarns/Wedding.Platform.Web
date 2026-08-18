@@ -1,0 +1,63 @@
+import { useState } from 'react'
+import { ApiError } from '../../../lib/api'
+import { Button } from '../../../components/ui/Button'
+import { Dialog, DialogFooter, DialogHeader } from '../../../components/ui/Dialog'
+import { Text } from '../../../components/ui/Text'
+import type { MediaAsset } from '../types'
+
+type DeleteFailure = { message: string; usageConflict: boolean }
+
+export function MediaDeleteDialog({ asset, onClose, onDelete }: {
+  asset: MediaAsset | null
+  onClose: () => void
+  onDelete: (asset: MediaAsset) => Promise<void>
+}) {
+  const [deleting, setDeleting] = useState(false)
+  const [failure, setFailure] = useState<DeleteFailure | null>(null)
+  const knownUsage = asset?.usage.isInUse === true
+  const blocked = knownUsage || failure?.usageConflict === true
+  const titleId = 'media-delete-title'
+  const descriptionId = 'media-delete-description'
+
+  async function confirmDelete() {
+    if (!asset || knownUsage) return
+    setDeleting(true)
+    setFailure(null)
+    try {
+      await onDelete(asset)
+    } catch (error) {
+      setFailure({
+        message: error instanceof Error ? error.message : 'Something went wrong while deleting this image. Please try again.',
+        usageConflict: error instanceof ApiError && error.status === 422,
+      })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const close = () => { if (!deleting) onClose() }
+  const sections = asset?.usage.website.sections ?? []
+  const title = blocked || failure ? 'Unable to delete image' : 'Delete image?'
+
+  return <Dialog open={asset !== null} onClose={close} closeDisabled={deleting} titleId={titleId} descriptionId={descriptionId} size="sm">
+    {asset && <>
+      <DialogHeader title={title} titleId={titleId} onClose={close} closeDisabled={deleting} />
+      <div className="mt-3" id={descriptionId}>
+        {blocked ? <>
+          <Text>{failure?.message ?? 'This image is currently used by your Website and cannot be deleted.'}</Text>
+          {sections.length > 0 && <div className="mt-4"><Text className="font-medium">Used in:</Text><ul className="mt-2 list-disc space-y-1 pl-5 text-sm">{sections.map((section) => <li key={section.sectionId}>{section.displayName}</li>)}</ul></div>}
+          <Text className="mt-4" variant="muted">Remove it from these Website Sections first, then try again.</Text>
+        </> : failure ? <Text variant="error">{failure.message}</Text> : <>
+          <Text>“{asset.originalFilename}” will be permanently removed from this Event.</Text>
+          <Text className="mt-3" variant="muted">This action cannot be undone.</Text>
+        </>}
+      </div>
+      <DialogFooter className="mt-5">
+        {blocked ? <Button variant="secondary" onClick={close}>Close</Button> : <>
+          <Button variant="secondary" disabled={deleting} onClick={close}>Cancel</Button>
+          <Button variant="danger" disabled={deleting} onClick={confirmDelete}>{deleting ? 'Deleting…' : failure ? 'Try again' : 'Delete'}</Button>
+        </>}
+      </DialogFooter>
+    </>}
+  </Dialog>
+}
