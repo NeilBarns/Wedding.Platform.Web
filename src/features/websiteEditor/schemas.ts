@@ -3,6 +3,8 @@ import type { WebsiteDraft, WebsiteSection } from './types'
 
 const text = z.string()
 const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Required')
+const semanticId = z.string().max(255).refine((value) => value.trim().length > 0, 'Required')
+const requiredLabel = z.string().max(255).refine((value) => value.trim().length > 0, 'Required')
 const designOptionSchema = z.object({ key: nonEmptyString, displayName: nonEmptyString }).strict()
 const sectionMediaSchema = z.object({ assetId: nonEmptyString, focalPoint: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().optional() }).strict().nullable().optional()
 export const heroContentSchema = z.object({ headline: text, subheadline: text, media: sectionMediaSchema }).strict()
@@ -14,6 +16,23 @@ export const scheduleContentSchema = z.object({
 }).strict()
 export const venueContentSchema = z.object({ heading: text, name: text, address: text, description: text, media: sectionMediaSchema }).strict()
 export const dressCodeContentSchema = z.object({ heading: text, description: text }).strict()
+const peoplePersonSchema = z.object({ id: semanticId, name: requiredLabel, role: text.max(255).nullable().optional(), media: sectionMediaSchema }).strict()
+const peopleGroupSchema = z.object({ id: semanticId, name: requiredLabel, people: z.array(peoplePersonSchema).max(100) }).strict()
+export const peopleContentSchema = z.object({
+  heading: text.max(255),
+  groups: z.array(peopleGroupSchema).max(30),
+}).strict().superRefine((content, context) => {
+  const groupIds = new Set<string>()
+  const personIds = new Set<string>()
+  content.groups.forEach((group, groupIndex) => {
+    if (groupIds.has(group.id)) context.addIssue({ code: 'custom', message: 'Group IDs must be unique', path: ['groups', groupIndex, 'id'] })
+    groupIds.add(group.id)
+    group.people.forEach((person, personIndex) => {
+      if (personIds.has(person.id)) context.addIssue({ code: 'custom', message: 'Person IDs must be unique', path: ['groups', groupIndex, 'people', personIndex, 'id'] })
+      personIds.add(person.id)
+    })
+  })
+})
 export const galleryContentSchema = z.object({ heading: text, items: z.tuple([]) }).strict()
 export const faqContentSchema = z.object({
   heading: text,
@@ -28,6 +47,7 @@ const contentSchemas: Record<string, z.ZodType> = {
   schedule: scheduleContentSchema,
   venue: venueContentSchema,
   dressCode: dressCodeContentSchema,
+  people: peopleContentSchema,
   gallery: galleryContentSchema,
   faq: faqContentSchema,
   rsvp: rsvpContentSchema,
@@ -54,6 +74,7 @@ const sectionSchema = z.object({
     emphasisOptions: z.array(z.object({ key: z.string(), displayName: z.string() }).strict()),
   }).strict().nullable(),
   mediaCapability: z.object({ mode: z.enum(['single', 'multiple']) }).strict().nullable(),
+  itemMediaCapability: z.object({ itemType: z.literal('person'), mode: z.literal('single') }).strict().nullable(),
 })
 
 const draftSchema = z.object({

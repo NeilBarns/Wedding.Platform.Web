@@ -45,7 +45,7 @@ export function MediaDeleteDialog({ asset, onClose, onDelete }: {
       <div className="mt-3" id={descriptionId}>
         {blocked ? <>
           <Text>{failure?.message ?? 'This image is currently used by your Website and cannot be deleted.'}</Text>
-          {sections.length > 0 && <div className="mt-4"><Text className="font-medium">Used in:</Text><ul className="mt-2 list-disc space-y-1 pl-5 text-sm">{sections.map((section) => <li key={section.sectionId}>{section.displayName}</li>)}</ul></div>}
+          {sections.length > 0 && <div className="mt-4"><Text className="font-medium">Used in:</Text><ul className="mt-2 list-disc space-y-1 pl-5 text-sm">{sections.map((section) => <li key={`${section.sectionId}:${section.context?.personId ?? 'section'}`}>{section.displayName}{section.context && <span className="block text-xs text-foreground-muted">{section.context.groupName} — {section.context.personName}</span>}</li>)}</ul></div>}
           <Text className="mt-4" variant="muted">Remove it from these Website Sections first, then try again.</Text>
         </> : failure ? <Text variant="error">{failure.message}</Text> : <>
           <Text>“{asset.originalFilename}” will be permanently removed from this Event.</Text>

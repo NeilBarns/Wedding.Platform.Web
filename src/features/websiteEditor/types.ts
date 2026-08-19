@@ -6,6 +6,9 @@ export type StoryContent = { heading: string; body: string } & WithMedia
 export type ScheduleContent = { heading: string; items: Array<{ time: string; title: string; description: string }> }
 export type VenueContent = { heading: string; name: string; address: string; description: string } & WithMedia
 export type DressCodeContent = { heading: string; description: string }
+export type PeoplePerson = { id: string; name: string; role?: string | null; media?: SectionMedia }
+export type PeopleGroup = { id: string; name: string; people: PeoplePerson[] }
+export type PeopleContent = { heading: string; groups: PeopleGroup[] }
 export type GalleryContent = { heading: string; items: [] }
 export type FaqContent = { heading: string; items: Array<{ question: string; answer: string }> }
 export type RsvpContent = { heading: string; description: string; buttonLabel: string }
@@ -20,6 +23,7 @@ type SectionBase<TType extends string, TContent> = {
   appearance: WebsiteSectionAppearance
   appearanceOptions: WebsiteSectionAppearanceOptions | null
   mediaCapability: { mode: 'single' | 'multiple' } | null
+  itemMediaCapability: { itemType: 'person'; mode: 'single' } | null
 }
 
 export type SectionAlignment = 'inherit' | 'left' | 'center' | 'right'
@@ -45,6 +49,7 @@ export type WebsiteSection =
   | SectionBase<'schedule', ScheduleContent>
   | SectionBase<'venue', VenueContent>
   | SectionBase<'dressCode', DressCodeContent>
+  | SectionBase<'people', PeopleContent>
   | SectionBase<'gallery', GalleryContent>
   | SectionBase<'faq', FaqContent>
   | SectionBase<'rsvp', RsvpContent>

@@ -13,6 +13,12 @@ const mediaUsageSchema = z.object({
       sectionId: z.string().min(1),
       type: z.string().min(1),
       displayName: z.string().min(1),
+      context: z.object({
+        groupId: z.string().min(1),
+        groupName: z.string(),
+        personId: z.string().min(1),
+        personName: z.string(),
+      }).strict().optional(),
     }).strict()),
   }).strict(),
 }).strict()

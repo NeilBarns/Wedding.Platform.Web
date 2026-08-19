@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, Plus, Save, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../../../components/ui/Button";
+import { Dialog, DialogFooter, DialogHeader } from "../../../components/ui/Dialog";
 import { IconButton } from "../../../components/ui/IconButton";
 import { Input } from "../../../components/ui/Input";
 import { Textarea } from "../../../components/ui/Textarea";
@@ -12,6 +13,9 @@ import type { MediaAsset } from "../../media/types";
 import { useEventWorkspace } from "../../events/workspace/EventWorkspaceContext";
 import { MediaPickerDialog } from "./MediaPickerDialog";
 import { FocalPointEditor } from "./FocalPointEditor";
+import { createSemanticId } from "../createSemanticId";
+import type { PeopleContent, PeopleGroup, PeoplePerson } from "../types";
+import { useRevealNewItem } from "../useRevealNewItem";
 
 type EditorProps = {
   section: WebsiteSection;
@@ -98,6 +102,7 @@ function SectionMediaEditor(props: EditorProps) {
 }
 
 function ScheduleEditor(props: EditorProps) {
+  const reveal = useRevealNewItem();
   const { error, saving, save } = useSectionSave(props);
   const items = Array.isArray(props.content.items)
     ? (props.content.items as Array<Record<string, string>>)
@@ -125,17 +130,19 @@ function ScheduleEditor(props: EditorProps) {
       />
       <ItemList
         title="Schedule items"
-        onAdd={() =>
+        onAdd={() => {
+          reveal.reveal(`schedule-${items.length}`);
           props.onChange({
             ...props.content,
             items: [...items, { time: "", title: "", description: "" }],
-          })
-        }
+          });
+        }}
       >
         {items.map((item, index) => (
           <div
             className="rounded-xl border border-border bg-background p-3 xl:rounded-md"
             key={index}
+            ref={reveal.register(`schedule-${index}`)}
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <TextField
@@ -180,6 +187,7 @@ function ScheduleEditor(props: EditorProps) {
 }
 
 function FaqEditor(props: EditorProps) {
+  const reveal = useRevealNewItem();
   const { error, saving, save } = useSectionSave(props);
   const items = Array.isArray(props.content.items)
     ? (props.content.items as Array<Record<string, string>>)
@@ -207,17 +215,19 @@ function FaqEditor(props: EditorProps) {
       />
       <ItemList
         title="Questions"
-        onAdd={() =>
+        onAdd={() => {
+          reveal.reveal(`faq-${items.length}`);
           props.onChange({
             ...props.content,
             items: [...items, { question: "", answer: "" }],
-          })
-        }
+          });
+        }}
       >
         {items.map((item, index) => (
           <div
             className="rounded-xl border border-border bg-background p-3 xl:rounded-md"
             key={index}
+            ref={reveal.register(`faq-${index}`)}
           >
             <TextField
               label="Question"
@@ -251,6 +261,70 @@ function FaqEditor(props: EditorProps) {
       </ItemList>
     </EditorForm>
   );
+}
+
+function PeopleEditor(props: EditorProps) {
+  const { error, saving, save } = useSectionSave(props);
+  const event = useEventWorkspace();
+  const reveal = useRevealNewItem();
+  const [pickerPersonId, setPickerPersonId] = useState<string | null>(null);
+  const [focalPersonId, setFocalPersonId] = useState<string | null>(null);
+  const content = props.content as PeopleContent;
+  const groups = Array.isArray(content.groups) ? content.groups : [];
+  const changeGroups = (next: PeopleGroup[]) => props.onChange({ ...props.content, groups: next });
+  const updateGroup = (index: number, change: Partial<PeopleGroup>) => changeGroups(groups.map((group, current) => current === index ? { ...group, ...change } : group));
+  const findPerson = (personId: string | null) => groups.flatMap((group) => group.people).find((person) => person.id === personId);
+  const updatePerson = (personId: string, update: (person: PeoplePerson) => PeoplePerson) => changeGroups(groups.map((group) => ({ ...group, people: group.people.map((person) => person.id === personId ? update(person) : person) })));
+  const moveGroup = (index: number, target: number) => {
+    const next = [...groups];
+    [next[index], next[target]] = [next[target], next[index]];
+    changeGroups(next);
+  };
+
+  return <EditorForm error={error} dirty={props.dirty} saving={saving} onSave={save}>
+    <TextField label="Heading" id={`${props.section.id}-heading`} value={String(content.heading ?? "")} onChange={(heading) => props.onChange({ ...props.content, heading })} />
+    <ItemList title="Groups" onAdd={() => { const id = createSemanticId("group"); reveal.reveal(`group-${id}`); changeGroups([...groups, { id, name: "New group", people: [] }]); }}>
+      {groups.map((group, groupIndex) => <div className="rounded-xl border border-border bg-background p-3 xl:rounded-md" key={group.id} ref={reveal.register(`group-${group.id}`)}>
+        <TextField label="Group name" id={`${props.section.id}-${group.id}-name`} value={group.name} onChange={(name) => updateGroup(groupIndex, { name })} />
+        <div className="mt-3 rounded-md bg-surface-muted p-3">
+          <ItemList title="People" onAdd={() => { const id = createSemanticId("person"); reveal.reveal(`person-${id}`); updateGroup(groupIndex, { people: [...group.people, { id, name: "", role: null, media: null }] }); }}>
+            {group.people.map((person, personIndex) => <div className="rounded-md border border-border bg-surface p-3" key={person.id} ref={reveal.register(`person-${person.id}`)}>
+              <TextField label="Name" id={`${props.section.id}-${person.id}-name`} value={person.name} onChange={(name) => updateGroup(groupIndex, { people: group.people.map((item, current) => current === personIndex ? { ...item, name } : item) })} />
+              <div className="mt-3"><TextField label="Role or title (optional)" id={`${props.section.id}-${person.id}-role`} value={person.role ?? ""} onChange={(role) => updateGroup(groupIndex, { people: group.people.map((item, current) => current === personIndex ? { ...item, role: role || null } : item) })} /></div>
+              {props.section.itemMediaCapability?.itemType === "person" && <PersonMediaEditor person={person} resolvedMedia={props.resolvedMedia} onChoose={() => setPickerPersonId(person.id)} onAdjust={() => setFocalPersonId(person.id)} onRemove={() => updatePerson(person.id, (current) => ({ ...current, media: null }))} />}
+              <ItemActions label={person.name.trim() || "person"} index={personIndex} length={group.people.length} onRemove={() => updateGroup(groupIndex, { people: group.people.filter((_, current) => current !== personIndex) })} onMove={(target) => {
+                const people = [...group.people];
+                [people[personIndex], people[target]] = [people[target], people[personIndex]];
+                updateGroup(groupIndex, { people });
+              }} />
+            </div>)}
+          </ItemList>
+        </div>
+        <ItemActions label={group.name.trim() || "group"} index={groupIndex} length={groups.length} onRemove={() => changeGroups(groups.filter((_, current) => current !== groupIndex))} onMove={(target) => moveGroup(groupIndex, target)} />
+      </div>)}
+    </ItemList>
+    <MediaPickerDialog open={pickerPersonId !== null} eventId={event.id} selectedAssetId={findPerson(pickerPersonId)?.media?.assetId} onClose={() => setPickerPersonId(null)} onSelect={(asset) => { const personId = pickerPersonId; if (!personId) return; props.onMediaResolved({ id: asset.id, originalFilename: asset.originalFilename, width: asset.width, height: asset.height, web: asset.variants.web }); updatePerson(personId, (person) => ({ ...person, media: { assetId: asset.id } })); setPickerPersonId(null); }} />
+    <PersonFocalDialog person={findPerson(focalPersonId)} media={props.resolvedMedia} onClose={() => setFocalPersonId(null)} onChange={(focalPoint) => { if (focalPersonId) updatePerson(focalPersonId, (person) => person.media ? { ...person, media: { ...person.media, focalPoint } } : person); }} />
+  </EditorForm>;
+}
+
+function PersonMediaEditor({ person, resolvedMedia, onChoose, onAdjust, onRemove }: { person: PeoplePerson; resolvedMedia: Record<string, ResolvedWebsiteMedia>; onChoose: () => void; onAdjust: () => void; onRemove: () => void }) {
+  const asset = person.media ? resolvedMedia[person.media.assetId] : undefined;
+  const point = person.media?.focalPoint ?? { x: 0.5, y: 0.5 };
+  return <section className="mt-3 rounded-md border border-border bg-surface-muted p-3">
+    <h4 className="text-xs font-semibold">Photo</h4>
+    {asset ? <div className="mt-2 flex gap-3"><img className="size-16 rounded-full object-cover" style={{ objectPosition: `${point.x * 100}% ${point.y * 100}%` }} src={asset.web.url} alt="" /><div className="min-w-0 flex-1"><p className="truncate text-xs text-foreground-muted">{asset.originalFilename}</p><div className="mt-2 flex flex-wrap gap-2"><Button size="sm" type="button" variant="secondary" onClick={onChoose}>Change</Button><Button size="sm" type="button" variant="secondary" onClick={onAdjust}>Adjust focal point</Button><Button size="sm" type="button" variant="ghost" onClick={onRemove}>Remove</Button></div></div></div> : <div className="mt-2"><p className="text-xs text-foreground-muted">No photo selected</p><Button className="mt-2" size="sm" type="button" variant="secondary" onClick={onChoose}>Choose from Media</Button></div>}
+  </section>;
+}
+
+function PersonFocalDialog({ person, media, onClose, onChange }: { person?: PeoplePerson; media: Record<string, ResolvedWebsiteMedia>; onClose: () => void; onChange: (point: { x: number; y: number }) => void }) {
+  const reference = person?.media;
+  const asset = reference ? media[reference.assetId] : undefined;
+  return <Dialog open={Boolean(person && asset)} onClose={onClose} titleId="person-focal-title" size="sm">
+    <DialogHeader title="Adjust focal point" titleId="person-focal-title" description={`Position ${person?.name || "this person's"} photo.`} onClose={onClose} />
+    {asset && reference && <div className="mt-4"><FocalPointEditor url={asset.web.url} point={reference.focalPoint ?? { x: 0.5, y: 0.5 }} onChange={onChange} /></div>}
+    <DialogFooter className="mt-5"><Button type="button" onClick={onClose}>Done</Button></DialogFooter>
+  </Dialog>;
 }
 
 function EditorForm({
@@ -478,6 +552,8 @@ export function SectionEditor(props: EditorProps) {
           ]}
         />
       );
+    case "people":
+      return <PeopleEditor {...props} />;
     case "gallery":
       return (
         <SimpleEditor

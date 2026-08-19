@@ -1,7 +1,7 @@
-import type { DateContent, DressCodeContent, FaqContent, GalleryContent, HeroContent, ResolvedWebsiteMedia, RsvpContent, ScheduleContent, SectionMedia, StoryContent, VenueContent, WebsiteSection } from '../../websiteEditor/types'
+import type { DateContent, DressCodeContent, FaqContent, GalleryContent, HeroContent, PeopleContent, ResolvedWebsiteMedia, RsvpContent, ScheduleContent, SectionMedia, StoryContent, VenueContent, WebsiteSection } from '../../websiteEditor/types'
 import { formatDateOnly } from '../formatDateOnly'
 import type { WebsiteRendererProps } from '../types'
-import { ClassicFilipinianaDate, ClassicFilipinianaDressCode, ClassicFilipinianaFaq, ClassicFilipinianaGallery, ClassicFilipinianaHero, ClassicFilipinianaRsvp, ClassicFilipinianaSchedule, ClassicFilipinianaStory, ClassicFilipinianaVenue } from './classicFilipiniana/sections'
+import { ClassicFilipinianaDate, ClassicFilipinianaDressCode, ClassicFilipinianaFaq, ClassicFilipinianaGallery, ClassicFilipinianaHero, ClassicFilipinianaPeople, ClassicFilipinianaRsvp, ClassicFilipinianaSchedule, ClassicFilipinianaStory, ClassicFilipinianaVenue } from './classicFilipiniana/sections'
 import { resolveClassicFilipinianaSectionAppearance } from './classicFilipiniana/appearance'
 import { resolveClassicFilipinianaDesign } from './classicFilipiniana/design'
 
@@ -44,6 +44,7 @@ function Section({ section, eventName, eventDate, mode, media }: { section: Webs
     case 'schedule': return <ClassicFilipinianaSchedule sectionId={section.id} content={section.content as ScheduleContent} />
     case 'venue': return wrap(<ClassicFilipinianaVenue sectionId={section.id} content={section.content as VenueContent} />)
     case 'dressCode': return <ClassicFilipinianaDressCode sectionId={section.id} content={section.content as DressCodeContent} />
+    case 'people': return <ClassicFilipinianaPeople sectionId={section.id} content={section.content as PeopleContent} mode={mode} media={media} showMedia={section.itemMediaCapability?.itemType === 'person'} />
     case 'gallery': return <ClassicFilipinianaGallery sectionId={section.id} content={section.content as GalleryContent} mode={mode} />
     case 'faq': return <ClassicFilipinianaFaq sectionId={section.id} content={section.content as FaqContent} />
     case 'rsvp': return <ClassicFilipinianaRsvp sectionId={section.id} content={section.content as RsvpContent} />

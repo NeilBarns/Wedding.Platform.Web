@@ -8,6 +8,7 @@ export type MediaWebsiteSectionUsage = {
   sectionId: string
   type: string
   displayName: string
+  context?: { groupId: string; groupName: string; personId: string; personName: string }
 }
 
 export type MediaAssetUsage = {

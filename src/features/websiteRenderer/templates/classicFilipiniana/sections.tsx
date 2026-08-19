@@ -1,5 +1,5 @@
 import { EditableText } from '../../../websiteEditor/inline/EditableText'
-import type { DateContent, DressCodeContent, FaqContent, GalleryContent, HeroContent, RsvpContent, ScheduleContent, StoryContent, VenueContent } from '../../../websiteEditor/types'
+import type { DateContent, DressCodeContent, FaqContent, GalleryContent, HeroContent, PeopleContent, ResolvedWebsiteMedia, RsvpContent, ScheduleContent, StoryContent, VenueContent } from '../../../websiteEditor/types'
 
 export function ClassicFilipinianaHero({ sectionId, eventName, content }: { sectionId: string; eventName: string; content: HeroContent }) {
   return <div data-section-content className="relative flex min-h-[34rem] flex-col items-center justify-center overflow-hidden px-8 py-24 text-center">
@@ -29,6 +29,16 @@ export function ClassicFilipinianaVenue({ sectionId, content }: { sectionId: str
 
 export function ClassicFilipinianaDressCode({ sectionId, content }: { sectionId: string; content: DressCodeContent }) {
   return <ContentSection eyebrow="What to wear" heading={<EditableText sectionId={sectionId} path={['heading']} value={content.heading} fallback="Dress Code" placeholder="Add heading" label="Dress code heading" />}><p className="mx-auto max-w-xl whitespace-pre-line leading-8"><EditableText sectionId={sectionId} path={['description']} value={content.description} fallback="Attire guidance will be shared here." placeholder="Add description" label="Dress code description" multiline /></p></ContentSection>
+}
+
+export function ClassicFilipinianaPeople({ sectionId, content, mode, media, showMedia }: { sectionId: string; content: PeopleContent; mode: 'editor' | 'public'; media: Record<string, ResolvedWebsiteMedia>; showMedia: boolean }) {
+  const groups = content.groups.filter((group) => group.people.length > 0)
+  return <ContentSection eyebrow="Those beside us" heading={<EditableText sectionId={sectionId} path={['heading']} value={content.heading} fallback="Wedding Party" placeholder="Add heading" label="Wedding Party heading" />}>
+    {groups.length > 0 ? <div className="mx-auto grid max-w-4xl gap-x-10 gap-y-10 sm:grid-cols-2">{groups.map((group) => <section className="border-t border-[color-mix(in_srgb,var(--cf-border)_30%,transparent)] pt-5" key={group.id}>
+      <h3 className="font-[family-name:var(--cf-heading-font)] text-xl text-[var(--cf-text)]">{group.name}</h3>
+      <ul className={`mt-4 ${showMedia && group.people.some((person) => person.media && media[person.media.assetId]) ? 'grid grid-cols-2 gap-5' : 'space-y-3'}`}>{group.people.map((person) => { const asset = showMedia && person.media ? media[person.media.assetId] : undefined; const point = person.media?.focalPoint ?? { x: 0.5, y: 0.5 }; return <li key={person.id}>{asset && <img className="mx-auto mb-3 aspect-square w-full max-w-28 rounded-full object-cover" style={{ objectPosition: `${point.x * 100}% ${point.y * 100}%` }} src={asset.web.url} alt="" />}<span className="text-base text-[var(--cf-text)]">{person.name}</span>{person.role && <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--cf-accent)]">{person.role}</span>}</li> })}</ul>
+    </section>)}</div> : mode === 'editor' ? <EmptyCopy>Add groups and people from the Content panel.</EmptyCopy> : null}
+  </ContentSection>
 }
 
 export function ClassicFilipinianaGallery({ sectionId, content, mode }: { sectionId: string; content: GalleryContent; mode: 'editor' | 'public' }) {

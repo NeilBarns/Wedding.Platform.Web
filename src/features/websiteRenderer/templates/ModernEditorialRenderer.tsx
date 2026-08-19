@@ -1,9 +1,9 @@
-import type { DateContent, DressCodeContent, FaqContent, GalleryContent, HeroContent, ResolvedWebsiteMedia, RsvpContent, ScheduleContent, SectionMedia, StoryContent, VenueContent, WebsiteSection } from '../../websiteEditor/types'
+import type { DateContent, DressCodeContent, FaqContent, GalleryContent, HeroContent, PeopleContent, ResolvedWebsiteMedia, RsvpContent, ScheduleContent, SectionMedia, StoryContent, VenueContent, WebsiteSection } from '../../websiteEditor/types'
 import { formatDateOnly } from '../formatDateOnly'
 import type { WebsiteRendererProps } from '../types'
 import { resolveModernEditorialSectionAppearance } from './modernEditorial/appearance'
 import { resolveModernEditorialDesign } from './modernEditorial/design'
-import { ModernEditorialDate, ModernEditorialDressCode, ModernEditorialFaq, ModernEditorialGallery, ModernEditorialHero, ModernEditorialRsvp, ModernEditorialSchedule, ModernEditorialStory, ModernEditorialVenue } from './modernEditorial/sections'
+import { ModernEditorialDate, ModernEditorialDressCode, ModernEditorialFaq, ModernEditorialGallery, ModernEditorialHero, ModernEditorialPeople, ModernEditorialRsvp, ModernEditorialSchedule, ModernEditorialStory, ModernEditorialVenue } from './modernEditorial/sections'
 
 export function ModernEditorialRenderer({ event, website, mode = 'public', selectedSectionId, onSectionSelect }: WebsiteRendererProps) {
   const enabledSections = website.sections.filter(({ isEnabled }) => isEnabled)
@@ -29,6 +29,7 @@ function Section({ section, eventName, eventDate, mode, media }: { section: Webs
     case 'schedule': return <ModernEditorialSchedule sectionId={section.id} content={section.content as ScheduleContent} />
     case 'venue': return wrap(<ModernEditorialVenue sectionId={section.id} content={section.content as VenueContent} />)
     case 'dressCode': return <ModernEditorialDressCode sectionId={section.id} content={section.content as DressCodeContent} />
+    case 'people': return <ModernEditorialPeople sectionId={section.id} content={section.content as PeopleContent} mode={mode} media={media} showMedia={section.itemMediaCapability?.itemType === 'person'} />
     case 'gallery': return <ModernEditorialGallery sectionId={section.id} content={section.content as GalleryContent} mode={mode} />
     case 'faq': return <ModernEditorialFaq sectionId={section.id} content={section.content as FaqContent} />
     case 'rsvp': return <ModernEditorialRsvp sectionId={section.id} content={section.content as RsvpContent} />

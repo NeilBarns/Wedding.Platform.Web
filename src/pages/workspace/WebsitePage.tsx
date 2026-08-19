@@ -380,7 +380,7 @@ export function WebsitePage() {
       />
     ) : (
       <SectionInspector
-        resolvedMedia={draft.media}
+        resolvedMedia={previewDraft.media}
         onMediaResolved={(media) => setMediaOverrides((current) => ({ ...current, [media.id]: media }))}
         selected={selected}
         workingContent={workingContent}
@@ -428,7 +428,7 @@ export function WebsitePage() {
       />
     ) : (
       <SectionInspector
-        resolvedMedia={draft.media}
+        resolvedMedia={previewDraft.media}
         onMediaResolved={(media) => setMediaOverrides((current) => ({ ...current, [media.id]: media }))}
         selected={selected}
         workingContent={workingContent}
