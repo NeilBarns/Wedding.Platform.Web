@@ -24,6 +24,7 @@ type SectionBase<TType extends string, TContent> = {
   appearanceOptions: WebsiteSectionAppearanceOptions | null
   mediaCapability: { mode: 'single' | 'multiple' } | null
   itemMediaCapability: { itemType: 'person'; mode: 'single' } | null
+  presentationCapability: WebsiteSectionPresentationCapability | null
 }
 
 export type SectionAlignment = 'inherit' | 'left' | 'center' | 'right'
@@ -34,6 +35,17 @@ export type WebsiteSectionAppearance = {
   bodyAlignment: SectionAlignment
   backgroundTreatment: BackgroundTreatment
   emphasis: SectionEmphasis
+  presentation?: string
+}
+export type WebsiteSectionPresentationOption = {
+  key: string
+  displayName: string
+  description: string
+  preview: string
+}
+export type WebsiteSectionPresentationCapability = {
+  default: string
+  options: WebsiteSectionPresentationOption[]
 }
 export type WebsiteSectionAppearanceOptions = {
   headingAlignments: DesignOption[]

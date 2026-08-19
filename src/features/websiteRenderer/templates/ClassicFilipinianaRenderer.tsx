@@ -36,15 +36,16 @@ export function ClassicFilipinianaRenderer({ event, website, mode = 'public', se
 }
 
 function Section({ section, eventName, eventDate, mode, media }: { section: WebsiteSection; eventName: string; eventDate: string | null; mode: 'editor' | 'public'; media: Record<string, ResolvedWebsiteMedia> }) {
-  const wrap = (content: React.ReactNode) => <>{section.mediaCapability && <SectionImage section={section} media={media} />}{content}</>
+  const presentation = section.appearance.presentation ?? section.presentationCapability?.default
+  const present = (content: React.ReactNode) => <ClassicMediaPresentation section={section} media={media} presentation={presentation}>{content}</ClassicMediaPresentation>
   switch (section.type) {
-    case 'hero': return wrap(<ClassicFilipinianaHero sectionId={section.id} eventName={eventName} content={section.content as HeroContent} />)
+    case 'hero': return present(<ClassicFilipinianaHero sectionId={section.id} eventName={eventName} content={section.content as HeroContent} compact={presentation === 'framed'} />)
     case 'date': return <ClassicFilipinianaDate sectionId={section.id} date={formatDateOnly(eventDate)} content={section.content as DateContent} />
-    case 'story': return wrap(<ClassicFilipinianaStory sectionId={section.id} content={section.content as StoryContent} />)
+    case 'story': return present(<ClassicFilipinianaStory sectionId={section.id} content={section.content as StoryContent} />)
     case 'schedule': return <ClassicFilipinianaSchedule sectionId={section.id} content={section.content as ScheduleContent} />
-    case 'venue': return wrap(<ClassicFilipinianaVenue sectionId={section.id} content={section.content as VenueContent} />)
+    case 'venue': return present(<ClassicFilipinianaVenue sectionId={section.id} content={section.content as VenueContent} />)
     case 'dressCode': return <ClassicFilipinianaDressCode sectionId={section.id} content={section.content as DressCodeContent} />
-    case 'people': return <ClassicFilipinianaPeople sectionId={section.id} content={section.content as PeopleContent} mode={mode} media={media} showMedia={section.itemMediaCapability?.itemType === 'person'} />
+    case 'people': return <ClassicFilipinianaPeople sectionId={section.id} content={section.content as PeopleContent} mode={mode} media={media} showMedia={section.itemMediaCapability?.itemType === 'person'} presentation={presentation ?? 'medallions'} />
     case 'gallery': return <ClassicFilipinianaGallery sectionId={section.id} content={section.content as GalleryContent} mode={mode} />
     case 'faq': return <ClassicFilipinianaFaq sectionId={section.id} content={section.content as FaqContent} />
     case 'rsvp': return <ClassicFilipinianaRsvp sectionId={section.id} content={section.content as RsvpContent} />
@@ -52,10 +53,20 @@ function Section({ section, eventName, eventDate, mode, media }: { section: Webs
   }
 }
 
-function SectionImage({ section, media }: { section: WebsiteSection; media: Record<string, ResolvedWebsiteMedia> }) {
+function ClassicMediaPresentation({ section, media, presentation, children }: { section: WebsiteSection; media: Record<string, ResolvedWebsiteMedia>; presentation?: string; children: React.ReactNode }) {
   const reference = (section.content as { media?: SectionMedia }).media
   const asset = reference ? media[reference.assetId] : undefined
-  if (!asset) return null
+  if (!section.mediaCapability || !asset) return <>{children}</>
   const point = reference?.focalPoint ?? { x: 0.5, y: 0.5 }
-  return <div className={`mx-auto overflow-hidden ${section.type === 'hero' ? 'max-h-[68vh] w-full' : 'mt-8 max-w-4xl rounded-sm px-6'}`}><img className={`w-full object-cover ${section.type === 'hero' ? 'h-[clamp(18rem,55vw,46rem)]' : 'max-h-[34rem]'}`} style={{ objectPosition: `${point.x * 100}% ${point.y * 100}%` }} src={asset.web.url} alt="" /></div>
+  const image = (className: string) => <img className={`w-full object-cover ${className}`} style={{ objectPosition: `${point.x * 100}% ${point.y * 100}%` }} src={asset.web.url} alt="" />
+
+  if (presentation === 'immersive' || presentation === 'scenic') return <div className="relative isolate min-h-[32rem] overflow-hidden">{image('absolute inset-0 h-full')}<div className="relative min-h-[32rem] bg-[color-mix(in_srgb,var(--cf-page)_76%,transparent)] backdrop-blur-[1px]">{children}</div></div>
+  if (section.type === 'story' && presentation === 'portraitStory') return <div className="grid lg:grid-cols-[minmax(17rem,0.85fr)_1.15fr] lg:items-center">{image('h-[clamp(18rem,58vw,32rem)] lg:h-[min(34rem,65vh)]')}<div className="[&_[data-section-content]]:py-12 sm:[&_[data-section-content]]:py-14">{children}</div></div>
+  if (presentation === 'detailsFirst') return <div className="grid items-stretch lg:grid-cols-[1.1fr_0.9fr]"><div>{children}</div>{image('h-full min-h-[24rem] max-h-[42rem]')}</div>
+  if (section.type === 'story' && presentation === 'textFirst') return <div className="[&_[data-section-content]]:pb-8 [&_[data-section-content]]:pt-14 sm:[&_[data-section-content]]:pt-16">{children}<div className="mx-auto max-w-3xl px-7 pb-14">{image('max-h-[28rem] rounded-sm')}</div></div>
+  if (section.type === 'story' && presentation === 'framed') return <div className="mx-auto max-w-5xl px-5 py-6 sm:px-10 sm:py-10"><div className="border border-[color-mix(in_srgb,var(--cf-border)_45%,transparent)] bg-[var(--cf-surface)] p-2 sm:p-3">{image('h-[clamp(16rem,38vw,24rem)]')}</div><div className="[&_[data-section-content]]:px-2 [&_[data-section-content]]:pb-8 [&_[data-section-content]]:pt-10 sm:[&_[data-section-content]]:px-8 sm:[&_[data-section-content]]:pt-12">{children}</div></div>
+  if (section.type === 'venue' && presentation === 'framed') return <div className="mx-auto max-w-5xl px-5 pb-6 pt-5 sm:px-10 sm:pb-10 sm:pt-8"><div className="border border-[color-mix(in_srgb,var(--cf-border)_45%,transparent)] bg-[var(--cf-surface)] p-2 sm:p-3">{image('h-[clamp(15rem,34vw,22rem)]')}</div><div className="[&_[data-section-content]]:px-2 [&_[data-section-content]]:pb-8 [&_[data-section-content]]:pt-8 sm:[&_[data-section-content]]:px-8 sm:[&_[data-section-content]]:pb-10 sm:[&_[data-section-content]]:pt-10">{children}</div></div>
+  if (section.type === 'hero' && presentation === 'framed') return <div className="mx-auto max-w-5xl px-5 pb-8 pt-5 sm:px-10 sm:pb-12 sm:pt-8"><div className="border border-[color-mix(in_srgb,var(--cf-border)_42%,transparent)] bg-[var(--cf-surface)] p-2 sm:p-3">{image('h-[clamp(17rem,40vw,26rem)]')}</div><div>{children}</div></div>
+
+  return <><div className={`mx-auto overflow-hidden ${section.type === 'hero' && presentation === 'classic' ? 'max-h-[68vh] w-full' : 'mt-8 max-w-4xl rounded-sm px-6'}`}>{image(section.type === 'hero' && presentation === 'classic' ? 'h-[clamp(18rem,55vw,46rem)]' : 'max-h-[34rem]')}</div>{children}</>
 }

@@ -975,6 +975,7 @@ function SectionInspector({
             <AppearancePanel
               appearance={workingAppearance}
               options={selected.appearanceOptions}
+              presentationCapability={selected.presentationCapability}
               error={appearanceError}
               onChange={onAppearanceChange}
             />

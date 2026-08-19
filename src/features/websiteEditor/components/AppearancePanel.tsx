@@ -6,16 +6,20 @@ import type {
   DesignOption,
   WebsiteSectionAppearance,
   WebsiteSectionAppearanceOptions,
+  WebsiteSectionPresentationCapability,
 } from "../types";
+import { PresentationPicker } from "./PresentationPicker";
 
 export function AppearancePanel({
   appearance,
   options,
+  presentationCapability,
   error,
   onChange,
 }: {
   appearance: WebsiteSectionAppearance;
   options: WebsiteSectionAppearanceOptions;
+  presentationCapability: WebsiteSectionPresentationCapability | null;
   error: string | null;
   onChange: (appearance: WebsiteSectionAppearance) => void;
 }) {
@@ -29,6 +33,11 @@ export function AppearancePanel({
           {error}
         </p>
       )}
+      {presentationCapability && <PresentationPicker
+        capability={presentationCapability}
+        value={appearance.presentation ?? presentationCapability.default}
+        onChange={(presentation) => onChange({ ...appearance, presentation })}
+      />}
       <fieldset>
         <legend className="mb-2 text-sm font-semibold">
           Heading alignment

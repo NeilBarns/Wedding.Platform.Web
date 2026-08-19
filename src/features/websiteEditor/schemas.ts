@@ -66,6 +66,7 @@ const sectionSchema = z.object({
     bodyAlignment: z.enum(['inherit', 'left', 'center', 'right']),
     backgroundTreatment: z.enum(['inherit', 'plain', 'soft', 'accent']),
     emphasis: z.enum(['inherit', 'standard', 'featured', 'subtle']),
+    presentation: nonEmptyString.optional(),
   }).strict(),
   appearanceOptions: z.object({
     headingAlignments: z.array(z.object({ key: z.string(), displayName: z.string() }).strict()),
@@ -75,6 +76,10 @@ const sectionSchema = z.object({
   }).strict().nullable(),
   mediaCapability: z.object({ mode: z.enum(['single', 'multiple']) }).strict().nullable(),
   itemMediaCapability: z.object({ itemType: z.literal('person'), mode: z.literal('single') }).strict().nullable(),
+  presentationCapability: z.object({
+    default: nonEmptyString,
+    options: z.array(z.object({ key: nonEmptyString, displayName: nonEmptyString, description: nonEmptyString, preview: nonEmptyString }).strict()).min(1),
+  }).strict().nullable(),
 })
 
 const draftSchema = z.object({
@@ -119,6 +124,17 @@ const draftSchema = z.object({
       })
     }
   }
+
+  draft.sections.forEach((section, index) => {
+    const presentation = section.appearance.presentation
+    if (presentation && !section.presentationCapability?.options.some((option) => option.key === presentation)) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Presentation is not supported by the selected Template',
+        path: ['sections', index, 'appearance', 'presentation'],
+      })
+    }
+  })
 })
 
 export function parseWebsiteDraft(value: unknown): WebsiteDraft {
