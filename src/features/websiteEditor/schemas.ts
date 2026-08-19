@@ -6,7 +6,7 @@ const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Re
 const semanticId = z.string().max(255).refine((value) => value.trim().length > 0, 'Required')
 const requiredLabel = z.string().max(255).refine((value) => value.trim().length > 0, 'Required')
 const designOptionSchema = z.object({ key: nonEmptyString, displayName: nonEmptyString }).strict()
-const sectionMediaSchema = z.object({ assetId: nonEmptyString, focalPoint: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().optional() }).strict().nullable().optional()
+const sectionMediaSchema = z.object({ assetId: nonEmptyString, focalPoint: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().optional(), zoom: z.number().min(1).max(3).optional() }).strict().nullable().optional()
 export const heroContentSchema = z.object({ headline: text, subheadline: text, media: sectionMediaSchema }).strict()
 export const dateContentSchema = z.object({ heading: text, description: text }).strict()
 export const storyContentSchema = z.object({ heading: text, body: text, media: sectionMediaSchema }).strict()

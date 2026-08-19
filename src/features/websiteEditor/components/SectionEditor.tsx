@@ -13,6 +13,7 @@ import type { MediaAsset } from "../../media/types";
 import { useEventWorkspace } from "../../events/workspace/EventWorkspaceContext";
 import { MediaPickerDialog } from "./MediaPickerDialog";
 import { FocalPointEditor } from "./FocalPointEditor";
+import { ZoomedMediaImage } from "../../websiteRenderer/ZoomedMediaImage";
 import { createSemanticId } from "../createSemanticId";
 import type { PeopleContent, PeopleGroup, PeoplePerson } from "../types";
 import { useRevealNewItem } from "../useRevealNewItem";
@@ -97,7 +98,7 @@ function SectionMediaEditor(props: EditorProps) {
   const point = media?.focalPoint ?? { x: 0.5, y: 0.5 };
   return <section className="rounded-lg border border-border bg-surface-muted p-3">
     <h3 className="text-sm font-semibold">Image</h3>
-    {media && url ? <div className="mt-3"><FocalPointEditor url={url} point={point} onChange={(focalPoint) => props.onChange({ ...props.content, media: { assetId: media.assetId, focalPoint } })} /><p className="mt-1 truncate text-xs text-foreground-muted">{filename}</p><div className="mt-2 flex gap-2"><Button size="sm" type="button" variant="secondary" onClick={() => setPickerOpen(true)}>Change image</Button><Button size="sm" type="button" variant="ghost" onClick={() => { setChosen(null); props.onChange({ ...props.content, media: null }) }}>Remove image</Button></div></div> : <div className="mt-2"><p className="text-xs text-foreground-muted">No image selected</p><Button className="mt-2" size="sm" type="button" variant="secondary" onClick={() => setPickerOpen(true)}>Choose from Media</Button></div>}
+    {media && url ? <div className="mt-3"><FocalPointEditor url={url} point={point} zoom={media.zoom} onChange={({ point: focalPoint, zoom }) => props.onChange({ ...props.content, media: { assetId: media.assetId, focalPoint, zoom } })} /><p className="mt-1 truncate text-xs text-foreground-muted">{filename}</p><div className="mt-2 flex gap-2"><Button size="sm" type="button" variant="secondary" onClick={() => setPickerOpen(true)}>Change image</Button><Button size="sm" type="button" variant="ghost" onClick={() => { setChosen(null); props.onChange({ ...props.content, media: null }) }}>Remove image</Button></div></div> : <div className="mt-2"><p className="text-xs text-foreground-muted">No image selected</p><Button className="mt-2" size="sm" type="button" variant="secondary" onClick={() => setPickerOpen(true)}>Choose from Media</Button></div>}
     <MediaPickerDialog open={pickerOpen} eventId={event.id} selectedAssetId={media?.assetId} onClose={() => setPickerOpen(false)} onSelect={(asset) => { setChosen(asset); props.onMediaResolved({ id: asset.id, originalFilename: asset.originalFilename, width: asset.width, height: asset.height, web: asset.variants.web }); props.onChange({ ...props.content, media: { assetId: asset.id } }); setPickerOpen(false) }} />
   </section>;
 }
@@ -305,25 +306,24 @@ function PeopleEditor(props: EditorProps) {
       </div>)}
     </ItemList>
     <MediaPickerDialog open={pickerPersonId !== null} eventId={event.id} selectedAssetId={findPerson(pickerPersonId)?.media?.assetId} onClose={() => setPickerPersonId(null)} onSelect={(asset) => { const personId = pickerPersonId; if (!personId) return; props.onMediaResolved({ id: asset.id, originalFilename: asset.originalFilename, width: asset.width, height: asset.height, web: asset.variants.web }); updatePerson(personId, (person) => ({ ...person, media: { assetId: asset.id } })); setPickerPersonId(null); }} />
-    <PersonFocalDialog person={findPerson(focalPersonId)} media={props.resolvedMedia} onClose={() => setFocalPersonId(null)} onChange={(focalPoint) => { if (focalPersonId) updatePerson(focalPersonId, (person) => person.media ? { ...person, media: { ...person.media, focalPoint } } : person); }} />
+    <PersonFocalDialog person={findPerson(focalPersonId)} media={props.resolvedMedia} onClose={() => setFocalPersonId(null)} onChange={({ point: focalPoint, zoom }) => { if (focalPersonId) updatePerson(focalPersonId, (person) => person.media ? { ...person, media: { ...person.media, focalPoint, zoom } } : person); }} />
   </EditorForm>;
 }
 
 function PersonMediaEditor({ person, resolvedMedia, onChoose, onAdjust, onRemove }: { person: PeoplePerson; resolvedMedia: Record<string, ResolvedWebsiteMedia>; onChoose: () => void; onAdjust: () => void; onRemove: () => void }) {
   const asset = person.media ? resolvedMedia[person.media.assetId] : undefined;
-  const point = person.media?.focalPoint ?? { x: 0.5, y: 0.5 };
   return <section className="mt-3 rounded-md border border-border bg-surface-muted p-3">
     <h4 className="text-xs font-semibold">Photo</h4>
-    {asset ? <div className="mt-2 flex gap-3"><img className="size-16 rounded-full object-cover" style={{ objectPosition: `${point.x * 100}% ${point.y * 100}%` }} src={asset.web.url} alt="" /><div className="min-w-0 flex-1"><p className="truncate text-xs text-foreground-muted">{asset.originalFilename}</p><div className="mt-2 flex flex-wrap gap-2"><Button size="sm" type="button" variant="secondary" onClick={onChoose}>Change</Button><Button size="sm" type="button" variant="secondary" onClick={onAdjust}>Adjust focal point</Button><Button size="sm" type="button" variant="ghost" onClick={onRemove}>Remove</Button></div></div></div> : <div className="mt-2"><p className="text-xs text-foreground-muted">No photo selected</p><Button className="mt-2" size="sm" type="button" variant="secondary" onClick={onChoose}>Choose from Media</Button></div>}
+    {asset && person.media ? <div className="mt-2 flex gap-3"><ZoomedMediaImage className="size-16 rounded-full" height={asset.web.height} reference={person.media} src={asset.web.url} width={asset.web.width} /><div className="min-w-0 flex-1"><p className="truncate text-xs text-foreground-muted">{asset.originalFilename}</p><div className="mt-2 flex flex-wrap gap-2"><Button size="sm" type="button" variant="secondary" onClick={onChoose}>Change</Button><Button size="sm" type="button" variant="secondary" onClick={onAdjust}>Adjust image</Button><Button size="sm" type="button" variant="ghost" onClick={onRemove}>Remove</Button></div></div></div> : <div className="mt-2"><p className="text-xs text-foreground-muted">No photo selected</p><Button className="mt-2" size="sm" type="button" variant="secondary" onClick={onChoose}>Choose from Media</Button></div>}
   </section>;
 }
 
-function PersonFocalDialog({ person, media, onClose, onChange }: { person?: PeoplePerson; media: Record<string, ResolvedWebsiteMedia>; onClose: () => void; onChange: (point: { x: number; y: number }) => void }) {
+function PersonFocalDialog({ person, media, onClose, onChange }: { person?: PeoplePerson; media: Record<string, ResolvedWebsiteMedia>; onClose: () => void; onChange: (framing: { point: { x: number; y: number }; zoom: number }) => void }) {
   const reference = person?.media;
   const asset = reference ? media[reference.assetId] : undefined;
   return <Dialog open={Boolean(person && asset)} onClose={onClose} titleId="person-focal-title" size="sm">
-    <DialogHeader title="Adjust focal point" titleId="person-focal-title" description={`Position ${person?.name || "this person's"} photo.`} onClose={onClose} />
-    {asset && reference && <div className="mt-4"><FocalPointEditor url={asset.web.url} point={reference.focalPoint ?? { x: 0.5, y: 0.5 }} onChange={onChange} /></div>}
+    <DialogHeader title="Adjust image" titleId="person-focal-title" description={`Position and frame ${person?.name || "this person's"} photo.`} onClose={onClose} />
+    {asset && reference && <div className="mt-4"><FocalPointEditor url={asset.web.url} point={reference.focalPoint ?? { x: 0.5, y: 0.5 }} zoom={reference.zoom} onChange={onChange} /></div>}
     <DialogFooter className="mt-5"><Button type="button" onClick={onClose}>Done</Button></DialogFooter>
   </Dialog>;
 }
@@ -361,7 +361,7 @@ function EditorForm({
         )}
         {children}
       </div>
-      <BuilderSaveBar dirty={dirty} saving={saving} />
+      <BuilderSaveBar dirty={dirty} saving={saving} onSave={onSave} />
     </form>
   );
 }

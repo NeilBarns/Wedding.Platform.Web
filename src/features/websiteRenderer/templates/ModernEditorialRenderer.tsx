@@ -1,6 +1,7 @@
 import type { DateContent, DressCodeContent, FaqContent, GalleryContent, HeroContent, PeopleContent, ResolvedWebsiteMedia, RsvpContent, ScheduleContent, SectionMedia, StoryContent, VenueContent, WebsiteSection } from '../../websiteEditor/types'
 import { formatDateOnly } from '../formatDateOnly'
 import type { WebsiteRendererProps } from '../types'
+import { ZoomedMediaImage } from '../ZoomedMediaImage'
 import { resolveModernEditorialSectionAppearance } from './modernEditorial/appearance'
 import { resolveModernEditorialDesign } from './modernEditorial/design'
 import { ModernEditorialDate, ModernEditorialDressCode, ModernEditorialFaq, ModernEditorialGallery, ModernEditorialHero, ModernEditorialPeople, ModernEditorialRsvp, ModernEditorialSchedule, ModernEditorialStory, ModernEditorialVenue } from './modernEditorial/sections'
@@ -42,10 +43,10 @@ function ModernMediaPresentation({ section, media, presentation, children }: { s
   const reference = (section.content as { media?: SectionMedia }).media
   const asset = reference ? media[reference.assetId] : undefined
   if (!section.mediaCapability || !asset) return <>{children}</>
-  const point = reference?.focalPoint ?? { x: 0.5, y: 0.5 }
-  const image = (className: string) => <img className={`w-full object-cover ${className}`} style={{ objectPosition: `${point.x * 100}% ${point.y * 100}%` }} src={asset.web.url} alt="" />
+  const mediaReference = reference as NonNullable<SectionMedia>
+  const image = (className: string, fill = false) => <ZoomedMediaImage className={className} fill={fill} height={asset.web.height} reference={mediaReference} src={asset.web.url} width={asset.web.width} />
 
-  if (presentation === 'scenic') return <div className="relative isolate min-h-[36rem] overflow-hidden">{image('absolute inset-0 h-full')}<div className="relative min-h-[36rem] bg-[color-mix(in_srgb,var(--me-page)_72%,transparent)] backdrop-blur-[1px]">{children}</div></div>
+  if (presentation === 'scenic') return <div className="relative isolate min-h-[36rem] overflow-hidden">{image('h-full', true)}<div className="relative min-h-[36rem] bg-[color-mix(in_srgb,var(--me-page)_72%,transparent)] backdrop-blur-[1px]">{children}</div></div>
   if (presentation === 'editorial') return <div className="grid items-stretch lg:grid-cols-[1.05fr_0.95fr]">{image('h-full min-h-[28rem] max-h-[52rem]')}<div>{children}</div></div>
   if (presentation === 'detailsFirst') return <div className="grid items-stretch lg:grid-cols-[1.15fr_0.85fr]"><div>{children}</div>{image('h-full min-h-[25rem] max-h-[44rem]')}</div>
   if (presentation === 'textFirst') return <>{children}<div className="mx-auto max-w-4xl px-7 pb-16">{image('max-h-[36rem]')}</div></>

@@ -1,4 +1,4 @@
-export type SectionMedia = { assetId: string; focalPoint?: { x: number; y: number } } | null
+export type SectionMedia = { assetId: string; focalPoint?: { x: number; y: number }; zoom?: number } | null
 type WithMedia = { media?: SectionMedia }
 export type HeroContent = { headline: string; subheadline: string } & WithMedia
 export type DateContent = { heading: string; description: string }

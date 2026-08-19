@@ -1,6 +1,7 @@
 import type { DateContent, DressCodeContent, FaqContent, GalleryContent, HeroContent, PeopleContent, ResolvedWebsiteMedia, RsvpContent, ScheduleContent, SectionMedia, StoryContent, VenueContent, WebsiteSection } from '../../websiteEditor/types'
 import { formatDateOnly } from '../formatDateOnly'
 import type { WebsiteRendererProps } from '../types'
+import { ZoomedMediaImage } from '../ZoomedMediaImage'
 import { ClassicFilipinianaDate, ClassicFilipinianaDressCode, ClassicFilipinianaFaq, ClassicFilipinianaGallery, ClassicFilipinianaHero, ClassicFilipinianaPeople, ClassicFilipinianaRsvp, ClassicFilipinianaSchedule, ClassicFilipinianaStory, ClassicFilipinianaVenue } from './classicFilipiniana/sections'
 import { resolveClassicFilipinianaSectionAppearance } from './classicFilipiniana/appearance'
 import { resolveClassicFilipinianaDesign } from './classicFilipiniana/design'
@@ -57,10 +58,10 @@ function ClassicMediaPresentation({ section, media, presentation, children }: { 
   const reference = (section.content as { media?: SectionMedia }).media
   const asset = reference ? media[reference.assetId] : undefined
   if (!section.mediaCapability || !asset) return <>{children}</>
-  const point = reference?.focalPoint ?? { x: 0.5, y: 0.5 }
-  const image = (className: string) => <img className={`w-full object-cover ${className}`} style={{ objectPosition: `${point.x * 100}% ${point.y * 100}%` }} src={asset.web.url} alt="" />
+  const mediaReference = reference as NonNullable<SectionMedia>
+  const image = (className: string, fill = false) => <ZoomedMediaImage className={className} fill={fill} height={asset.web.height} reference={mediaReference} src={asset.web.url} width={asset.web.width} />
 
-  if (presentation === 'immersive' || presentation === 'scenic') return <div className="relative isolate min-h-[32rem] overflow-hidden">{image('absolute inset-0 h-full')}<div className="relative min-h-[32rem] bg-[color-mix(in_srgb,var(--cf-page)_76%,transparent)] backdrop-blur-[1px]">{children}</div></div>
+  if (presentation === 'immersive' || presentation === 'scenic') return <div className="relative isolate min-h-[32rem] overflow-hidden">{image('h-full', true)}<div className="relative min-h-[32rem] bg-[color-mix(in_srgb,var(--cf-page)_76%,transparent)] backdrop-blur-[1px]">{children}</div></div>
   if (section.type === 'story' && presentation === 'portraitStory') return <div className="grid lg:grid-cols-[minmax(17rem,0.85fr)_1.15fr] lg:items-center">{image('h-[clamp(18rem,58vw,32rem)] lg:h-[min(34rem,65vh)]')}<div className="[&_[data-section-content]]:py-12 sm:[&_[data-section-content]]:py-14">{children}</div></div>
   if (presentation === 'detailsFirst') return <div className="grid items-stretch lg:grid-cols-[1.1fr_0.9fr]"><div>{children}</div>{image('h-full min-h-[24rem] max-h-[42rem]')}</div>
   if (section.type === 'story' && presentation === 'textFirst') return <div className="[&_[data-section-content]]:pb-8 [&_[data-section-content]]:pt-14 sm:[&_[data-section-content]]:pt-16">{children}<div className="mx-auto max-w-3xl px-7 pb-14">{image('max-h-[28rem] rounded-sm')}</div></div>
