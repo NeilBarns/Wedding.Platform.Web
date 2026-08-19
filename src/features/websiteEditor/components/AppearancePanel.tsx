@@ -1,4 +1,4 @@
-import { AlignCenter, AlignLeft, AlignRight, Check, Save } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Check } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
 import { IconButton } from "../../../components/ui/IconButton";
 import { Tooltip } from "../../../components/ui/Tooltip";
@@ -11,19 +11,13 @@ import type {
 export function AppearancePanel({
   appearance,
   options,
-  dirty,
-  saving,
   error,
   onChange,
-  onSave,
 }: {
   appearance: WebsiteSectionAppearance;
   options: WebsiteSectionAppearanceOptions;
-  dirty: boolean;
-  saving: boolean;
   error: string | null;
   onChange: (appearance: WebsiteSectionAppearance) => void;
-  onSave: () => void;
 }) {
   return (
     <div className="space-y-5">
@@ -96,21 +90,6 @@ export function AppearancePanel({
           }
         />
       </fieldset>
-      <div className="flex items-center justify-between border-t border-border pt-4">
-        <span className="text-xs text-foreground-muted">
-          {dirty ? "Unsaved appearance" : "Appearance saved"}
-        </span>
-        <Button
-          className="rounded-sm! text-lg! xl:px-3 xl:py-1.5 xl:text-sm!"
-          size="sm"
-          type="button"
-          disabled={!dirty || saving}
-          onClick={onSave}
-        >
-          <Save size={15} />
-          {saving ? "Saving..." : "Save changes"}
-        </Button>
-      </div>
     </div>
   );
 }

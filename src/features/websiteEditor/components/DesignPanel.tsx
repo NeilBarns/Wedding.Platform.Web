@@ -1,11 +1,11 @@
-import { Check, Palette, Save, Sparkles, Type } from "lucide-react";
-import { Button } from "../../../components/ui/Button";
+import { Check, Palette, Sparkles, Type } from "lucide-react";
 import { DesignGroup } from "../../../components/ui/DesignGroup";
 import { Heading } from "../../../components/ui/Heading";
 import { SelectableCard } from "../../../components/ui/SelectableCard";
 import { Text } from "../../../components/ui/Text";
 import type { WebsiteDesignOptions, WebsiteDesignSettings } from "../types";
 import { designPreviewFor } from "../../websiteTemplates/designPreviews";
+import { BuilderSaveBar } from "./BuilderSaveBar";
 
 export function DesignPanel({
   settings,
@@ -30,13 +30,14 @@ export function DesignPanel({
 }) {
   const preview = designPreviewFor(templateKey);
   return (
-    <section className="rounded-2xl border border-border bg-surface p-4 sm:p-5 xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0">
-      <div className="mb-5 xl:mb-4">
-        <Heading className="xl:text-base!" level={2} variant="panel">Design</Heading>
-        <Text className="mt-1 xl:text-xs" variant="muted">
-          Customize this Template with curated visual choices.
-        </Text>
-      </div>
+    <section className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 sm:px-2 xl:px-0 xl:pb-6">
+        <div className="hidden xl:mb-4 xl:block">
+          <Heading className="xl:text-base!" level={2} variant="panel">Design</Heading>
+          <Text className="mt-1 xl:text-xs" variant="muted">
+            Customize this Template with curated visual choices.
+          </Text>
+        </div>
       {error && (
         <Text
           className="mb-4 rounded-xl bg-danger-muted p-3"
@@ -131,18 +132,8 @@ export function DesignPanel({
           })}
         </div>
       </DesignGroup>
-      <div className="mt-5 flex justify-end border-t border-border pt-4">
-        <Button
-          className="rounded-sm! text-lg! xl:px-3 xl:py-1.5 xl:text-sm!"
-          size="sm"
-          type="button"
-          disabled={!dirty || saving}
-          onClick={onSave}
-        >
-          <Save size={15} />
-          {saving ? "Saving…" : "Save changes"}
-        </Button>
       </div>
+      <BuilderSaveBar dirty={dirty} saving={saving} onSave={onSave} />
     </section>
   );
 }

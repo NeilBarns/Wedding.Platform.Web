@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../../../components/ui/Button";
 import { Dialog, DialogFooter, DialogHeader } from "../../../components/ui/Dialog";
@@ -16,6 +16,7 @@ import { FocalPointEditor } from "./FocalPointEditor";
 import { createSemanticId } from "../createSemanticId";
 import type { PeopleContent, PeopleGroup, PeoplePerson } from "../types";
 import { useRevealNewItem } from "../useRevealNewItem";
+import { BuilderSaveBar } from "./BuilderSaveBar";
 
 type EditorProps = {
   section: WebsiteSection;
@@ -342,36 +343,25 @@ function EditorForm({
 }) {
   return (
     <form
-      className="space-y-4"
+      className="flex h-full min-h-0 flex-col"
       onSubmit={(event) => {
         event.preventDefault();
         void onSave();
       }}
       noValidate
     >
-      {error && (
-        <p
-          className="rounded-xl bg-danger-muted p-3 text-xs! text-danger"
-          role="alert"
-        >
-          {error}
-        </p>
-      )}
-      {children}
-      <div className="flex items-center justify-between border-t border-border pt-4">
-        <span className="text-xs text-foreground-muted">
-          {dirty ? "Unsaved changes" : "All changes saved"}
-        </span>
-        <Button
-          className="rounded-sm! text-lg! xl:px-3 xl:py-1.5 xl:text-sm!"
-          size="sm"
-          disabled={!dirty || saving}
-          type="submit"
-        >
-          <Save size={15} />
-          {saving ? "Saving..." : "Save changes"}
-        </Button>
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0 xl:pb-6">
+        {error && (
+          <p
+            className="rounded-xl bg-danger-muted p-3 text-xs! text-danger"
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
+        {children}
       </div>
+      <BuilderSaveBar dirty={dirty} saving={saving} />
     </form>
   );
 }

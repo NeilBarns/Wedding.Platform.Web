@@ -25,6 +25,7 @@ import {
   updateWebsiteTemplate,
 } from "../../features/websiteEditor/api";
 import { AppearancePanel } from "../../features/websiteEditor/components/AppearancePanel";
+import { BuilderSaveBar } from "../../features/websiteEditor/components/BuilderSaveBar";
 import { DesignPanel } from "../../features/websiteEditor/components/DesignPanel";
 import { DiscardChangesDialog } from "../../features/websiteEditor/components/DiscardChangesDialog";
 import { SectionEditor } from "../../features/websiteEditor/components/SectionEditor";
@@ -413,7 +414,9 @@ export function WebsitePage() {
     );
   const mobileDrawerPanel =
     drawerMode === "sections" ? (
-      sectionRail
+      <div className="h-full overflow-y-auto overscroll-contain">
+        {sectionRail}
+      </div>
     ) : drawerMode === "design" && draft.template ? (
       <DesignPanel
         settings={designSettings}
@@ -545,7 +548,7 @@ export function WebsitePage() {
             }}
           />
           <aside
-            className="hidden min-h-0 overflow-y-auto border-l border-border bg-background p-3 xl:block"
+            className="hidden min-h-0 overflow-hidden border-l border-border bg-background p-3 xl:block"
             aria-label="Builder inspector"
           >
             {desktopInspector}
@@ -811,13 +814,13 @@ function MobileBuilderDrawer({
       </div>
       {!isHidden && (
         <div
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3"
+          className="min-h-0 flex-1 overflow-hidden px-3 pt-3"
           id="builder-drawer-panel"
           role="tabpanel"
           aria-labelledby={`builder-drawer-tab-${mode}`}
-          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          style={mode === "sections" ? { paddingBottom: "max(1rem, env(safe-area-inset-bottom))" } : undefined}
         >
-          <div className="mx-auto max-w-2xl">{children}</div>
+          <div className="mx-auto h-full max-w-2xl">{children}</div>
         </div>
       )}
     </aside>
@@ -921,8 +924,8 @@ function SectionInspector({
 }) {
   if (!selected || !workingContent || !workingAppearance) return null;
   return (
-    <section className="rounded-2xl border border-border bg-surface p-4 xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0">
-      <div className="mb-5 border-b border-border pb-4 xl:mb-4 xl:pb-3">
+    <section className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="hidden shrink-0 border-b border-border xl:mb-4 xl:block xl:px-0 xl:pb-3 xl:pt-0">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Heading className="xl:text-base!" level={2} variant="panel">
@@ -953,31 +956,37 @@ function SectionInspector({
         </Text>
       </div>
       {panelMode === "content" ? (
-        <SectionEditor
-          key={selected.id}
-          section={selected}
-          content={workingContent}
-          dirty={contentDirty}
-          onChange={onContentChange}
-          onSave={onContentSave}
-          onSaved={onContentSaved}
-          resolvedMedia={resolvedMedia}
-          onMediaResolved={onMediaResolved}
-        />
+        <div className="min-h-0 flex-1">
+          <SectionEditor
+            key={selected.id}
+            section={selected}
+            content={workingContent}
+            dirty={contentDirty}
+            onChange={onContentChange}
+            onSave={onContentSave}
+            onSaved={onContentSaved}
+            resolvedMedia={resolvedMedia}
+            onMediaResolved={onMediaResolved}
+          />
+        </div>
       ) : selected.appearanceOptions ? (
-        <AppearancePanel
-          appearance={workingAppearance}
-          options={selected.appearanceOptions}
-          dirty={appearanceDirty}
-          saving={appearanceSaving}
-          error={appearanceError}
-          onChange={onAppearanceChange}
-          onSave={onAppearanceSave}
-        />
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
+            <AppearancePanel
+              appearance={workingAppearance}
+              options={selected.appearanceOptions}
+              error={appearanceError}
+              onChange={onAppearanceChange}
+            />
+          </div>
+          <BuilderSaveBar dirty={appearanceDirty} saving={appearanceSaving} onSave={onAppearanceSave} />
+        </div>
       ) : (
-        <p className="rounded-xl bg-surface-muted p-4 text-sm text-foreground-muted">
-          This Template does not support appearance controls for this Section.
-        </p>
+        <div className="min-h-0 flex-1 overflow-y-auto px-1 xl:px-0">
+          <p className="rounded-xl bg-surface-muted p-4 text-sm text-foreground-muted">
+            This Template does not support appearance controls for this Section.
+          </p>
+        </div>
       )}
     </section>
   );
