@@ -30,18 +30,62 @@ type SectionBase<TType extends string, TContent> = {
 export type SectionAlignment = 'inherit' | 'left' | 'center' | 'right'
 export type BackgroundTreatment = 'inherit' | 'plain' | 'soft' | 'accent'
 export type SectionEmphasis = 'inherit' | 'standard' | 'featured' | 'subtle'
+export type MediaSpacingValue = 'none' | 'small' | 'medium' | 'large'
+export type MediaSpacing = { top: MediaSpacingValue; right: MediaSpacingValue; bottom: MediaSpacingValue; left: MediaSpacingValue }
+export type MediaContentGap = 'tight' | 'comfortable' | 'spacious' | 'generous'
+export type ResponsiveViewport = 'desktop' | 'tablet' | 'mobile'
+export type WebsiteSectionResponsiveAppearance = {
+  mediaPlacement?: string
+  mediaSize?: string
+  mediaContentGap?: string
+  headingAlignment?: string
+  bodyAlignment?: string
+  mediaSpacing?: { top: string; right: string; bottom: string; left: string }
+}
 export type WebsiteSectionAppearance = {
   headingAlignment: SectionAlignment
   bodyAlignment: SectionAlignment
   backgroundTreatment: BackgroundTreatment
   emphasis: SectionEmphasis
   presentation?: string
+  mediaPlacement?: string
+  mediaSize?: string
+  frameStyle?: string
+  cornerStyle?: string
+  shadowStyle?: string
+  overlayStrength?: number
+  foregroundColor?: string
+  mediaSpacing?: MediaSpacing
+  mediaContentGap?: MediaContentGap
+  responsive?: Partial<Record<'tablet' | 'mobile', WebsiteSectionResponsiveAppearance>>
 }
 export type WebsiteSectionPresentationOption = {
   key: string
   displayName: string
   description: string
   preview: string
+  mediaControls: WebsiteSectionMediaControls | null
+}
+export type MediaControlOptionGroup = { default: string; options: DesignOption[] }
+export type ResponsiveMediaControls = {
+  mediaPlacement?: MediaControlOptionGroup
+  mediaSize?: MediaControlOptionGroup
+  mediaContentGap?: MediaControlOptionGroup
+  headingAlignment?: MediaControlOptionGroup
+  bodyAlignment?: MediaControlOptionGroup
+  mediaSpacing?: { default: MediaSpacing; options: DesignOption[] }
+}
+export type WebsiteSectionMediaControls = {
+  mediaPlacements?: MediaControlOptionGroup
+  mediaSizes?: MediaControlOptionGroup
+  frameStyles?: MediaControlOptionGroup
+  cornerStyles?: MediaControlOptionGroup
+  shadowStyles?: MediaControlOptionGroup
+  overlayStrength?: { default: number; min: number; max: number; step: number }
+  foregroundColors?: MediaControlOptionGroup
+  mediaSpacing?: { default: MediaSpacing; options: DesignOption[] }
+  mediaContentGaps?: MediaControlOptionGroup
+  responsive?: Partial<Record<'tablet' | 'mobile', ResponsiveMediaControls>>
 }
 export type WebsiteSectionPresentationCapability = {
   default: string

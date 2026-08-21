@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react'
+import { resolveSectionAppearanceForViewport } from '../websiteEditor/responsiveAppearance'
+import type { WebsiteSectionResponsiveAppearance } from '../websiteEditor/types'
 import { ClassicFilipinianaRenderer } from './templates/ClassicFilipinianaRenderer'
 import { ModernEditorialRenderer } from './templates/ModernEditorialRenderer'
 import type { WebsiteRendererProps } from './types'
@@ -22,5 +24,19 @@ export function WebsiteRenderer(props: WebsiteRendererProps) {
     return <div className="flex min-h-80 items-center justify-center bg-[#f7f0e6] p-8 text-center text-sm text-[#665d54]">This Template is not supported by this version of the renderer.</div>
   }
 
-  return <div ref={rootRef}><Renderer {...props} /></div>
+  const targetViewport = props.targetViewport ?? 'desktop'
+  const website = {
+    ...props.website,
+    sections: props.website.sections.map((section) => {
+      const presentation = section.appearance.presentation ?? section.presentationCapability?.default
+      const controls = section.presentationCapability?.options.find((option) => option.key === presentation)?.mediaControls
+      const viewportControls = targetViewport === 'desktop' ? undefined : controls?.responsive?.[targetViewport]
+      const defaults = Object.fromEntries(
+        Object.entries(viewportControls ?? {}).map(([setting, control]) => [setting, control.default]),
+      ) as WebsiteSectionResponsiveAppearance
+      return { ...section, appearance: resolveSectionAppearanceForViewport(section.appearance, targetViewport, defaults) }
+    }),
+  }
+
+  return <div ref={rootRef}><Renderer {...props} website={website} targetViewport={targetViewport} /></div>
 }

@@ -23,7 +23,9 @@ type EditorProps = {
   section: WebsiteSection;
   content: Record<string, unknown>;
   dirty: boolean;
+  resetDirty: boolean;
   onChange: (content: Record<string, unknown>) => void;
+  onReset: () => void;
   onSave: (content: Record<string, unknown>) => Promise<WebsiteDraft>;
   onSaved: (draft: WebsiteDraft) => void;
   resolvedMedia: Record<string, ResolvedWebsiteMedia>;
@@ -61,13 +63,17 @@ function useSectionSave(props: EditorProps) {
       setSaving(false);
     }
   }
-  return { error, saving, save };
+  function reset() {
+    setError(null);
+    props.onReset();
+  }
+  return { error, saving, save, reset };
 }
 
 function SimpleEditor(props: EditorProps & { fields: Field[] }) {
-  const { error, saving, save } = useSectionSave(props);
+  const { error, saving, save, reset } = useSectionSave(props);
   return (
-    <EditorForm error={error} dirty={props.dirty} saving={saving} onSave={save}>
+    <EditorForm error={error} dirty={props.dirty} resetDirty={props.resetDirty} saving={saving} onSave={save} onReset={reset}>
       {props.section.mediaCapability?.mode === "single" && <SectionMediaEditor {...props} />}
       {props.fields.map((field) => (
         <TextField
@@ -105,7 +111,7 @@ function SectionMediaEditor(props: EditorProps) {
 
 function ScheduleEditor(props: EditorProps) {
   const reveal = useRevealNewItem();
-  const { error, saving, save } = useSectionSave(props);
+  const { error, saving, save, reset } = useSectionSave(props);
   const items = Array.isArray(props.content.items)
     ? (props.content.items as Array<Record<string, string>>)
     : [];
@@ -123,7 +129,7 @@ function ScheduleEditor(props: EditorProps) {
     props.onChange({ ...props.content, items: next });
   }
   return (
-    <EditorForm error={error} dirty={props.dirty} saving={saving} onSave={save}>
+    <EditorForm error={error} dirty={props.dirty} resetDirty={props.resetDirty} saving={saving} onSave={save} onReset={reset}>
       <TextField
         label="Heading"
         id={`${props.section.id}-heading`}
@@ -190,7 +196,7 @@ function ScheduleEditor(props: EditorProps) {
 
 function FaqEditor(props: EditorProps) {
   const reveal = useRevealNewItem();
-  const { error, saving, save } = useSectionSave(props);
+  const { error, saving, save, reset } = useSectionSave(props);
   const items = Array.isArray(props.content.items)
     ? (props.content.items as Array<Record<string, string>>)
     : [];
@@ -208,7 +214,7 @@ function FaqEditor(props: EditorProps) {
     props.onChange({ ...props.content, items: next });
   }
   return (
-    <EditorForm error={error} dirty={props.dirty} saving={saving} onSave={save}>
+    <EditorForm error={error} dirty={props.dirty} resetDirty={props.resetDirty} saving={saving} onSave={save} onReset={reset}>
       <TextField
         label="Heading"
         id={`${props.section.id}-heading`}
@@ -266,7 +272,7 @@ function FaqEditor(props: EditorProps) {
 }
 
 function PeopleEditor(props: EditorProps) {
-  const { error, saving, save } = useSectionSave(props);
+  const { error, saving, save, reset } = useSectionSave(props);
   const event = useEventWorkspace();
   const reveal = useRevealNewItem();
   const [pickerPersonId, setPickerPersonId] = useState<string | null>(null);
@@ -283,7 +289,7 @@ function PeopleEditor(props: EditorProps) {
     changeGroups(next);
   };
 
-  return <EditorForm error={error} dirty={props.dirty} saving={saving} onSave={save}>
+  return <EditorForm error={error} dirty={props.dirty} resetDirty={props.resetDirty} saving={saving} onSave={save} onReset={reset}>
     <TextField label="Heading" id={`${props.section.id}-heading`} value={String(content.heading ?? "")} onChange={(heading) => props.onChange({ ...props.content, heading })} />
     <ItemList title="Groups" onAdd={() => { const id = createSemanticId("group"); reveal.reveal(`group-${id}`); changeGroups([...groups, { id, name: "New group", people: [] }]); }}>
       {groups.map((group, groupIndex) => <div className="rounded-xl border border-border bg-background p-3 xl:rounded-md" key={group.id} ref={reveal.register(`group-${group.id}`)}>
@@ -331,14 +337,18 @@ function PersonFocalDialog({ person, media, onClose, onChange }: { person?: Peop
 function EditorForm({
   error,
   dirty,
+  resetDirty,
   saving,
   onSave,
+  onReset,
   children,
 }: {
   error: string | null;
   dirty: boolean;
+  resetDirty: boolean;
   saving: boolean;
   onSave: () => void;
+  onReset: () => void;
   children: React.ReactNode;
 }) {
   return (
@@ -361,7 +371,7 @@ function EditorForm({
         )}
         {children}
       </div>
-      <BuilderSaveBar dirty={dirty} saving={saving} onSave={onSave} />
+      <BuilderSaveBar dirty={dirty} statusDirty={resetDirty} resetDirty={resetDirty} saving={saving} onSave={onSave} onReset={onReset} />
     </form>
   );
 }

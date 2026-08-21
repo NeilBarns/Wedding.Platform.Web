@@ -7,6 +7,31 @@ const semanticId = z.string().max(255).refine((value) => value.trim().length > 0
 const requiredLabel = z.string().max(255).refine((value) => value.trim().length > 0, 'Required')
 const designOptionSchema = z.object({ key: nonEmptyString, displayName: nonEmptyString }).strict()
 const sectionMediaSchema = z.object({ assetId: nonEmptyString, focalPoint: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().optional(), zoom: z.number().min(1).max(3).optional() }).strict().nullable().optional()
+const responsiveMediaSpacingSchema = z.object({
+  top: nonEmptyString,
+  right: nonEmptyString,
+  bottom: nonEmptyString,
+  left: nonEmptyString,
+}).strict()
+const responsiveAppearanceSchema = z.object({
+  mediaPlacement: nonEmptyString.optional(),
+  mediaSize: nonEmptyString.optional(),
+  mediaContentGap: nonEmptyString.optional(),
+  headingAlignment: nonEmptyString.optional(),
+  bodyAlignment: nonEmptyString.optional(),
+  mediaSpacing: responsiveMediaSpacingSchema.optional(),
+}).strict()
+const responsiveControlSchema = z.object({
+  mediaPlacement: z.object({ default: nonEmptyString, options: z.array(designOptionSchema).min(1) }).strict().optional(),
+  mediaSize: z.object({ default: nonEmptyString, options: z.array(designOptionSchema).min(1) }).strict().optional(),
+  mediaContentGap: z.object({ default: nonEmptyString, options: z.array(designOptionSchema).min(1) }).strict().optional(),
+  headingAlignment: z.object({ default: nonEmptyString, options: z.array(designOptionSchema).min(1) }).strict().optional(),
+  bodyAlignment: z.object({ default: nonEmptyString, options: z.array(designOptionSchema).min(1) }).strict().optional(),
+  mediaSpacing: z.object({
+    default: responsiveMediaSpacingSchema,
+    options: z.array(designOptionSchema).min(1),
+  }).strict().optional(),
+}).strict()
 export const heroContentSchema = z.object({ headline: text, subheadline: text, media: sectionMediaSchema }).strict()
 export const dateContentSchema = z.object({ heading: text, description: text }).strict()
 export const storyContentSchema = z.object({ heading: text, body: text, media: sectionMediaSchema }).strict()
@@ -67,6 +92,24 @@ const sectionSchema = z.object({
     backgroundTreatment: z.enum(['inherit', 'plain', 'soft', 'accent']),
     emphasis: z.enum(['inherit', 'standard', 'featured', 'subtle']),
     presentation: nonEmptyString.optional(),
+    mediaPlacement: nonEmptyString.optional(),
+    mediaSize: nonEmptyString.optional(),
+    frameStyle: nonEmptyString.optional(),
+    cornerStyle: nonEmptyString.optional(),
+    shadowStyle: nonEmptyString.optional(),
+    overlayStrength: z.number().min(0).max(1).optional(),
+    foregroundColor: nonEmptyString.optional(),
+    mediaSpacing: z.object({
+      top: z.enum(['none', 'small', 'medium', 'large']),
+      right: z.enum(['none', 'small', 'medium', 'large']),
+      bottom: z.enum(['none', 'small', 'medium', 'large']),
+      left: z.enum(['none', 'small', 'medium', 'large']),
+    }).strict().optional(),
+    mediaContentGap: z.enum(['tight', 'comfortable', 'spacious', 'generous']).optional(),
+    responsive: z.object({
+      tablet: responsiveAppearanceSchema.optional(),
+      mobile: responsiveAppearanceSchema.optional(),
+    }).strict().optional(),
   }).strict(),
   appearanceOptions: z.object({
     headingAlignments: z.array(z.object({ key: z.string(), displayName: z.string() }).strict()),
@@ -78,7 +121,32 @@ const sectionSchema = z.object({
   itemMediaCapability: z.object({ itemType: z.literal('person'), mode: z.literal('single') }).strict().nullable(),
   presentationCapability: z.object({
     default: nonEmptyString,
-    options: z.array(z.object({ key: nonEmptyString, displayName: nonEmptyString, description: nonEmptyString, preview: nonEmptyString }).strict()).min(1),
+    options: z.array(z.object({
+      key: nonEmptyString, displayName: nonEmptyString, description: nonEmptyString, preview: nonEmptyString,
+      mediaControls: z.object({
+        mediaPlacements: z.object({ default: nonEmptyString, options: z.array(designOptionSchema).min(1) }).strict().optional(),
+        mediaSizes: z.object({ default: nonEmptyString, options: z.array(designOptionSchema).min(1) }).strict().optional(),
+        frameStyles: z.object({ default: nonEmptyString, options: z.array(designOptionSchema).min(1) }).strict().optional(),
+        cornerStyles: z.object({ default: nonEmptyString, options: z.array(designOptionSchema).min(1) }).strict().optional(),
+        shadowStyles: z.object({ default: nonEmptyString, options: z.array(designOptionSchema).min(1) }).strict().optional(),
+        overlayStrength: z.object({ default: z.number(), min: z.number(), max: z.number(), step: z.number().positive() }).strict().optional(),
+        foregroundColors: z.object({ default: nonEmptyString, options: z.array(designOptionSchema).min(1) }).strict().optional(),
+        mediaSpacing: z.object({
+          default: z.object({
+            top: z.enum(['none', 'small', 'medium', 'large']),
+            right: z.enum(['none', 'small', 'medium', 'large']),
+            bottom: z.enum(['none', 'small', 'medium', 'large']),
+            left: z.enum(['none', 'small', 'medium', 'large']),
+          }).strict(),
+          options: z.array(designOptionSchema).min(1),
+        }).strict().optional(),
+        mediaContentGaps: z.object({ default: nonEmptyString, options: z.array(designOptionSchema).min(1) }).strict().optional(),
+        responsive: z.object({
+          tablet: responsiveControlSchema.optional(),
+          mobile: responsiveControlSchema.optional(),
+        }).strict().optional(),
+      }).strict().nullable(),
+    }).strict()).min(1),
   }).strict().nullable(),
 })
 

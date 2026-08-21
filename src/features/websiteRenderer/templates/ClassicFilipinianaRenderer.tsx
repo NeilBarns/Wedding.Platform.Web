@@ -1,4 +1,4 @@
-import type { DateContent, DressCodeContent, FaqContent, GalleryContent, HeroContent, PeopleContent, ResolvedWebsiteMedia, RsvpContent, ScheduleContent, SectionMedia, StoryContent, VenueContent, WebsiteSection } from '../../websiteEditor/types'
+import type { DateContent, DressCodeContent, FaqContent, GalleryContent, HeroContent, PeopleContent, ResolvedWebsiteMedia, ResponsiveViewport, RsvpContent, ScheduleContent, SectionMedia, StoryContent, VenueContent, WebsiteSection } from '../../websiteEditor/types'
 import { formatDateOnly } from '../formatDateOnly'
 import type { WebsiteRendererProps } from '../types'
 import { ZoomedMediaImage } from '../ZoomedMediaImage'
@@ -6,16 +6,17 @@ import { ClassicFilipinianaDate, ClassicFilipinianaDressCode, ClassicFilipiniana
 import { resolveClassicFilipinianaSectionAppearance } from './classicFilipiniana/appearance'
 import { resolveClassicFilipinianaDesign } from './classicFilipiniana/design'
 
-export function ClassicFilipinianaRenderer({ event, website, mode = 'public', selectedSectionId, onSectionSelect }: WebsiteRendererProps) {
+export function ClassicFilipinianaRenderer({ event, website, mode = 'public', selectedSectionId, onSectionSelect, targetViewport = 'desktop' }: WebsiteRendererProps) {
   const enabledSections = website.sections.filter(({ isEnabled }) => isEnabled)
 
   return <article className="min-h-full bg-[var(--cf-page)] font-[family-name:var(--cf-body-font)] text-[var(--cf-text)]" style={resolveClassicFilipinianaDesign(website.designSettings)}>
     {enabledSections.length === 0 && <div className="flex min-h-96 items-center justify-center px-8 text-center text-sm italic text-[var(--cf-muted)]">Enabled sections will appear here.</div>}
     {enabledSections.map((section, index) => {
       const appearance = resolveClassicFilipinianaSectionAppearance(section.type, website.designSettings, section.appearance, index)
+      const selected = mode === 'editor' && selectedSectionId === section.id
       return (
       <section
-        className={`${appearance.sectionClass} relative cursor-default border-b border-[color-mix(in_srgb,var(--cf-border)_18%,transparent)] transition-shadow ${mode === 'editor' && selectedSectionId === section.id ? 'z-10 outline-2 outline-offset-[-3px] outline-[var(--editor-chrome-focus)]' : ''}`}
+        className={`${appearance.sectionClass} relative cursor-default border-b border-[color-mix(in_srgb,var(--cf-border)_18%,transparent)] transition-shadow ${selected ? 'z-10' : ''}`}
         style={appearance.sectionStyle}
         data-preview-section={section.id}
         key={section.id}
@@ -28,19 +29,19 @@ export function ClassicFilipinianaRenderer({ event, website, mode = 'public', se
         aria-label={mode === 'editor' ? `${section.displayName} section` : undefined}
         tabIndex={mode === 'editor' ? 0 : undefined}
       >
-        {mode === 'editor' && selectedSectionId === section.id && <span className="absolute right-3 top-3 z-20 rounded-full bg-[var(--editor-chrome-strong)] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wider text-[var(--editor-chrome-on-strong)] shadow-[var(--editor-chrome-shadow)]">Editing</span>}
-        <Section section={section} eventName={event.name} eventDate={event.eventDate} mode={mode} media={website.media} />
+        {selected && <span className="absolute right-3 top-3 z-20 rounded-full bg-[var(--editor-chrome-strong)] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wider text-[var(--editor-chrome-on-strong)] shadow-[var(--editor-chrome-shadow)]">Editing</span>}
+        <Section section={section} eventName={event.name} eventDate={event.eventDate} mode={mode} media={website.media} targetViewport={targetViewport} />
       </section>
       )
     })}
   </article>
 }
 
-function Section({ section, eventName, eventDate, mode, media }: { section: WebsiteSection; eventName: string; eventDate: string | null; mode: 'editor' | 'public'; media: Record<string, ResolvedWebsiteMedia> }) {
+function Section({ section, eventName, eventDate, mode, media, targetViewport }: { section: WebsiteSection; eventName: string; eventDate: string | null; mode: 'editor' | 'public'; media: Record<string, ResolvedWebsiteMedia>; targetViewport: ResponsiveViewport }) {
   const presentation = section.appearance.presentation ?? section.presentationCapability?.default
-  const present = (content: React.ReactNode) => <ClassicMediaPresentation section={section} media={media} presentation={presentation}>{content}</ClassicMediaPresentation>
+  const present = (content: React.ReactNode) => <ClassicMediaPresentation section={section} media={media} presentation={presentation} targetViewport={targetViewport}>{content}</ClassicMediaPresentation>
   switch (section.type) {
-    case 'hero': return present(<ClassicFilipinianaHero sectionId={section.id} eventName={eventName} content={section.content as HeroContent} compact={presentation === 'framed'} />)
+    case 'hero': return present(<ClassicFilipinianaHero sectionId={section.id} eventName={eventName} content={section.content as HeroContent} />)
     case 'date': return <ClassicFilipinianaDate sectionId={section.id} date={formatDateOnly(eventDate)} content={section.content as DateContent} />
     case 'story': return present(<ClassicFilipinianaStory sectionId={section.id} content={section.content as StoryContent} />)
     case 'schedule': return <ClassicFilipinianaSchedule sectionId={section.id} content={section.content as ScheduleContent} />
@@ -54,20 +55,263 @@ function Section({ section, eventName, eventDate, mode, media }: { section: Webs
   }
 }
 
-function ClassicMediaPresentation({ section, media, presentation, children }: { section: WebsiteSection; media: Record<string, ResolvedWebsiteMedia>; presentation?: string; children: React.ReactNode }) {
+function ClassicMediaPresentation({ section, media, presentation, targetViewport, children }: { section: WebsiteSection; media: Record<string, ResolvedWebsiteMedia>; presentation?: string; targetViewport: ResponsiveViewport; children: React.ReactNode }) {
   const reference = (section.content as { media?: SectionMedia }).media
   const asset = reference ? media[reference.assetId] : undefined
   if (!section.mediaCapability || !asset) return <>{children}</>
   const mediaReference = reference as NonNullable<SectionMedia>
-  const image = (className: string, fill = false) => <ZoomedMediaImage className={className} fill={fill} height={asset.web.height} reference={mediaReference} src={asset.web.url} width={asset.web.width} />
+  const controls = section.presentationCapability?.options.find((option) => option.key === presentation)?.mediaControls
+  const value = (setting: keyof typeof section.appearance, group: 'mediaPlacements'|'mediaSizes'|'frameStyles'|'cornerStyles'|'shadowStyles'|'foregroundColors') => section.appearance[setting] ?? controls?.[group]?.default
+  const placement = value('mediaPlacement', 'mediaPlacements')
+  const size = value('mediaSize', 'mediaSizes')
+  const frame = value('frameStyle', 'frameStyles')
+  const corner = value('cornerStyle', 'cornerStyles')
+  const shadow = value('shadowStyle', 'shadowStyles')
+  const spacing = section.appearance.mediaSpacing ?? controls?.mediaSpacing?.default
+  const contentGap = section.appearance.mediaContentGap ?? controls?.mediaContentGaps?.default
+  const spacingValue = (side: 'top'|'right'|'bottom'|'left') => spacing?.[side] ?? 'medium'
+  const spacingClass = `${spacingValue('top') === 'none' ? '' : spacingValue('top') === 'small' ? 'pt-2 sm:pt-3' : spacingValue('top') === 'large' ? 'pt-5 sm:pt-10' : 'pt-3 sm:pt-6'} ${spacingValue('right') === 'none' ? '' : spacingValue('right') === 'small' ? 'pr-2 sm:pr-3' : spacingValue('right') === 'large' ? 'pr-5 sm:pr-10' : 'pr-3 sm:pr-6'} ${spacingValue('bottom') === 'none' ? '' : spacingValue('bottom') === 'small' ? 'pb-2 sm:pb-3' : spacingValue('bottom') === 'large' ? 'pb-5 sm:pb-10' : 'pb-3 sm:pb-6'} ${spacingValue('left') === 'none' ? '' : spacingValue('left') === 'small' ? 'pl-2 sm:pl-3' : spacingValue('left') === 'large' ? 'pl-5 sm:pl-10' : 'pl-3 sm:pl-6'}`
+  const gapClass = contentGap === 'tight' ? 'gap-3 sm:gap-4' : contentGap === 'spacious' ? 'gap-9 sm:gap-12' : contentGap === 'generous' ? 'gap-12 sm:gap-16' : 'gap-6 sm:gap-8'
+  const frameClass = frame === 'fineLine'
+    ? "after:pointer-events-none after:absolute after:inset-1 after:z-10 after:border after:border-[var(--cf-border)] after:content-[''] after:[border-radius:inherit]"
+    : frame === 'doubleLine'
+      ? "before:pointer-events-none before:absolute before:inset-1 before:z-10 before:border before:border-[var(--cf-border)] before:content-[''] before:[border-radius:inherit] after:pointer-events-none after:absolute after:inset-3 after:z-10 after:border after:border-[color-mix(in_srgb,var(--cf-border)_75%,transparent)] after:content-[''] after:[border-radius:inherit]"
+      : frame === 'heritage'
+        ? "border-4 border-[var(--cf-accent)] after:pointer-events-none after:absolute after:inset-4 after:z-10 after:border after:border-[color-mix(in_srgb,var(--cf-accent)_70%,transparent)] after:shadow-[0_0_0_5px_color-mix(in_srgb,var(--cf-surface)_78%,transparent)] after:content-[''] after:[border-radius:inherit]"
+        : frame === 'inset'
+          ? "after:pointer-events-none after:absolute after:inset-3 after:z-10 after:border-2 after:border-[var(--cf-surface)] after:shadow-[0_0_0_5px_color-mix(in_srgb,var(--cf-surface)_72%,transparent)] after:content-[''] after:[border-radius:inherit]"
+          : ''
+  const cornerClass = corner === 'soft' ? 'rounded-sm' : corner === 'rounded' ? 'rounded-xl' : ''
+  const shadowClass = shadow === 'subtle'
+    ? 'shadow-[0_2px_6px_-2px_rgb(44_31_23/24%)]'
+    : shadow === 'soft'
+      ? 'shadow-[0_10px_26px_-8px_rgb(44_31_23/30%)]'
+      : shadow === 'elevated'
+        ? 'shadow-[0_22px_48px_-12px_rgb(44_31_23/38%),0_8px_18px_-10px_rgb(44_31_23/24%)]'
+        : ''
+  const decorationSafeAreaClass = frame === 'outset' ? 'p-[10px]' : ''
+  const sizing = size === 'compact' ? 'mx-auto w-3/4' : size === 'balanced' ? 'mx-auto w-[90%]' : 'w-full'
+  const image = (className: string, fill = false, applySizing = true, wrapperClassName = '') => fill
+    ? <ZoomedMediaImage className={className} fill height={asset.web.height} reference={mediaReference} src={asset.web.url} width={asset.web.width} />
+    : <span className={`block ${applySizing ? sizing : 'w-full'} ${spacingClass} ${wrapperClassName}`}><span className={`block w-full ${decorationSafeAreaClass}`}><span className={`relative block w-full ${cornerClass} ${shadowClass}`}><ClassicOuterFrameDecoration frame={typeof frame === 'string' ? frame : undefined} /><ZoomedMediaImage className={`${className} relative z-[1] w-full ${frameClass} ${cornerClass}`} height={asset.web.height} reference={mediaReference} src={asset.web.url} width={asset.web.width} /></span></span></span>
+  const splitGrid = classicSplitGrid(typeof placement === 'string' ? placement : 'left', typeof size === 'string' ? size : 'balanced', targetViewport)
+  const mediaOrder = placement === 'right' ? semanticClass(targetViewport, 'order-2', 'order-2') : ''
+  const copyOrder = placement === 'right' ? semanticClass(targetViewport, 'order-1', 'order-1') : ''
+  const splitAlignment = semanticClass(targetViewport, 'items-center', 'items-center')
+  const tabletContainedLayout = targetViewport === 'tablet' && (placement === 'top' || placement === 'bottom')
+    ? resolveClassicTabletContainedLayout(section.type, presentation, typeof size === 'string' ? size : 'balanced')
+    : undefined
+  const tabletVertical = (media: React.ReactNode) => <div className={`grid ${gapClass} [&_[data-section-content]]:min-h-0 ${classicTabletCopyRhythm(placement === 'bottom' ? 'bottom' : 'top')}`}>{placement === 'bottom' ? <>{children}{media}</> : <>{media}{children}</>}</div>
 
-  if (presentation === 'immersive' || presentation === 'scenic') return <div className="relative isolate min-h-[32rem] overflow-hidden">{image('h-full', true)}<div className="relative min-h-[32rem] bg-[color-mix(in_srgb,var(--cf-page)_76%,transparent)] backdrop-blur-[1px]">{children}</div></div>
-  if (section.type === 'story' && presentation === 'portraitStory') return <div className="grid lg:grid-cols-[minmax(17rem,0.85fr)_1.15fr] lg:items-center">{image('h-[clamp(18rem,58vw,32rem)] lg:h-[min(34rem,65vh)]')}<div className="[&_[data-section-content]]:py-12 sm:[&_[data-section-content]]:py-14">{children}</div></div>
-  if (presentation === 'detailsFirst') return <div className="grid items-stretch lg:grid-cols-[1.1fr_0.9fr]"><div>{children}</div>{image('h-full min-h-[24rem] max-h-[42rem]')}</div>
-  if (section.type === 'story' && presentation === 'textFirst') return <div className="[&_[data-section-content]]:pb-8 [&_[data-section-content]]:pt-14 sm:[&_[data-section-content]]:pt-16">{children}<div className="mx-auto max-w-3xl px-7 pb-14">{image('max-h-[28rem] rounded-sm')}</div></div>
-  if (section.type === 'story' && presentation === 'framed') return <div className="mx-auto max-w-5xl px-5 py-6 sm:px-10 sm:py-10"><div className="border border-[color-mix(in_srgb,var(--cf-border)_45%,transparent)] bg-[var(--cf-surface)] p-2 sm:p-3">{image('h-[clamp(16rem,38vw,24rem)]')}</div><div className="[&_[data-section-content]]:px-2 [&_[data-section-content]]:pb-8 [&_[data-section-content]]:pt-10 sm:[&_[data-section-content]]:px-8 sm:[&_[data-section-content]]:pt-12">{children}</div></div>
-  if (section.type === 'venue' && presentation === 'framed') return <div className="mx-auto max-w-5xl px-5 pb-6 pt-5 sm:px-10 sm:pb-10 sm:pt-8"><div className="border border-[color-mix(in_srgb,var(--cf-border)_45%,transparent)] bg-[var(--cf-surface)] p-2 sm:p-3">{image('h-[clamp(15rem,34vw,22rem)]')}</div><div className="[&_[data-section-content]]:px-2 [&_[data-section-content]]:pb-8 [&_[data-section-content]]:pt-8 sm:[&_[data-section-content]]:px-8 sm:[&_[data-section-content]]:pb-10 sm:[&_[data-section-content]]:pt-10">{children}</div></div>
-  if (section.type === 'hero' && presentation === 'framed') return <div className="mx-auto max-w-5xl px-5 pb-8 pt-5 sm:px-10 sm:pb-12 sm:pt-8"><div className="border border-[color-mix(in_srgb,var(--cf-border)_42%,transparent)] bg-[var(--cf-surface)] p-2 sm:p-3">{image('h-[clamp(17rem,40vw,26rem)]')}</div><div>{children}</div></div>
+  if (presentation === 'immersive' || presentation === 'scenic') { const strength = section.appearance.overlayStrength ?? controls?.overlayStrength?.default ?? 0.5; const foreground = value('foregroundColor', 'foregroundColors') ?? '#FFFFFF'; return <div className="relative isolate min-h-[32rem] overflow-hidden">{image('h-full', true)}<div className="relative min-h-[32rem] backdrop-blur-[1px]" style={{ background: `color-mix(in srgb, var(--cf-page) ${strength * 100}%, transparent)`, color: foreground, '--cf-text': foreground, '--cf-muted': foreground, '--cf-secondary': foreground } as React.CSSProperties}>{children}</div></div> }
+  if (section.type === 'story' && presentation === 'portraitStory') {
+    if (tabletContainedLayout) return tabletVertical(<div className={`mx-auto ${tabletContainedLayout.wrapperClass}`}>{image(tabletContainedLayout.imageClass, false, false)}</div>)
+    if (targetViewport === 'tablet' && (placement === 'left' || placement === 'right')) {
+      const columns = classicTabletSplitColumns(placement, typeof size === 'string' ? size : 'balanced')
+      const media = <div className="min-w-0">{image('aspect-[8/5]', false, false)}</div>
+      const copy = <div className="min-w-0 [&_[data-section-content]]:min-h-0 [&_[data-section-content]]:px-8 [&_[data-section-content]]:py-10">{children}</div>
+      return <div className={`grid items-center ${columns} ${gapClass}`}>{placement === 'right' ? <>{copy}{media}</> : <>{media}{copy}</>}</div>
+    }
+    if (targetViewport === 'mobile') {
+      const mobileWidth = size === 'compact' ? 'w-[78%]' : size === 'feature' ? 'w-full' : 'w-[90%]'
+      const media = <div className={`mx-auto ${mobileWidth}`}>{image('h-[clamp(18rem,58vw,32rem)] lg:h-[min(34rem,65vh)]', false, false)}</div>
+      const copy = <div className="[&_[data-section-content]]:py-12 sm:[&_[data-section-content]]:py-14">{children}</div>
+      return <div className={`grid ${gapClass}`}>{placement === 'top' ? <>{media}{copy}</> : <>{copy}{media}</>}</div>
+    }
+    const media = image('h-[clamp(18rem,58vw,32rem)] lg:h-[min(34rem,65vh)]', false, false, mediaOrder)
+    const copy = <div className={`[&_[data-section-content]]:py-12 sm:[&_[data-section-content]]:py-14 ${copyOrder}`}>{children}</div>
+    if (placement === 'top' || placement === 'bottom') return <div className={`grid ${gapClass}`}>{placement === 'top' ? <>{media}{copy}</> : <>{copy}{media}</>}</div>
+    return <div className={`grid ${splitAlignment} ${gapClass} ${splitGrid}`}>{media}{copy}</div>
+  }
+  if (presentation === 'detailsFirst') {
+    if (tabletContainedLayout) return tabletVertical(<div className={`mx-auto ${tabletContainedLayout.wrapperClass}`}>{image(tabletContainedLayout.imageClass, false, false)}</div>)
+    if (targetViewport === 'tablet' && (placement === 'left' || placement === 'right')) {
+      const columns = classicTabletSplitColumns(placement, typeof size === 'string' ? size : 'balanced')
+      const media = <div className="min-w-0 self-center">{image('aspect-video', false, false)}</div>
+      const copy = <div className="min-w-0 [&_[data-section-content]]:min-h-0 [&_[data-section-content]]:px-8 [&_[data-section-content]]:py-10">{children}</div>
+      return <div className={`grid ${columns} ${gapClass}`}>{placement === 'right' ? <>{copy}{media}</> : <>{media}{copy}</>}</div>
+    }
+    if (targetViewport === 'mobile') {
+      const mobileWidth = size === 'compact' ? 'w-[78%]' : size === 'feature' ? 'w-full' : 'w-[90%]'
+      const media = <div className={`mx-auto ${mobileWidth}`}>{image('aspect-video', false, false)}</div>
+      return <div className={`grid ${gapClass}`}>{placement === 'top' ? <>{media}{children}</> : <>{children}{media}</>}</div>
+    }
+    if (targetViewport === 'desktop' && (placement === 'left' || placement === 'right')) {
+      const media = <div className={`min-w-0 self-center ${mediaOrder}`}>{image('aspect-video', false, false)}</div>
+      const copy = <div className={`min-w-0 ${copyOrder}`}>{children}</div>
+      return <div className={`grid ${gapClass} ${splitGrid}`}>{media}{copy}</div>
+    }
+    const media = image('h-full min-h-[24rem] max-h-[42rem]', false, false, mediaOrder)
+    const copy = <div className={copyOrder}>{children}</div>
+    if (placement === 'top' || placement === 'bottom') return <div className={`grid ${gapClass}`}>{placement === 'top' ? <>{media}{copy}</> : <>{copy}{media}</>}</div>
+    return <div className={`grid items-stretch ${gapClass} ${splitGrid}`}>{media}{copy}</div>
+  }
+  if (section.type === 'story' && presentation === 'textFirst') {
+    if (tabletContainedLayout) return tabletVertical(<div className={`mx-auto ${tabletContainedLayout.wrapperClass}`}>{image(tabletContainedLayout.imageClass, false, false)}</div>)
+    const media = targetViewport === 'mobile'
+      ? <div className="w-full">{image('max-h-[28rem]')}</div>
+      : <div className="mx-auto max-w-3xl px-7">{image('max-h-[28rem]')}</div>
+    return <div className={`grid [&_[data-section-content]]:py-10 sm:[&_[data-section-content]]:py-12 ${gapClass}`}>{placement === 'top' ? <>{media}{children}</> : <>{children}{media}</>}</div>
+  }
+  if (section.type === 'hero' && presentation === 'classic' && (placement === 'left' || placement === 'right')) {
+    const tabletLayout = targetViewport === 'tablet'
+      ? resolveClassicHeroTabletLayout(placement, typeof size === 'string' ? size : 'balanced')
+      : undefined
+    const stackedSizing = targetViewport !== 'mobile' ? 'w-full' : size === 'compact' ? 'mx-auto w-3/4' : size === 'balanced' ? 'mx-auto w-[90%]' : 'w-full'
+    const media = <div className={tabletLayout?.mediaWrapperClass ?? stackedSizing}>{image(tabletLayout?.imageClass ?? 'h-[min(68vh,clamp(18rem,40vw,38rem))]', false, false)}</div>
+    return <div className={`grid items-center ${gapClass} ${tabletLayout?.compositionClass ?? splitGrid}`}>{placement === 'right' ? <>{children}{media}</> : <>{media}{children}</>}</div>
+  }
+  if (section.type === 'hero' && presentation === 'classic') {
+    const tabletLayout = tabletContainedLayout
+    const layout = tabletLayout ?? classicHeroVerticalMedia(typeof size === 'string' ? size : 'balanced', targetViewport)
+    const media = <div className={`mx-auto ${layout.wrapperClass}`}>{image(layout.imageClass, false, false)}</div>
+    if (tabletLayout) return tabletVertical(media)
+    const mobileCopyRhythm = placement === 'bottom'
+      ? '[&_[data-section-content]]:pb-0 [&_[data-section-content]]:pt-8'
+      : '[&_[data-section-content]]:pb-8 [&_[data-section-content]]:pt-0'
+    const desktopCopyRhythm = placement === 'bottom'
+      ? '[&_[data-section-content]]:pb-0 [&_[data-section-content]]:pt-16'
+      : '[&_[data-section-content]]:pb-16 [&_[data-section-content]]:pt-0'
+    const verticalRhythm = targetViewport === 'mobile'
+      ? mobileCopyRhythm
+      : desktopCopyRhythm
+    return <div className={`grid ${verticalRhythm} ${gapClass} [&_[data-section-content]]:min-h-0`}>{placement === 'bottom' ? <>{children}{media}</> : <>{media}{children}</>}</div>
+  }
+  const fallbackMedia = <div className="mx-auto mt-8 max-w-4xl px-6">{image('max-h-[34rem]')}</div>
+  return <div className={`grid ${gapClass}`}>{placement === 'bottom' ? <>{children}{fallbackMedia}</> : <>{fallbackMedia}{children}</>}</div>
+}
 
-  return <><div className={`mx-auto overflow-hidden ${section.type === 'hero' && presentation === 'classic' ? 'max-h-[68vh] w-full' : 'mt-8 max-w-4xl rounded-sm px-6'}`}>{image(section.type === 'hero' && presentation === 'classic' ? 'h-[clamp(18rem,55vw,46rem)]' : 'max-h-[34rem]')}</div>{children}</>
+function semanticClass(viewport: ResponsiveViewport, tablet: string, desktop: string): string {
+  return viewport === 'tablet' ? tablet : viewport === 'desktop' ? desktop : ''
+}
+
+function classicSplitGrid(placement: string, size: string, viewport: ResponsiveViewport): string {
+  const tablet = placement === 'right'
+    ? size === 'compact' ? 'grid-cols-[1.2fr_0.8fr]' : size === 'feature' ? 'grid-cols-[0.9fr_1.1fr]' : 'grid-cols-2'
+    : size === 'compact' ? 'grid-cols-[0.8fr_1.2fr]' : size === 'feature' ? 'grid-cols-[1.1fr_0.9fr]' : 'grid-cols-2'
+  const desktop = placement === 'right'
+    ? size === 'compact' ? 'grid-cols-[1.3fr_0.7fr]' : size === 'feature' ? 'grid-cols-[0.85fr_1.15fr]' : 'grid-cols-[1.1fr_0.9fr]'
+    : size === 'compact' ? 'grid-cols-[0.7fr_1.3fr]' : size === 'feature' ? 'grid-cols-[1.15fr_0.85fr]' : 'grid-cols-[0.9fr_1.1fr]'
+  return viewport === 'tablet' ? tablet : viewport === 'desktop' ? desktop : ''
+}
+
+function classicTabletSplitColumns(placement: string, size: string): string {
+  if (placement === 'right') {
+    if (size === 'compact') return 'grid-cols-[minmax(0,0.6fr)_minmax(0,0.4fr)]'
+    if (size === 'feature') return 'grid-cols-[minmax(0,0.44fr)_minmax(0,0.56fr)]'
+    return 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)]'
+  }
+
+  if (size === 'compact') return 'grid-cols-[minmax(0,0.4fr)_minmax(0,0.6fr)]'
+  if (size === 'feature') return 'grid-cols-[minmax(0,0.56fr)_minmax(0,0.44fr)]'
+  return 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)]'
+}
+
+function classicHeroVerticalMedia(size: string, viewport: ResponsiveViewport): { wrapperClass: string; imageClass: string } {
+  if (viewport === 'mobile') {
+    if (size === 'compact') return { wrapperClass: 'w-[78%]', imageClass: 'aspect-[4/3]' }
+    if (size === 'feature') return { wrapperClass: 'w-full', imageClass: 'aspect-[4/3]' }
+    return { wrapperClass: 'w-[90%]', imageClass: 'aspect-[4/3]' }
+  }
+  if (viewport === 'tablet') {
+    if (size === 'compact') return { wrapperClass: 'w-[82%] max-w-2xl', imageClass: 'aspect-[4/3]' }
+    if (size === 'feature') return { wrapperClass: 'w-full', imageClass: 'aspect-[4/3]' }
+    return { wrapperClass: 'w-[92%] max-w-3xl', imageClass: 'aspect-[4/3]' }
+  }
+  if (size === 'compact') return { wrapperClass: 'w-[64%] max-w-3xl', imageClass: 'h-[clamp(20rem,28vw,24rem)]' }
+  if (size === 'feature') return { wrapperClass: 'w-full', imageClass: 'h-[clamp(28rem,38vw,34rem)]' }
+  return { wrapperClass: 'w-[80%] max-w-4xl', imageClass: 'h-[clamp(24rem,34vw,30rem)]' }
+}
+
+type ClassicHeroTabletLayout = {
+  compositionClass: string
+  copyRhythmClass?: string
+  imageClass: string
+  mediaWrapperClass?: string
+  wrapperClass: string
+}
+
+type ClassicTabletContainedLayout = Pick<ClassicHeroTabletLayout, 'imageClass' | 'wrapperClass'>
+
+function resolveClassicTabletContainedLayout(sectionType: string, presentation: string | undefined, size: string): ClassicTabletContainedLayout | undefined {
+  if (sectionType === 'hero' && presentation === 'classic') {
+    const layout = resolveClassicHeroTabletLayout('top', size)
+    return { imageClass: layout.imageClass, wrapperClass: layout.wrapperClass }
+  }
+
+  const widths = sectionType === 'story' && presentation === 'portraitStory'
+    ? size === 'compact' ? 'w-[76%] max-w-2xl' : size === 'feature' ? 'w-full' : 'w-[90%] max-w-3xl'
+    : sectionType === 'story' && presentation === 'textFirst'
+      ? size === 'compact' ? 'w-[78%] max-w-2xl' : size === 'feature' ? 'w-full' : 'w-[92%] max-w-3xl'
+      : sectionType === 'venue' && presentation === 'detailsFirst'
+        ? size === 'compact' ? 'w-[78%] max-w-2xl' : size === 'feature' ? 'w-full' : 'w-[92%] max-w-3xl'
+        : undefined
+
+  if (!widths) return undefined
+
+  const imageClass = sectionType === 'story' && presentation === 'portraitStory'
+    ? 'aspect-[8/5]'
+    : sectionType === 'venue'
+      ? 'aspect-video'
+      : 'aspect-[4/3]'
+
+  return { imageClass, wrapperClass: widths }
+}
+
+function classicTabletCopyRhythm(placement: 'top' | 'bottom'): string {
+  return placement === 'bottom'
+    ? '[&_[data-section-content]]:pb-0 [&_[data-section-content]]:pt-12'
+    : '[&_[data-section-content]]:pb-12 [&_[data-section-content]]:pt-0'
+}
+
+function resolveClassicHeroTabletLayout(placement: string, size: string): ClassicHeroTabletLayout {
+  const imageClass = 'aspect-[4/3]'
+
+  if (placement === 'left' || placement === 'right') {
+    const columns = placement === 'right'
+      ? size === 'compact'
+        ? 'grid-cols-[minmax(0,0.62fr)_minmax(0,0.38fr)]'
+        : size === 'feature'
+          ? 'grid-cols-[minmax(0,0.44fr)_minmax(0,0.56fr)]'
+          : 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)]'
+      : size === 'compact'
+        ? 'grid-cols-[minmax(0,0.38fr)_minmax(0,0.62fr)]'
+        : size === 'feature'
+          ? 'grid-cols-[minmax(0,0.56fr)_minmax(0,0.44fr)]'
+          : 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)]'
+
+    return {
+      compositionClass: `${columns} [&_[data-section-content]]:min-h-0 [&_[data-section-content]]:py-12`,
+      imageClass,
+      mediaWrapperClass: 'w-full',
+      wrapperClass: 'w-full',
+    }
+  }
+
+  const wrapperClass = size === 'compact'
+    ? 'w-[82%] max-w-2xl'
+    : size === 'feature'
+      ? 'w-full'
+      : 'w-[92%] max-w-3xl'
+
+  return {
+    compositionClass: '',
+    copyRhythmClass: placement === 'bottom'
+      ? '[&_[data-section-content]]:pb-0 [&_[data-section-content]]:pt-12'
+      : '[&_[data-section-content]]:pb-12 [&_[data-section-content]]:pt-0',
+    imageClass,
+    wrapperClass,
+  }
+}
+
+function ClassicOuterFrameDecoration({ frame }: { frame?: string }) {
+  if (frame === 'outset') return <span className="pointer-events-none absolute inset-0 z-[2] border border-[var(--cf-border)] outline-2 outline-offset-[8px] outline-[var(--cf-accent)] [border-radius:inherit]" aria-hidden="true" />
+  if (frame !== 'ornamental') return null
+  return <span className="pointer-events-none absolute inset-0 z-[2] outline outline-offset-4 outline-[var(--cf-accent)] [border-radius:inherit]" aria-hidden="true">
+    <span className="absolute inset-2 border border-[color-mix(in_srgb,var(--cf-accent)_65%,transparent)] [border-radius:inherit]" />
+    <span className="absolute left-1 top-1 size-4 border-l-2 border-t-2 border-[var(--cf-accent)]" />
+    <span className="absolute right-1 top-1 size-4 border-r-2 border-t-2 border-[var(--cf-accent)]" />
+    <span className="absolute bottom-1 left-1 size-4 border-b-2 border-l-2 border-[var(--cf-accent)]" />
+    <span className="absolute bottom-1 right-1 size-4 border-b-2 border-r-2 border-[var(--cf-accent)]" />
+  </span>
 }

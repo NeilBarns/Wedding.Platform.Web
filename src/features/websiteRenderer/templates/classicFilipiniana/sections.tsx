@@ -2,9 +2,9 @@ import { EditableText } from '../../../websiteEditor/inline/EditableText'
 import type { DateContent, DressCodeContent, FaqContent, GalleryContent, HeroContent, PeopleContent, ResolvedWebsiteMedia, RsvpContent, ScheduleContent, StoryContent, VenueContent } from '../../../websiteEditor/types'
 import { ZoomedMediaImage } from '../../ZoomedMediaImage'
 
-export function ClassicFilipinianaHero({ sectionId, eventName, content, compact = false }: { sectionId: string; eventName: string; content: HeroContent; compact?: boolean }) {
-  return <div data-section-content className={`relative flex flex-col items-center justify-center overflow-hidden px-8 text-center ${compact ? 'min-h-0 pb-10 pt-12 sm:pb-12 sm:pt-14' : 'min-h-[34rem] py-24'}`}>
-    {!compact && <div className="absolute inset-5 border border-[color-mix(in_srgb,var(--cf-accent)_30%,transparent)]" />}<div className={`absolute left-1/2 h-px -translate-x-1/2 bg-[var(--cf-accent)] ${compact ? 'top-7 w-12 opacity-70' : 'top-14 w-20'}`} />
+export function ClassicFilipinianaHero({ sectionId, eventName, content }: { sectionId: string; eventName: string; content: HeroContent }) {
+  return <div data-section-content className="relative flex min-h-[34rem] flex-col items-center justify-center overflow-hidden px-8 py-24 text-center">
+    <div className="mb-8 h-px w-20 shrink-0 bg-[var(--cf-accent)]" />
     <p className="relative text-[10px] font-semibold uppercase tracking-[0.38em] text-[var(--cf-secondary)]">Together with their families</p>
     <h1 data-section-heading className="relative mt-7 w-full max-w-2xl font-[family-name:var(--cf-heading-font)] text-5xl leading-[1.05] text-[var(--cf-text)] sm:text-6xl"><EditableText sectionId={sectionId} path={['headline']} value={content.headline} fallback={eventName} showFallbackInEditor placeholder="Add headline" label="Hero headline" /></h1>
     <p data-section-body className="relative mt-6 w-full max-w-lg text-sm leading-7 text-[var(--cf-muted)]"><EditableText sectionId={sectionId} path={['subheadline']} value={content.subheadline} placeholder="Add subheadline" label="Hero subheadline" multiline /></p>
@@ -37,9 +37,7 @@ export function ClassicFilipinianaPeople({ sectionId, content, mode, media, show
   const imagesVisible = showMedia && presentation !== 'namesOnly'
   const imageClass = presentation === 'portraitCards'
     ? 'mx-auto mb-3 aspect-[4/5] w-full max-w-36 rounded-sm object-cover'
-    : presentation === 'framed'
-      ? 'mx-auto mb-3 aspect-square w-full max-w-32 border border-[var(--cf-border)] p-1 object-cover'
-      : 'mx-auto mb-3 aspect-square w-full max-w-28 rounded-full object-cover'
+    : 'mx-auto mb-3 aspect-square w-full max-w-28 rounded-full object-cover'
   return <ContentSection eyebrow="Those beside us" heading={<EditableText sectionId={sectionId} path={['heading']} value={content.heading} fallback="Wedding Party" placeholder="Add heading" label="Wedding Party heading" />}>
     {groups.length > 0 ? <div className="mx-auto grid max-w-4xl gap-x-10 gap-y-10 sm:grid-cols-2">{groups.map((group) => <section className="border-t border-[color-mix(in_srgb,var(--cf-border)_30%,transparent)] pt-5" key={group.id}>
       <h3 className="font-[family-name:var(--cf-heading-font)] text-xl text-[var(--cf-text)]">{group.name}</h3>

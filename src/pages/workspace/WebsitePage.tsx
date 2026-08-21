@@ -8,8 +8,10 @@ import {
   Monitor,
   RefreshCw,
   Smartphone,
+  Tablet,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
 import { Heading } from "../../components/ui/Heading";
@@ -36,11 +38,14 @@ import type {
   InlineFieldTarget,
 } from "../../features/websiteEditor/inline/types";
 import type {
+  ResponsiveViewport,
   WebsiteDesignSettings,
   WebsiteDraft,
   WebsiteSection,
   WebsiteSectionAppearance,
 } from "../../features/websiteEditor/types";
+import { appearanceEquals, pruneResponsiveAppearance } from "../../features/websiteEditor/responsiveAppearance";
+import { accessiblePreviewViewports, PREVIEW_WIDTHS, useEditorDeviceCategory } from "../../features/websiteEditor/responsiveViewport";
 import { useWebsiteDraft } from "../../features/websiteEditor/useWebsiteDraft";
 import { WebsiteRenderer } from "../../features/websiteRenderer/WebsiteRenderer";
 import { TemplateChangeDialog } from "../../features/websiteTemplates/components/TemplateChangeDialog";
@@ -77,9 +82,15 @@ export function WebsitePage() {
   );
   const [listPending, setListPending] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
-  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">(
-    "desktop",
-  );
+  const deviceCategory = useEditorDeviceCategory();
+  const [previewMode, setPreviewMode] = useState<ResponsiveViewport>(deviceCategory);
+  const accessibleViewports = useMemo(() => accessiblePreviewViewports(deviceCategory), [deviceCategory]);
+
+  useEffect(() => {
+    if (accessibleViewports.includes(previewMode)) return
+    const timer = window.setTimeout(() => setPreviewMode(accessibleViewports[0]), 0)
+    return () => window.clearTimeout(timer)
+  }, [accessibleViewports, previewMode]);
   const [contentOverride, setContentOverride] = useState<{
     sectionId: string;
     content: Record<string, unknown>;
@@ -129,8 +140,7 @@ export function WebsitePage() {
   const appearanceDirty = Boolean(
     authoritativeSelected &&
     workingAppearance &&
-    JSON.stringify(workingAppearance) !==
-      JSON.stringify(authoritativeSelected.appearance),
+    !appearanceEquals(workingAppearance, authoritativeSelected.appearance),
   );
   const sectionDirty = contentDirty || appearanceDirty;
   const designDirty = Boolean(
@@ -239,6 +249,16 @@ export function WebsitePage() {
       setContentOverride({ sectionId: effectiveSelectedId, content });
   }
 
+  function resetSelectedSection() {
+    if (!sectionDirty) return;
+    setContentOverride(null);
+    setAppearanceOverride(null);
+    setActiveInlineTarget(null);
+    setPendingInlineTarget(null);
+    setAppearanceError(null);
+    setMediaOverrides({});
+  }
+
   function requestInlineEdit(target: InlineFieldTarget) {
     if (target.sectionId === effectiveSelectedId) {
       applyDrawerMode("content");
@@ -331,7 +351,7 @@ export function WebsitePage() {
         await updateWebsiteSectionAppearance(
           event.id,
           effectiveSelectedId,
-          workingAppearance,
+          pruneResponsiveAppearance(workingAppearance),
         ),
       );
       setAppearanceOverride(null);
@@ -386,14 +406,17 @@ export function WebsitePage() {
         selected={selected}
         workingContent={workingContent}
         workingAppearance={workingAppearance}
+        targetViewport={previewMode}
         panelMode={sectionPanelMode}
         showModeSwitch
         contentDirty={contentDirty}
         appearanceDirty={appearanceDirty}
+        sectionDirty={sectionDirty}
         appearanceSaving={appearanceSaving}
         appearanceError={appearanceError}
         onPanelModeChange={(next) => applyDrawerMode(next)}
         onContentChange={updateWorkingContent}
+        onSectionReset={resetSelectedSection}
         onContentSave={(content) =>
           selected
             ? updateWebsiteSectionContent(event.id, selected.id, content)
@@ -436,14 +459,17 @@ export function WebsitePage() {
         selected={selected}
         workingContent={workingContent}
         workingAppearance={workingAppearance}
+        targetViewport={previewMode}
         panelMode={drawerMode === "appearance" ? "appearance" : "content"}
         showModeSwitch={false}
         contentDirty={contentDirty}
         appearanceDirty={appearanceDirty}
+        sectionDirty={sectionDirty}
         appearanceSaving={appearanceSaving}
         appearanceError={appearanceError}
         onPanelModeChange={(next) => applyDrawerMode(next)}
         onContentChange={updateWorkingContent}
+        onSectionReset={resetSelectedSection}
         onContentSave={(content) =>
           selected
             ? updateWebsiteSectionContent(event.id, selected.id, content)
@@ -494,17 +520,18 @@ export function WebsitePage() {
             onChange={changeMode}
           />
         </div>
-        <div className="hidden xl:block">
+        {accessibleViewports.length > 1 && <div>
           <SegmentedControl
             value={previewMode}
-            options={[
-              { value: "desktop", label: "Desktop", icon: <Monitor size={14} /> },
-              { value: "mobile", label: "Mobile", icon: <Smartphone size={14} /> },
-            ]}
-            label="Preview width"
+            options={accessibleViewports.map((viewport) => ({
+              value: viewport,
+              label: viewport[0].toUpperCase() + viewport.slice(1),
+              icon: viewport === "desktop" ? <Monitor size={14} /> : viewport === "tablet" ? <Tablet size={14} /> : <Smartphone size={14} />,
+            }))}
+            label="Preview and editing viewport"
             onChange={setPreviewMode}
           />
-        </div>
+        </div>}
       </header>
 
       {listError && (
@@ -841,7 +868,7 @@ function PreviewCanvas({
   draft: WebsiteDraft;
   mode: BuilderMode;
   selectedId: string | null;
-  previewMode: "desktop" | "mobile";
+  previewMode: ResponsiveViewport;
   unsaved: boolean;
   inlineValue: React.ComponentProps<typeof InlineEditProvider>["value"];
   onSectionSelect: (id: string) => void;
@@ -867,9 +894,7 @@ function PreviewCanvas({
         )}
       </div>
       <div className="min-h-0 flex-1 overflow-x-auto rounded-xl bg-background/45 p-2">
-        <div
-          className={`mx-auto h-full min-h-0 overflow-y-auto rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)] transition-[max-width] ${previewMode === "mobile" ? "max-w-[390px]" : "max-w-full"}`}
-        >
+        <PreviewViewport viewport={previewMode}>
           <InlineEditProvider value={inlineValue}>
             <WebsiteRenderer
               event={event}
@@ -877,12 +902,39 @@ function PreviewCanvas({
               mode="editor"
               selectedSectionId={mode === "content" ? selectedId : null}
               onSectionSelect={onSectionSelect}
+              targetViewport={previewMode}
             />
           </InlineEditProvider>
-        </div>
+        </PreviewViewport>
       </div>
     </main>
   );
+}
+
+function PreviewViewport({ viewport, children }: { viewport: ResponsiveViewport; children: React.ReactNode }) {
+  const frameRef = useRef<HTMLIFrameElement>(null)
+  const [mount, setMount] = useState<HTMLElement | null>(null)
+
+  if (viewport === 'desktop') return <div className="mx-auto h-full min-h-0 max-w-full overflow-y-auto rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)]">{children}</div>
+
+  return <div className="mx-auto h-full max-w-full overflow-hidden rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)]" style={{ width: PREVIEW_WIDTHS[viewport] }}>
+    <iframe
+      ref={frameRef}
+      className="h-full w-full border-0"
+      title={`${viewport[0].toUpperCase() + viewport.slice(1)} Website preview`}
+      srcDoc="<!doctype html><html><head></head><body><div id='responsive-preview-root'></div></body></html>"
+      onLoad={() => {
+        const documentTarget = frameRef.current?.contentDocument
+        if (!documentTarget) return
+        document.querySelectorAll('style, link[rel="stylesheet"]').forEach((node) => documentTarget.head.appendChild(node.cloneNode(true)))
+        documentTarget.documentElement.className = document.documentElement.className
+        documentTarget.body.style.margin = '0'
+        const root = documentTarget.getElementById('responsive-preview-root')
+        if (root) setMount(root)
+      }}
+    />
+    {mount && createPortal(children, mount)}
+  </div>
 }
 
 function SectionInspector({
@@ -891,14 +943,17 @@ function SectionInspector({
   selected,
   workingContent,
   workingAppearance,
+  targetViewport,
   panelMode,
   showModeSwitch,
   contentDirty,
   appearanceDirty,
+  sectionDirty,
   appearanceSaving,
   appearanceError,
   onPanelModeChange,
   onContentChange,
+  onSectionReset,
   onContentSave,
   onContentSaved,
   onAppearanceChange,
@@ -909,14 +964,17 @@ function SectionInspector({
   selected: WebsiteSection | null;
   workingContent?: Record<string, unknown>;
   workingAppearance?: WebsiteSectionAppearance;
+  targetViewport: ResponsiveViewport;
   panelMode: SectionPanelMode;
   showModeSwitch: boolean;
   contentDirty: boolean;
   appearanceDirty: boolean;
+  sectionDirty: boolean;
   appearanceSaving: boolean;
   appearanceError: string | null;
   onPanelModeChange: (mode: SectionPanelMode) => void;
   onContentChange: (content: Record<string, unknown>) => void;
+  onSectionReset: () => void;
   onContentSave: (content: Record<string, unknown>) => Promise<WebsiteDraft>;
   onContentSaved: (draft: WebsiteDraft) => void;
   onAppearanceChange: (appearance: WebsiteSectionAppearance) => void;
@@ -962,7 +1020,9 @@ function SectionInspector({
             section={selected}
             content={workingContent}
             dirty={contentDirty}
+            resetDirty={sectionDirty}
             onChange={onContentChange}
+            onReset={onSectionReset}
             onSave={onContentSave}
             onSaved={onContentSaved}
             resolvedMedia={resolvedMedia}
@@ -976,11 +1036,12 @@ function SectionInspector({
               appearance={workingAppearance}
               options={selected.appearanceOptions}
               presentationCapability={selected.presentationCapability}
+              targetViewport={targetViewport}
               error={appearanceError}
               onChange={onAppearanceChange}
             />
           </div>
-          <BuilderSaveBar dirty={appearanceDirty} saving={appearanceSaving} onSave={onAppearanceSave} />
+          <BuilderSaveBar dirty={appearanceDirty} statusDirty={sectionDirty} resetDirty={sectionDirty} saving={appearanceSaving} onSave={onAppearanceSave} onReset={onSectionReset} />
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto px-1 xl:px-0">
