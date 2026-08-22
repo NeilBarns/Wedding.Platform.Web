@@ -6,20 +6,43 @@ const mediaVariantSchema = z.object({
   url: z.string().url(),
 }).strict()
 
+const peopleUsageContextSchema = z.object({
+  groupId: z.string().min(1),
+  groupName: z.string(),
+  personId: z.string().min(1),
+  personName: z.string(),
+}).strict()
+
+const storyUsageContextSchema = z.object({
+  blockId: z.string().min(1),
+  blockHeading: z.string().nullable().optional(),
+}).strict()
+
+const mediaWebsiteSectionUsageSchema = z.union([
+  z.object({
+    sectionId: z.string().min(1),
+    type: z.literal('people'),
+    displayName: z.string().min(1),
+    context: peopleUsageContextSchema,
+  }).strict(),
+  z.object({
+    sectionId: z.string().min(1),
+    type: z.literal('story'),
+    displayName: z.string().min(1),
+    context: storyUsageContextSchema,
+  }).strict(),
+  z.object({
+    sectionId: z.string().min(1),
+    type: z.string().min(1),
+    displayName: z.string().min(1),
+    context: z.undefined().optional(),
+  }).strict(),
+])
+
 const mediaUsageSchema = z.object({
   isInUse: z.boolean(),
   website: z.object({
-    sections: z.array(z.object({
-      sectionId: z.string().min(1),
-      type: z.string().min(1),
-      displayName: z.string().min(1),
-      context: z.object({
-        groupId: z.string().min(1),
-        groupName: z.string(),
-        personId: z.string().min(1),
-        personName: z.string(),
-      }).strict().optional(),
-    }).strict()),
+    sections: z.array(mediaWebsiteSectionUsageSchema),
   }).strict(),
 }).strict()
 

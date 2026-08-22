@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
 import { Button } from '../../../components/ui/Button'
 import { Dialog, DialogFooter, DialogHeader } from '../../../components/ui/Dialog'
-import type { MediaAssetUsage } from '../types'
+import { mediaUsageDetail, mediaUsageKey, type MediaAssetUsage } from '../types'
 
 export function MediaUsageIndicator({ usage }: { usage: MediaAssetUsage }) {
   const [open, setOpen] = useState(false)
@@ -18,7 +18,10 @@ export function MediaUsageIndicator({ usage }: { usage: MediaAssetUsage }) {
     <Dialog open={open} onClose={() => setOpen(false)} titleId={titleId} size="sm">
       <DialogHeader title="Used by Website" titleId={titleId} onClose={() => setOpen(false)} />
       <ul className="mt-4 space-y-2 text-sm">
-        {sections.map((section) => <li className="rounded-md bg-surface-muted px-3 py-2" key={`${section.sectionId}:${section.context?.personId ?? 'section'}`}><span>{section.displayName}</span>{section.context && <span className="mt-0.5 block text-xs text-foreground-muted">{section.context.groupName} — {section.context.personName}</span>}</li>)}
+        {sections.map((section) => {
+          const detail = mediaUsageDetail(section)
+          return <li className="rounded-md bg-surface-muted px-3 py-2" key={mediaUsageKey(section)}><span>{section.displayName}</span>{detail && <span className="mt-0.5 block text-xs text-foreground-muted">{detail}</span>}</li>
+        })}
       </ul>
       <DialogFooter className="mt-5"><Button variant="secondary" onClick={() => setOpen(false)}>Close</Button></DialogFooter>
     </Dialog>

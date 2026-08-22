@@ -34,7 +34,23 @@ const responsiveControlSchema = z.object({
 }).strict()
 export const heroContentSchema = z.object({ headline: text, subheadline: text, media: sectionMediaSchema }).strict()
 export const dateContentSchema = z.object({ heading: text, description: text }).strict()
-export const storyContentSchema = z.object({ heading: text, body: text, media: sectionMediaSchema }).strict()
+const storyBlockSchema = z.object({
+  id: semanticId,
+  heading: text.max(255).nullable().optional(),
+  body: text.max(10000),
+  media: sectionMediaSchema,
+}).strict()
+export const storyContentSchema = z.object({
+  heading: text.max(255),
+  intro: text.max(5000).nullable().optional(),
+  blocks: z.array(storyBlockSchema).max(20),
+}).strict().superRefine((content, context) => {
+  const ids = new Set<string>()
+  content.blocks.forEach((block, index) => {
+    if (ids.has(block.id)) context.addIssue({ code: 'custom', message: 'Story block IDs must be unique', path: ['blocks', index, 'id'] })
+    ids.add(block.id)
+  })
+})
 export const scheduleContentSchema = z.object({
   heading: text,
   items: z.array(z.object({ time: text, title: text, description: text }).strict()),

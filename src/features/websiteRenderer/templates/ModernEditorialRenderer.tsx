@@ -4,7 +4,7 @@ import type { WebsiteRendererProps } from '../types'
 import { ZoomedMediaImage } from '../ZoomedMediaImage'
 import { resolveModernEditorialSectionAppearance } from './modernEditorial/appearance'
 import { resolveModernEditorialDesign } from './modernEditorial/design'
-import { ModernEditorialDate, ModernEditorialDressCode, ModernEditorialFaq, ModernEditorialGallery, ModernEditorialHero, ModernEditorialPeople, ModernEditorialRsvp, ModernEditorialSchedule, ModernEditorialStory, ModernEditorialVenue } from './modernEditorial/sections'
+import { ModernEditorialDate, ModernEditorialDressCode, ModernEditorialFaq, ModernEditorialGallery, ModernEditorialHero, ModernEditorialPeople, ModernEditorialRsvp, ModernEditorialSchedule, ModernEditorialStoryBlock, ModernEditorialStoryBlockBody, ModernEditorialStoryBlockHeading, ModernEditorialStoryHeader, ModernEditorialVenue } from './modernEditorial/sections'
 
 export function ModernEditorialRenderer({ event, website, mode = 'public', selectedSectionId, onSectionSelect, targetViewport = 'desktop' }: WebsiteRendererProps) {
   const enabledSections = website.sections.filter(({ isEnabled }) => isEnabled)
@@ -28,7 +28,10 @@ function Section({ section, eventName, eventDate, mode, media, targetViewport }:
   switch (section.type) {
     case 'hero': return present(<ModernEditorialHero sectionId={section.id} eventName={eventName} date={date} content={section.content as HeroContent} />)
     case 'date': return <ModernEditorialDate sectionId={section.id} date={date} content={section.content as DateContent} />
-    case 'story': return present(<ModernEditorialStory sectionId={section.id} content={section.content as StoryContent} tabletEditorial={targetViewport === 'tablet' && presentation === 'editorial'} />)
+    case 'story': {
+      const content = section.content as StoryContent
+      return <><ModernEditorialStoryHeader sectionId={section.id} content={content} mode={mode} />{content.blocks.map((block, index) => <ModernMediaPresentation alternate={index % 2 === 1} key={block.id} section={section} media={media} mediaReference={block.media} mobileStoryHeading={<ModernEditorialStoryBlockHeading sectionId={section.id} block={block} index={index} />} mobileStoryBody={<ModernEditorialStoryBlockBody sectionId={section.id} block={block} index={index} />} presentation={presentation} targetViewport={targetViewport}><ModernEditorialStoryBlock sectionId={section.id} block={block} index={index} tabletEditorial={targetViewport === 'tablet' && presentation === 'editorial'} /></ModernMediaPresentation>)}</>
+    }
     case 'schedule': return <ModernEditorialSchedule sectionId={section.id} content={section.content as ScheduleContent} />
     case 'venue': return present(<ModernEditorialVenue sectionId={section.id} content={section.content as VenueContent} />)
     case 'dressCode': return <ModernEditorialDressCode sectionId={section.id} content={section.content as DressCodeContent} />
@@ -40,14 +43,15 @@ function Section({ section, eventName, eventDate, mode, media, targetViewport }:
   }
 }
 
-function ModernMediaPresentation({ section, media, presentation, targetViewport, children }: { section: WebsiteSection; media: Record<string, ResolvedWebsiteMedia>; presentation?: string; targetViewport: ResponsiveViewport; children: React.ReactNode }) {
-  const reference = (section.content as { media?: SectionMedia }).media
+function ModernMediaPresentation({ section, media, presentation, targetViewport, children, mediaReference: mediaReferenceOverride, alternate = false, mobileStoryHeading, mobileStoryBody }: { section: WebsiteSection; media: Record<string, ResolvedWebsiteMedia>; presentation?: string; targetViewport: ResponsiveViewport; children: React.ReactNode; mediaReference?: SectionMedia; alternate?: boolean; mobileStoryHeading?: React.ReactNode; mobileStoryBody?: React.ReactNode }) {
+  const reference = mediaReferenceOverride === undefined ? (section.content as { media?: SectionMedia }).media : mediaReferenceOverride
   const asset = reference ? media[reference.assetId] : undefined
   if (!section.mediaCapability || !asset) return <>{children}</>
   const mediaReference = reference as NonNullable<SectionMedia>
   const controls = section.presentationCapability?.options.find((option) => option.key === presentation)?.mediaControls
   const value = (setting: keyof typeof section.appearance, group: 'mediaPlacements'|'mediaSizes'|'frameStyles'|'cornerStyles'|'shadowStyles'|'foregroundColors') => section.appearance[setting] ?? controls?.[group]?.default
-  const placement = value('mediaPlacement', 'mediaPlacements')
+  const configuredPlacement = value('mediaPlacement', 'mediaPlacements')
+  const placement = alternate && configuredPlacement === 'left' ? 'right' : alternate && configuredPlacement === 'right' ? 'left' : configuredPlacement
   const size = value('mediaSize', 'mediaSizes')
   const frame = value('frameStyle', 'frameStyles')
   const corner = value('cornerStyle', 'cornerStyles')
@@ -84,6 +88,13 @@ function ModernMediaPresentation({ section, media, presentation, targetViewport,
   const splitGrid = modernSplitGrid(typeof placement === 'string' ? placement : 'left', typeof size === 'string' ? size : 'balanced', targetViewport)
   const mediaOrder = placement === 'right' ? semanticClass(targetViewport, 'order-2', 'order-2') : ''
   const copyOrder = placement === 'right' ? semanticClass(targetViewport, 'order-1', 'order-1') : ''
+
+  if (section.type === 'story' && targetViewport === 'mobile' && mobileStoryBody !== undefined) {
+    const mobileWidth = size === 'compact' ? 'w-[78%]' : size === 'feature' ? 'w-full' : 'w-[90%]'
+    const imageClass = presentation === 'editorial' ? 'min-h-[28rem] max-h-[52rem]' : 'max-h-[36rem]'
+    const storyMedia = <div className={`mx-auto ${mobileWidth}`}>{image(imageClass, false, false)}</div>
+    return <div className={`grid py-12 ${gapClass}`}>{mobileStoryHeading ? <div className="px-7">{mobileStoryHeading}</div> : null}{storyMedia}<div className="px-7">{mobileStoryBody}</div></div>
+  }
 
   if (presentation === 'scenic' || (section.type === 'hero' && presentation === 'immersive')) { const strength = section.appearance.overlayStrength ?? controls?.overlayStrength?.default ?? 0.5; const foreground = value('foregroundColor', 'foregroundColors') ?? '#FFFFFF'; return <div className="relative isolate min-h-[36rem] overflow-hidden">{image('h-full', true)}<div className="relative min-h-[36rem] backdrop-blur-[1px]" style={{ background: `color-mix(in srgb, var(--me-page) ${strength * 100}%, transparent)`, color: foreground, '--me-text': foreground, '--me-muted': foreground } as React.CSSProperties}>{children}</div></div> }
   if (presentation === 'editorial') {

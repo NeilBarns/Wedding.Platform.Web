@@ -4,6 +4,7 @@ import {
   ChevronRight,
   ChevronUp,
   FileWarning,
+  ExternalLink,
   LayoutTemplate,
   Monitor,
   RefreshCw,
@@ -509,6 +510,17 @@ export function WebsitePage() {
           </span>
           <ChevronRight className="shrink-0 text-foreground-muted" size={15} aria-hidden="true" />
         </Button>
+        <Link
+          className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1.5 rounded-sm border border-border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted"
+          to={`/events/${event.id}/website/preview`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={sectionDirty || designDirty ? "Shows the last saved draft. Unsaved builder changes are not included." : "Preview the saved Website on this device"}
+          aria-label={sectionDirty || designDirty ? "Preview saved Website draft in a new tab. Unsaved changes are not included." : "Preview Website in a new tab"}
+        >
+          <ExternalLink aria-hidden="true" size={15} />
+          <span>{sectionDirty || designDirty ? "Preview saved draft" : "Preview Website"}</span>
+        </Link>
         <div className="hidden xl:block">
           <SegmentedControl
             value={mode}

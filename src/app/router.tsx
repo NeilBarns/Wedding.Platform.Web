@@ -10,6 +10,7 @@ import { InvitationsPage } from '../pages/workspace/InvitationsPage'
 import { EventSettingsPage } from '../pages/workspace/EventSettingsPage'
 import { MediaLibraryPage } from '../pages/workspace/MediaLibraryPage'
 import { EventOverviewPage } from '../pages/workspace/EventOverviewPage'
+import { WebsitePreviewPage } from '../pages/workspace/WebsitePreviewPage'
 
 export const router = createBrowserRouter([
   {
@@ -32,6 +33,10 @@ export const router = createBrowserRouter([
   {
     element: <ProtectedRoute />,
     children: [
+      {
+        path: '/events/:eventId/website/preview',
+        element: <WebsitePreviewPage />,
+      },
       {
         element: <AuthenticatedLayout />,
         children: [

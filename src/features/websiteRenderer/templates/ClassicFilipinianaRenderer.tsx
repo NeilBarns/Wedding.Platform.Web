@@ -2,9 +2,10 @@ import type { DateContent, DressCodeContent, FaqContent, GalleryContent, HeroCon
 import { formatDateOnly } from '../formatDateOnly'
 import type { WebsiteRendererProps } from '../types'
 import { ZoomedMediaImage } from '../ZoomedMediaImage'
-import { ClassicFilipinianaDate, ClassicFilipinianaDressCode, ClassicFilipinianaFaq, ClassicFilipinianaGallery, ClassicFilipinianaHero, ClassicFilipinianaPeople, ClassicFilipinianaRsvp, ClassicFilipinianaSchedule, ClassicFilipinianaStory, ClassicFilipinianaVenue } from './classicFilipiniana/sections'
+import { ClassicFilipinianaDate, ClassicFilipinianaDressCode, ClassicFilipinianaFaq, ClassicFilipinianaGallery, ClassicFilipinianaHero, ClassicFilipinianaPeople, ClassicFilipinianaRsvp, ClassicFilipinianaSchedule, ClassicFilipinianaStoryBlock, ClassicFilipinianaStoryBlockBody, ClassicFilipinianaStoryBlockHeading, ClassicFilipinianaStoryHeader, ClassicFilipinianaVenue } from './classicFilipiniana/sections'
 import { resolveClassicFilipinianaSectionAppearance } from './classicFilipiniana/appearance'
 import { resolveClassicFilipinianaDesign } from './classicFilipiniana/design'
+import { ClassicFrameCorners, ClassicSectionDivider } from './classicFilipiniana/decorations'
 
 export function ClassicFilipinianaRenderer({ event, website, mode = 'public', selectedSectionId, onSectionSelect, targetViewport = 'desktop' }: WebsiteRendererProps) {
   const enabledSections = website.sections.filter(({ isEnabled }) => isEnabled)
@@ -16,7 +17,7 @@ export function ClassicFilipinianaRenderer({ event, website, mode = 'public', se
       const selected = mode === 'editor' && selectedSectionId === section.id
       return (
       <section
-        className={`${appearance.sectionClass} relative cursor-default border-b border-[color-mix(in_srgb,var(--cf-border)_18%,transparent)] transition-shadow ${selected ? 'z-10' : ''}`}
+        className={`${appearance.sectionClass} relative cursor-default transition-shadow ${selected ? 'z-10' : ''}`}
         style={appearance.sectionStyle}
         data-preview-section={section.id}
         key={section.id}
@@ -29,6 +30,7 @@ export function ClassicFilipinianaRenderer({ event, website, mode = 'public', se
         aria-label={mode === 'editor' ? `${section.displayName} section` : undefined}
         tabIndex={mode === 'editor' ? 0 : undefined}
       >
+        {index > 0 && <ClassicSectionDivider />}
         {selected && <span className="absolute right-3 top-3 z-20 rounded-full bg-[var(--editor-chrome-strong)] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wider text-[var(--editor-chrome-on-strong)] shadow-[var(--editor-chrome-shadow)]">Editing</span>}
         <Section section={section} eventName={event.name} eventDate={event.eventDate} mode={mode} media={website.media} targetViewport={targetViewport} />
       </section>
@@ -43,7 +45,10 @@ function Section({ section, eventName, eventDate, mode, media, targetViewport }:
   switch (section.type) {
     case 'hero': return present(<ClassicFilipinianaHero sectionId={section.id} eventName={eventName} content={section.content as HeroContent} />)
     case 'date': return <ClassicFilipinianaDate sectionId={section.id} date={formatDateOnly(eventDate)} content={section.content as DateContent} />
-    case 'story': return present(<ClassicFilipinianaStory sectionId={section.id} content={section.content as StoryContent} />)
+    case 'story': {
+      const content = section.content as StoryContent
+      return <><ClassicFilipinianaStoryHeader sectionId={section.id} content={content} mode={mode} />{content.blocks.map((block, index) => <div className={`relative ${index > 0 ? 'pt-10 sm:pt-14' : ''}`} key={block.id}>{index > 0 && <ClassicSectionDivider />}<ClassicMediaPresentation alternate={index % 2 === 1} section={section} media={media} mediaReference={block.media} mobileStoryHeading={<ClassicFilipinianaStoryBlockHeading sectionId={section.id} block={block} index={index} />} mobileStoryBody={<ClassicFilipinianaStoryBlockBody sectionId={section.id} block={block} index={index} />} presentation={presentation} targetViewport={targetViewport}><ClassicFilipinianaStoryBlock sectionId={section.id} block={block} index={index} /></ClassicMediaPresentation></div>)}</>
+    }
     case 'schedule': return <ClassicFilipinianaSchedule sectionId={section.id} content={section.content as ScheduleContent} />
     case 'venue': return present(<ClassicFilipinianaVenue sectionId={section.id} content={section.content as VenueContent} />)
     case 'dressCode': return <ClassicFilipinianaDressCode sectionId={section.id} content={section.content as DressCodeContent} />
@@ -55,14 +60,15 @@ function Section({ section, eventName, eventDate, mode, media, targetViewport }:
   }
 }
 
-function ClassicMediaPresentation({ section, media, presentation, targetViewport, children }: { section: WebsiteSection; media: Record<string, ResolvedWebsiteMedia>; presentation?: string; targetViewport: ResponsiveViewport; children: React.ReactNode }) {
-  const reference = (section.content as { media?: SectionMedia }).media
+function ClassicMediaPresentation({ section, media, presentation, targetViewport, children, mediaReference: mediaReferenceOverride, alternate = false, mobileStoryHeading, mobileStoryBody }: { section: WebsiteSection; media: Record<string, ResolvedWebsiteMedia>; presentation?: string; targetViewport: ResponsiveViewport; children: React.ReactNode; mediaReference?: SectionMedia; alternate?: boolean; mobileStoryHeading?: React.ReactNode; mobileStoryBody?: React.ReactNode }) {
+  const reference = mediaReferenceOverride === undefined ? (section.content as { media?: SectionMedia }).media : mediaReferenceOverride
   const asset = reference ? media[reference.assetId] : undefined
   if (!section.mediaCapability || !asset) return <>{children}</>
   const mediaReference = reference as NonNullable<SectionMedia>
   const controls = section.presentationCapability?.options.find((option) => option.key === presentation)?.mediaControls
   const value = (setting: keyof typeof section.appearance, group: 'mediaPlacements'|'mediaSizes'|'frameStyles'|'cornerStyles'|'shadowStyles'|'foregroundColors') => section.appearance[setting] ?? controls?.[group]?.default
-  const placement = value('mediaPlacement', 'mediaPlacements')
+  const configuredPlacement = value('mediaPlacement', 'mediaPlacements')
+  const placement = alternate && configuredPlacement === 'left' ? 'right' : alternate && configuredPlacement === 'right' ? 'left' : configuredPlacement
   const size = value('mediaSize', 'mediaSizes')
   const frame = value('frameStyle', 'frameStyles')
   const corner = value('cornerStyle', 'cornerStyles')
@@ -103,7 +109,19 @@ function ClassicMediaPresentation({ section, media, presentation, targetViewport
     : undefined
   const tabletVertical = (media: React.ReactNode) => <div className={`grid ${gapClass} [&_[data-section-content]]:min-h-0 ${classicTabletCopyRhythm(placement === 'bottom' ? 'bottom' : 'top')}`}>{placement === 'bottom' ? <>{children}{media}</> : <>{media}{children}</>}</div>
 
-  if (presentation === 'immersive' || presentation === 'scenic') { const strength = section.appearance.overlayStrength ?? controls?.overlayStrength?.default ?? 0.5; const foreground = value('foregroundColor', 'foregroundColors') ?? '#FFFFFF'; return <div className="relative isolate min-h-[32rem] overflow-hidden">{image('h-full', true)}<div className="relative min-h-[32rem] backdrop-blur-[1px]" style={{ background: `color-mix(in srgb, var(--cf-page) ${strength * 100}%, transparent)`, color: foreground, '--cf-text': foreground, '--cf-muted': foreground, '--cf-secondary': foreground } as React.CSSProperties}>{children}</div></div> }
+  if (section.type === 'story' && targetViewport === 'mobile' && mobileStoryBody !== undefined) {
+    const mobileWidth = size === 'compact' ? 'w-[78%]' : size === 'feature' ? 'w-full' : 'w-[90%]'
+    const imageClass = presentation === 'portraitStory' ? 'h-[clamp(18rem,58vw,32rem)]' : 'max-h-[28rem]'
+    const storyMedia = <div className={`mx-auto ${mobileWidth}`}>{image(imageClass, false, false)}</div>
+    return <div className={`grid py-12 text-center ${gapClass}`}>{mobileStoryHeading ? <div className="px-7">{mobileStoryHeading}</div> : null}{storyMedia}<div className="px-7">{mobileStoryBody}</div></div>
+  }
+
+  if (presentation === 'immersive' || presentation === 'scenic') {
+    const strength = section.appearance.overlayStrength ?? controls?.overlayStrength?.default ?? 0.5
+    const foreground = value('foregroundColor', 'foregroundColors') ?? '#FFFFFF'
+    const immersiveHeight = section.type === 'hero' ? targetViewport === 'desktop' ? 'min-h-screen' : 'min-h-[100svh]' : 'min-h-[32rem]'
+    return <div className={`relative isolate overflow-hidden ${immersiveHeight}`}>{image('h-full', true)}<div className={`relative grid place-items-stretch backdrop-blur-[1px] ${immersiveHeight} [&_[data-section-content]]:min-h-full`} style={{ background: `linear-gradient(180deg, color-mix(in srgb, var(--cf-page) ${Math.round(strength * 65)}%, transparent), color-mix(in srgb, var(--cf-page) ${Math.round(strength * 100)}%, transparent))`, color: foreground, '--cf-text': foreground, '--cf-muted': foreground, '--cf-secondary': foreground, textShadow: '0 1px 20px rgb(0 0 0 / 24%)' } as React.CSSProperties}>{children}</div></div>
+  }
   if (section.type === 'story' && presentation === 'portraitStory') {
     if (tabletContainedLayout) return tabletVertical(<div className={`mx-auto ${tabletContainedLayout.wrapperClass}`}>{image(tabletContainedLayout.imageClass, false, false)}</div>)
     if (targetViewport === 'tablet' && (placement === 'left' || placement === 'right')) {
@@ -309,9 +327,6 @@ function ClassicOuterFrameDecoration({ frame }: { frame?: string }) {
   if (frame !== 'ornamental') return null
   return <span className="pointer-events-none absolute inset-0 z-[2] outline outline-offset-4 outline-[var(--cf-accent)] [border-radius:inherit]" aria-hidden="true">
     <span className="absolute inset-2 border border-[color-mix(in_srgb,var(--cf-accent)_65%,transparent)] [border-radius:inherit]" />
-    <span className="absolute left-1 top-1 size-4 border-l-2 border-t-2 border-[var(--cf-accent)]" />
-    <span className="absolute right-1 top-1 size-4 border-r-2 border-t-2 border-[var(--cf-accent)]" />
-    <span className="absolute bottom-1 left-1 size-4 border-b-2 border-l-2 border-[var(--cf-accent)]" />
-    <span className="absolute bottom-1 right-1 size-4 border-b-2 border-r-2 border-[var(--cf-accent)]" />
+    <ClassicFrameCorners />
   </span>
 }

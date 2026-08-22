@@ -4,11 +4,34 @@ export type MediaVariant = {
   url: string
 }
 
-export type MediaWebsiteSectionUsage = {
+type MediaWebsiteSectionUsageBase = {
   sectionId: string
-  type: string
   displayName: string
-  context?: { groupId: string; groupName: string; personId: string; personName: string }
+}
+
+export type MediaPeopleUsageContext = { groupId: string; groupName: string; personId: string; personName: string }
+export type MediaStoryUsageContext = { blockId: string; blockHeading?: string | null }
+
+export type MediaWebsiteSectionUsage = MediaWebsiteSectionUsageBase & (
+  | { type: 'people'; context: MediaPeopleUsageContext }
+  | { type: 'story'; context: MediaStoryUsageContext }
+  | { type: string; context?: undefined }
+)
+
+export function mediaUsageDetail(section: MediaWebsiteSectionUsage): string | null {
+  if (section.type === 'people' && section.context) {
+    return `${section.context.groupName} — ${section.context.personName}`
+  }
+  if (section.type === 'story' && section.context) {
+    return section.context.blockHeading?.trim() || 'Story block'
+  }
+  return null
+}
+
+export function mediaUsageKey(section: MediaWebsiteSectionUsage): string {
+  if (section.type === 'people' && section.context) return `${section.sectionId}:person:${section.context.personId}`
+  if (section.type === 'story' && section.context) return `${section.sectionId}:block:${section.context.blockId}`
+  return `${section.sectionId}:section`
 }
 
 export type MediaAssetUsage = {

@@ -1,14 +1,17 @@
 import { EditableText } from '../../../websiteEditor/inline/EditableText'
-import type { DateContent, DressCodeContent, FaqContent, GalleryContent, HeroContent, PeopleContent, ResolvedWebsiteMedia, RsvpContent, ScheduleContent, StoryContent, VenueContent } from '../../../websiteEditor/types'
+import type { DateContent, DressCodeContent, FaqContent, GalleryContent, HeroContent, PeopleContent, ResolvedWebsiteMedia, RsvpContent, ScheduleContent, StoryBlock, StoryContent, VenueContent } from '../../../websiteEditor/types'
 import { ZoomedMediaImage } from '../../ZoomedMediaImage'
+import { ClassicBotanicalSprig, ClassicFoundationOrnament } from './decorations'
 
 export function ClassicFilipinianaHero({ sectionId, eventName, content }: { sectionId: string; eventName: string; content: HeroContent }) {
-  return <div data-section-content className="relative flex min-h-[34rem] flex-col items-center justify-center overflow-hidden px-8 py-24 text-center">
-    <div className="mb-8 h-px w-20 shrink-0 bg-[var(--cf-accent)]" />
+  return <div data-section-content className="relative flex min-h-[34rem] flex-col items-center justify-center overflow-hidden px-8 py-20 text-center sm:py-24">
+    <ClassicBotanicalSprig className="absolute -bottom-4 -left-8 h-36 w-72 -rotate-6 sm:h-44 sm:w-80" />
+    <ClassicBotanicalSprig className="absolute -right-8 -top-4 h-36 w-72 rotate-[174deg] sm:h-44 sm:w-80" />
+    <ClassicFoundationOrnament className="relative mb-8" />
     <p className="relative text-[10px] font-semibold uppercase tracking-[0.38em] text-[var(--cf-secondary)]">Together with their families</p>
     <h1 data-section-heading className="relative mt-7 w-full max-w-2xl font-[family-name:var(--cf-heading-font)] text-5xl leading-[1.05] text-[var(--cf-text)] sm:text-6xl"><EditableText sectionId={sectionId} path={['headline']} value={content.headline} fallback={eventName} showFallbackInEditor placeholder="Add headline" label="Hero headline" /></h1>
     <p data-section-body className="relative mt-6 w-full max-w-lg text-sm leading-7 text-[var(--cf-muted)]"><EditableText sectionId={sectionId} path={['subheadline']} value={content.subheadline} placeholder="Add subheadline" label="Hero subheadline" multiline /></p>
-    <div className="relative mt-10 text-2xl text-[var(--cf-accent)]">âœ¦</div>
+    <ClassicFoundationOrnament className="relative mt-10 rotate-180 opacity-70" />
   </div>
 }
 
@@ -16,8 +19,27 @@ export function ClassicFilipinianaDate({ sectionId, date, content }: { sectionId
   return <ContentSection eyebrow="Save the date" heading={<EditableText sectionId={sectionId} path={['heading']} value={content.heading} fallback="Our Wedding Day" placeholder="Add heading" label="Date heading" />}><p className="font-[family-name:var(--cf-heading-font)] text-2xl text-[var(--cf-text)]">{date ?? 'Date to be announced'}</p><p className="mt-4"><EditableText sectionId={sectionId} path={['description']} value={content.description} placeholder="Add description" label="Date description" multiline /></p></ContentSection>
 }
 
-export function ClassicFilipinianaStory({ sectionId, content }: { sectionId: string; content: StoryContent }) {
-  return <ContentSection eyebrow="Our journey" heading={<EditableText sectionId={sectionId} path={['heading']} value={content.heading} fallback="Our Story" placeholder="Add heading" label="Story heading" />}><p className="mx-auto max-w-2xl whitespace-pre-line leading-8"><EditableText sectionId={sectionId} path={['body']} value={content.body} fallback="A story worth celebrating, shared with the people who matter most." placeholder="Add story" label="Story body" multiline /></p></ContentSection>
+export function ClassicFilipinianaStoryHeader({ sectionId, content, mode }: { sectionId: string; content: StoryContent; mode: 'editor' | 'public' }) {
+  return <ContentSection botanical eyebrow="Our journey" heading={<EditableText sectionId={sectionId} path={['heading']} value={content.heading} fallback="Our Story" placeholder="Add heading" label="Story heading" />}>
+    {content.intro?.trim() || mode === 'editor' ? <p className="mx-auto max-w-2xl whitespace-pre-line leading-8"><EditableText sectionId={sectionId} path={['intro']} value={content.intro ?? ''} placeholder="Add introduction" label="Story introduction" multiline /></p> : null}
+    {content.blocks.length === 0 && mode === 'editor' ? <EmptyCopy>Add narrative blocks from the Content panel.</EmptyCopy> : null}
+  </ContentSection>
+}
+
+export function ClassicFilipinianaStoryBlock({ sectionId, block, index }: { sectionId: string; block: StoryBlock; index: number }) {
+  return <div data-section-content className="relative px-7 py-14 text-center sm:px-12 sm:py-20">
+    <p className="mb-5 text-[9px] font-semibold uppercase tracking-[0.3em] text-[var(--cf-secondary)]">Chapter {String(index + 1).padStart(2, '0')}</p>
+    <ClassicFilipinianaStoryBlockHeading sectionId={sectionId} block={block} index={index} />
+    <div className={block.heading?.trim() ? 'mt-6' : ''}><ClassicFilipinianaStoryBlockBody sectionId={sectionId} block={block} index={index} /></div>
+  </div>
+}
+
+export function ClassicFilipinianaStoryBlockHeading({ sectionId, block, index }: { sectionId: string; block: StoryBlock; index: number }) {
+  return block.heading?.trim() ? <h3 data-section-heading className="mx-auto max-w-2xl font-[family-name:var(--cf-heading-font)] text-3xl text-[var(--cf-text)]"><EditableText sectionId={sectionId} path={['blocks', index, 'heading']} value={block.heading} placeholder="Add block heading" label={`Story block ${index + 1} heading`} /></h3> : null
+}
+
+export function ClassicFilipinianaStoryBlockBody({ sectionId, block, index }: { sectionId: string; block: StoryBlock; index: number }) {
+  return <p data-section-body className="mx-auto max-w-2xl whitespace-pre-line text-sm leading-8 text-[var(--cf-muted)]"><EditableText sectionId={sectionId} path={['blocks', index, 'body']} value={block.body} placeholder="Add story" label={`Story block ${index + 1} body`} multiline /></p>
 }
 
 export function ClassicFilipinianaSchedule({ sectionId, content }: { sectionId: string; content: ScheduleContent }) {
@@ -25,7 +47,7 @@ export function ClassicFilipinianaSchedule({ sectionId, content }: { sectionId: 
 }
 
 export function ClassicFilipinianaVenue({ sectionId, content }: { sectionId: string; content: VenueContent }) {
-  return <ContentSection eyebrow="Where to gather" heading={<EditableText sectionId={sectionId} path={['heading']} value={content.heading} fallback="Venue" placeholder="Add heading" label="Venue heading" />}><p className="font-[family-name:var(--cf-heading-font)] text-2xl text-[var(--cf-text)]"><EditableText sectionId={sectionId} path={['name']} value={content.name} fallback="Venue details to follow" placeholder="Add venue name" label="Venue name" /></p><p className="mt-2 text-sm uppercase tracking-wider text-[var(--cf-muted)]"><EditableText sectionId={sectionId} path={['address']} value={content.address} placeholder="Add address" label="Venue address" multiline /></p><p className="mx-auto mt-5 max-w-xl whitespace-pre-line"><EditableText sectionId={sectionId} path={['description']} value={content.description} placeholder="Add description" label="Venue description" multiline /></p></ContentSection>
+  return <ContentSection eyebrow="Where to gather" heading={<EditableText sectionId={sectionId} path={['heading']} value={content.heading} fallback="Venue" placeholder="Add heading" label="Venue heading" />}><p className="font-[family-name:var(--cf-heading-font)] text-2xl text-[var(--cf-text)] sm:text-3xl"><EditableText sectionId={sectionId} path={['name']} value={content.name} fallback="Venue details to follow" placeholder="Add venue name" label="Venue name" /></p><ClassicFoundationOrnament className="mx-auto my-5 h-4 w-28 opacity-55" /><p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--cf-muted)]"><EditableText sectionId={sectionId} path={['address']} value={content.address} placeholder="Add address" label="Venue address" multiline /></p><p className="mx-auto mt-6 max-w-xl whitespace-pre-line"><EditableText sectionId={sectionId} path={['description']} value={content.description} placeholder="Add description" label="Venue description" multiline /></p></ContentSection>
 }
 
 export function ClassicFilipinianaDressCode({ sectionId, content }: { sectionId: string; content: DressCodeContent }) {
@@ -39,7 +61,7 @@ export function ClassicFilipinianaPeople({ sectionId, content, mode, media, show
     ? 'mx-auto mb-3 aspect-[4/5] w-full max-w-36 rounded-sm object-cover'
     : 'mx-auto mb-3 aspect-square w-full max-w-28 rounded-full object-cover'
   return <ContentSection eyebrow="Those beside us" heading={<EditableText sectionId={sectionId} path={['heading']} value={content.heading} fallback="Wedding Party" placeholder="Add heading" label="Wedding Party heading" />}>
-    {groups.length > 0 ? <div className="mx-auto grid max-w-4xl gap-x-10 gap-y-10 sm:grid-cols-2">{groups.map((group) => <section className="border-t border-[color-mix(in_srgb,var(--cf-border)_30%,transparent)] pt-5" key={group.id}>
+    {groups.length > 0 ? <div className="mx-auto grid max-w-4xl gap-x-10 gap-y-10 sm:grid-cols-2">{groups.map((group) => <section className="bg-[color-mix(in_srgb,var(--cf-surface)_52%,transparent)] px-5 py-6 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--cf-border)_20%,transparent)]" key={group.id}>
       <h3 className="font-[family-name:var(--cf-heading-font)] text-xl text-[var(--cf-text)]">{group.name}</h3>
       <ul className={`mt-4 ${imagesVisible && group.people.some((person) => person.media && media[person.media.assetId]) ? 'grid grid-cols-2 gap-5' : 'space-y-3'}`}>{group.people.map((person) => { const asset = imagesVisible && person.media ? media[person.media.assetId] : undefined; return <li key={person.id}>{asset && person.media && <ZoomedMediaImage className={imageClass} height={asset.web.height} reference={person.media} src={asset.web.url} width={asset.web.width} />}<span className="text-base text-[var(--cf-text)]">{person.name}</span>{person.role && <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--cf-accent)]">{person.role}</span>}</li> })}</ul>
     </section>)}</div> : mode === 'editor' ? <EmptyCopy>Add groups and people from the Content panel.</EmptyCopy> : null}
@@ -47,7 +69,7 @@ export function ClassicFilipinianaPeople({ sectionId, content, mode, media, show
 }
 
 export function ClassicFilipinianaGallery({ sectionId, content, mode }: { sectionId: string; content: GalleryContent; mode: 'editor' | 'public' }) {
-  return <ContentSection eyebrow="Memories" heading={<EditableText sectionId={sectionId} path={['heading']} value={content.heading} fallback="Gallery" placeholder="Add heading" label="Gallery heading" />}>{mode === 'editor' && <div className="mx-auto grid max-w-xl grid-cols-3 gap-3" aria-label="Empty gallery preview"><div className="aspect-[4/5] border border-dashed border-[var(--cf-border)] bg-[color-mix(in_srgb,var(--cf-surface)_65%,transparent)]" /><div className="flex aspect-[4/5] items-center justify-center border border-dashed border-[var(--cf-border)] bg-[var(--cf-surface)] px-2 text-xs text-[var(--cf-muted)]">Photos will appear here</div><div className="aspect-[4/5] border border-dashed border-[var(--cf-border)] bg-[color-mix(in_srgb,var(--cf-surface)_65%,transparent)]" /></div>}</ContentSection>
+  return <ContentSection botanical eyebrow="Memories" heading={<EditableText sectionId={sectionId} path={['heading']} value={content.heading} fallback="Gallery" placeholder="Add heading" label="Gallery heading" />}>{mode === 'editor' && <div className="mx-auto grid max-w-xl grid-cols-3 items-center gap-3" aria-label="Empty gallery preview"><div className="aspect-[4/5] -rotate-2 border border-[var(--cf-border)] bg-[color-mix(in_srgb,var(--cf-surface)_65%,transparent)] shadow-sm" /><div className="flex aspect-[4/5] items-center justify-center border border-[var(--cf-border)] bg-[var(--cf-surface)] px-2 text-xs italic text-[var(--cf-muted)] shadow-sm">Photos will appear here</div><div className="aspect-[4/5] rotate-2 border border-[var(--cf-border)] bg-[color-mix(in_srgb,var(--cf-surface)_65%,transparent)] shadow-sm" /></div>}</ContentSection>
 }
 
 export function ClassicFilipinianaFaq({ sectionId, content }: { sectionId: string; content: FaqContent }) {
@@ -55,8 +77,8 @@ export function ClassicFilipinianaFaq({ sectionId, content }: { sectionId: strin
 }
 
 export function ClassicFilipinianaRsvp({ sectionId, content }: { sectionId: string; content: RsvpContent }) {
-  return <ContentSection eyebrow="Celebrate with us" heading={<EditableText sectionId={sectionId} path={['heading']} value={content.heading} fallback="Kindly Respond" placeholder="Add heading" label="RSVP heading" />}><p className="mx-auto max-w-lg whitespace-pre-line"><EditableText sectionId={sectionId} path={['description']} value={content.description} fallback="We would be honored to celebrate this day with you." placeholder="Add description" label="RSVP description" multiline /></p><div data-rsvp-button className="mx-auto mt-8 max-w-xs border border-[var(--cf-theme-accent)] bg-[var(--cf-theme-accent)] px-7 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-white"><EditableText sectionId={sectionId} path={['buttonLabel']} value={content.buttonLabel} fallback="RSVP" placeholder="Add button label" label="RSVP button label" /></div></ContentSection>
+  return <ContentSection botanical eyebrow="Celebrate with us" heading={<EditableText sectionId={sectionId} path={['heading']} value={content.heading} fallback="Kindly Respond" placeholder="Add heading" label="RSVP heading" />}><p className="mx-auto max-w-lg whitespace-pre-line"><EditableText sectionId={sectionId} path={['description']} value={content.description} fallback="We would be honored to celebrate this day with you." placeholder="Add description" label="RSVP description" multiline /></p><div data-rsvp-button className="mx-auto mt-9 max-w-xs border border-[var(--cf-theme-accent)] bg-[var(--cf-theme-accent)] px-8 py-3.5 text-xs font-semibold uppercase tracking-[0.2em] text-white"><EditableText sectionId={sectionId} path={['buttonLabel']} value={content.buttonLabel} fallback="RSVP" placeholder="Add button label" label="RSVP button label" /></div></ContentSection>
 }
 
-function ContentSection({ eyebrow, heading, children }: { eyebrow: string; heading: React.ReactNode; children: React.ReactNode }) { return <div data-section-content className="px-7 py-20 text-center sm:px-12"><p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[var(--cf-secondary)]">{eyebrow}</p><h2 data-section-heading className="mx-auto mt-3 w-full max-w-2xl font-[family-name:var(--cf-heading-font)] text-3xl text-[var(--cf-text)] sm:text-4xl">{heading}</h2><div data-section-body className="mx-auto mt-8 text-sm leading-7 text-[var(--cf-muted)]">{children}</div></div> }
+function ContentSection({ eyebrow, heading, children, botanical = false }: { eyebrow: string; heading: React.ReactNode; children: React.ReactNode; botanical?: boolean }) { return <div data-section-content className="relative overflow-hidden px-7 py-20 text-center sm:px-12 sm:py-24">{botanical && <><ClassicBotanicalSprig className="absolute -left-16 bottom-0 h-32 w-64 -rotate-6" /><ClassicBotanicalSprig className="absolute -right-16 top-0 h-32 w-64 rotate-[174deg]" /></>}<div className="relative mx-auto max-w-5xl"><ClassicFoundationOrnament className="mx-auto mb-5 h-5 w-32 opacity-75" /><p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[var(--cf-secondary)]">{eyebrow}</p><h2 data-section-heading className="mx-auto mt-3 w-full max-w-2xl font-[family-name:var(--cf-heading-font)] text-3xl leading-tight text-[var(--cf-text)] sm:text-4xl">{heading}</h2><div data-section-body className="mx-auto mt-8 text-sm leading-7 text-[var(--cf-muted)]">{children}</div></div></div> }
 function EmptyCopy({ children }: { children: React.ReactNode }) { return <p className="italic text-[var(--cf-muted)]">{children}</p> }

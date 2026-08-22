@@ -15,7 +15,7 @@ import { MediaPickerDialog } from "./MediaPickerDialog";
 import { FocalPointEditor } from "./FocalPointEditor";
 import { ZoomedMediaImage } from "../../websiteRenderer/ZoomedMediaImage";
 import { createSemanticId } from "../createSemanticId";
-import type { PeopleContent, PeopleGroup, PeoplePerson } from "../types";
+import type { PeopleContent, PeopleGroup, PeoplePerson, StoryBlock, StoryContent } from "../types";
 import { useRevealNewItem } from "../useRevealNewItem";
 import { BuilderSaveBar } from "./BuilderSaveBar";
 
@@ -107,6 +107,54 @@ function SectionMediaEditor(props: EditorProps) {
     {media && url ? <div className="mt-3"><FocalPointEditor url={url} point={point} zoom={media.zoom} onChange={({ point: focalPoint, zoom }) => props.onChange({ ...props.content, media: { assetId: media.assetId, focalPoint, zoom } })} /><p className="mt-1 truncate text-xs text-foreground-muted">{filename}</p><div className="mt-2 flex gap-2"><Button size="sm" type="button" variant="secondary" onClick={() => setPickerOpen(true)}>Change image</Button><Button size="sm" type="button" variant="ghost" onClick={() => { setChosen(null); props.onChange({ ...props.content, media: null }) }}>Remove image</Button></div></div> : <div className="mt-2"><p className="text-xs text-foreground-muted">No image selected</p><Button className="mt-2" size="sm" type="button" variant="secondary" onClick={() => setPickerOpen(true)}>Choose from Media</Button></div>}
     <MediaPickerDialog open={pickerOpen} eventId={event.id} selectedAssetId={media?.assetId} onClose={() => setPickerOpen(false)} onSelect={(asset) => { setChosen(asset); props.onMediaResolved({ id: asset.id, originalFilename: asset.originalFilename, width: asset.width, height: asset.height, web: asset.variants.web }); props.onChange({ ...props.content, media: { assetId: asset.id } }); setPickerOpen(false) }} />
   </section>;
+}
+
+function StoryEditor(props: EditorProps) {
+  const { error, saving, save, reset } = useSectionSave(props);
+  const event = useEventWorkspace();
+  const reveal = useRevealNewItem();
+  const [pickerBlockId, setPickerBlockId] = useState<string | null>(null);
+  const content = props.content as StoryContent;
+  const blocks = Array.isArray(content.blocks) ? content.blocks : [];
+  const changeBlocks = (next: StoryBlock[]) => props.onChange({ ...props.content, blocks: next });
+  const updateBlock = (id: string, update: (block: StoryBlock) => StoryBlock) => changeBlocks(blocks.map((block) => block.id === id ? update(block) : block));
+  const pickerBlock = blocks.find((block) => block.id === pickerBlockId);
+
+  return <EditorForm error={error} dirty={props.dirty} resetDirty={props.resetDirty} saving={saving} onSave={save} onReset={reset}>
+    <TextField label="Heading" id={`${props.section.id}-heading`} value={String(content.heading ?? "")} onChange={(heading) => props.onChange({ ...props.content, heading })} />
+    <TextField label="Intro (optional)" id={`${props.section.id}-intro`} value={content.intro ?? ""} multiline onChange={(intro) => props.onChange({ ...props.content, intro: intro || null })} />
+    <ItemList title="Story blocks" onAdd={() => {
+      if (blocks.length >= 20) return;
+      const id = createSemanticId("story");
+      reveal.reveal(`story-${id}`);
+      changeBlocks([...blocks, { id, heading: null, body: "", media: null }]);
+    }}>
+      {blocks.map((block, index) => {
+        const asset = block.media ? props.resolvedMedia[block.media.assetId] : undefined;
+        return <div className="rounded-xl border border-border bg-background p-3 xl:rounded-md" key={block.id} ref={reveal.register(`story-${block.id}`)}>
+          <TextField label="Block heading (optional)" id={`${props.section.id}-${block.id}-heading`} value={block.heading ?? ""} onChange={(heading) => updateBlock(block.id, (current) => ({ ...current, heading: heading || null }))} />
+          <div className="mt-3"><TextField label="Body" id={`${props.section.id}-${block.id}-body`} value={block.body} multiline onChange={(body) => updateBlock(block.id, (current) => ({ ...current, body }))} /></div>
+          <section className="mt-3 rounded-md border border-border bg-surface-muted p-3">
+            <h4 className="text-xs font-semibold">Image</h4>
+            {asset && block.media ? <div className="mt-2">
+              <FocalPointEditor url={asset.web.url} point={block.media.focalPoint ?? { x: 0.5, y: 0.5 }} zoom={block.media.zoom} onChange={({ point: focalPoint, zoom }) => updateBlock(block.id, (current) => current.media ? { ...current, media: { ...current.media, focalPoint, zoom } } : current)} />
+              <p className="mt-1 truncate text-xs text-foreground-muted">{asset.originalFilename}</p>
+              <div className="mt-2 flex flex-wrap gap-2"><Button size="sm" type="button" variant="secondary" onClick={() => setPickerBlockId(block.id)}>Change image</Button><Button size="sm" type="button" variant="ghost" onClick={() => updateBlock(block.id, (current) => ({ ...current, media: null }))}>Remove image</Button></div>
+            </div> : <div className="mt-2"><p className="text-xs text-foreground-muted">No image selected</p><Button className="mt-2" size="sm" type="button" variant="secondary" onClick={() => setPickerBlockId(block.id)}>Choose from Media</Button></div>}
+          </section>
+          <ItemActions label={block.heading?.trim() || `story block ${index + 1}`} index={index} length={blocks.length} onRemove={() => changeBlocks(blocks.filter((item) => item.id !== block.id))} onMove={(target) => { const next = [...blocks]; [next[index], next[target]] = [next[target], next[index]]; changeBlocks(next); }} />
+        </div>;
+      })}
+    </ItemList>
+    {blocks.length >= 20 && <p className="text-xs text-foreground-muted">Story sections support up to 20 blocks.</p>}
+    <MediaPickerDialog open={pickerBlockId !== null} eventId={event.id} selectedAssetId={pickerBlock?.media?.assetId} onClose={() => setPickerBlockId(null)} onSelect={(asset) => {
+      const blockId = pickerBlockId;
+      if (!blockId) return;
+      props.onMediaResolved({ id: asset.id, originalFilename: asset.originalFilename, width: asset.width, height: asset.height, web: asset.variants.web });
+      updateBlock(blockId, (block) => ({ ...block, media: { assetId: asset.id } }));
+      setPickerBlockId(null);
+    }} />
+  </EditorForm>;
 }
 
 function ScheduleEditor(props: EditorProps) {
@@ -519,15 +567,7 @@ export function SectionEditor(props: EditorProps) {
         />
       );
     case "story":
-      return (
-        <SimpleEditor
-          {...props}
-          fields={[
-            { name: "heading", label: "Heading" },
-            { name: "body", label: "Body", multiline: true },
-          ]}
-        />
-      );
+      return <StoryEditor {...props} />;
     case "schedule":
       return <ScheduleEditor {...props} />;
     case "venue":
