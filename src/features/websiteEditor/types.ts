@@ -1,4 +1,5 @@
 import type { NarrativeBlockElement } from '../websiteElements/types'
+import type { TemplateCapabilities } from '../websiteCapabilities/types'
 
 export type SectionMedia = { assetId: string; focalPoint?: { x: number; y: number }; zoom?: number } | null
 type WithMedia = { media?: SectionMedia }
@@ -125,7 +126,7 @@ export type WebsiteDesignOptions = {
   fontSets: DesignOption[]
   artStyles: DesignOption[]
 }
-export type WebsiteTemplateSummary = { key: string; displayName: string; designOptions: WebsiteDesignOptions }
+export type WebsiteTemplateSummary = { key: string; displayName: string; designOptions: WebsiteDesignOptions; capabilities: TemplateCapabilities }
 
 export type WebsiteDraft = {
   schemaVersion: 2

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { WebsiteDraft, WebsiteSection } from './types'
 import { CURRENT_WEBSITE_SCHEMA_VERSION } from './schema'
 import { narrativeBlockElementSchema } from '../websiteElements/schemas'
+import { templateCapabilitiesSchema } from '../websiteCapabilities/schemas'
 
 const text = z.string()
 const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Required')
@@ -191,6 +192,7 @@ const draftSchema = z.object({
       fontSets: z.array(designOptionSchema).min(1),
       artStyles: z.array(designOptionSchema).min(1),
     }).strict(),
+    capabilities: templateCapabilitiesSchema,
   }).strict().nullable(),
   sections: z.array(sectionSchema),
   media: z.record(z.string(), z.object({
