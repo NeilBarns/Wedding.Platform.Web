@@ -6,16 +6,14 @@ import { Tooltip } from "../../../components/ui/Tooltip";
 import { SelectableCard } from "../../../components/ui/SelectableCard";
 import type {
   DesignOption,
-  MediaContentGap,
   MediaSpacing,
   MediaSpacingValue,
   WebsiteSectionAppearance,
-  WebsiteSectionMediaControls,
   ResponsiveViewport,
   WebsiteSectionResponsiveAppearance,
 } from "../types";
-import { appearanceOptionsForSection, mediaControlsForPresentation, presentationCapability } from "../../websiteCapabilities/lookup";
-import type { SectionCapability } from "../../websiteCapabilities/types";
+import { controlCapability, controlDefault, controlForViewport, optionValues, presentationCapability, supportsControl } from "../../websiteCapabilities/lookup";
+import type { AppearanceControlCapability, PresentationCapability, SectionCapability } from "../../websiteCapabilities/types";
 import { canonicalizeResponsiveAppearance, pruneResponsiveAppearance, resolveSectionAppearanceForViewport } from "../responsiveAppearance";
 import { PresentationPicker } from "./PresentationPicker";
 
@@ -32,11 +30,8 @@ export function AppearancePanel({
   error: string | null;
   onChange: (appearance: WebsiteSectionAppearance) => void;
 }) {
-  const options = appearanceOptionsForSection(sectionCapability)
   const presentation = appearance.presentation ?? sectionCapability.defaultPresentation ?? undefined
   const activePresentation = presentationCapability(sectionCapability, presentation)
-  const controls = mediaControlsForPresentation(activePresentation)
-  const viewportControls = targetViewport === 'desktop' ? undefined : controls?.responsive?.[targetViewport]
   const effectiveAppearance = resolveSectionAppearanceForViewport(appearance, targetViewport, sectionCapability)
   const activeOverride = targetViewport === 'desktop' ? undefined : appearance.responsive?.[targetViewport]
   const setResponsiveValue = (setting: keyof WebsiteSectionResponsiveAppearance, value: WebsiteSectionResponsiveAppearance[keyof WebsiteSectionResponsiveAppearance]) => {
@@ -69,28 +64,21 @@ export function AppearancePanel({
         <div><p className="text-sm font-semibold">Editing {targetViewport} layout</p><p className="text-xs text-foreground-muted">{activeOverride ? 'Custom overrides are active.' : 'Using Template defaults.'}</p></div>
         <Button size="sm" variant="secondary" type="button" disabled={!activeOverride} onClick={resetResponsive}>Restore {targetViewport} defaults</Button>
       </div>}
-      {sectionCapability.defaultPresentation && <PresentationPicker
+      {supportsControl(sectionCapability, 'presentation', presentation) && <PresentationPicker
         capability={sectionCapability}
-        value={appearance.presentation ?? sectionCapability.defaultPresentation}
+        value={appearance.presentation ?? sectionCapability.defaultPresentation ?? ''}
         onChange={(presentation) => {
-          const controls = mediaControlsForPresentation(presentationCapability(sectionCapability, presentation))
+          const controls = presentationCapability(sectionCapability, presentation)?.appearanceControls ?? []
           const next: WebsiteSectionAppearance = { ...appearance, presentation }
           for (const key of ['mediaPlacement', 'mediaSize', 'frameStyle', 'cornerStyle', 'shadowStyle', 'overlayStrength', 'foregroundColor', 'mediaSpacing', 'mediaContentGap'] as const) delete next[key]
-          if (controls?.mediaPlacements) next.mediaPlacement = controls.mediaPlacements.default
-          if (controls?.mediaSizes) next.mediaSize = controls.mediaSizes.default
-          if (controls?.frameStyles) next.frameStyle = controls.frameStyles.default
-          if (controls?.cornerStyles) next.cornerStyle = controls.cornerStyles.default
-          if (controls?.shadowStyles) next.shadowStyle = controls.shadowStyles.default
-          if (controls?.overlayStrength) next.overlayStrength = controls.overlayStrength.default
-          if (controls?.foregroundColors) next.foregroundColor = controls.foregroundColors.default
-          if (controls?.mediaSpacing) next.mediaSpacing = { ...controls.mediaSpacing.default }
-          if (controls?.mediaContentGaps) next.mediaContentGap = controls.mediaContentGaps.default as MediaContentGap
+          for (const control of controls) Object.assign(next, { [control.id]: control.type === 'spacing' ? { ...control.default } : control.default })
           onChange(canonicalizeResponsiveAppearance(next, sectionCapability))
         }}
       />}
       {sectionCapability.defaultPresentation && <MediaStyleControls
         key={appearance.presentation ?? sectionCapability.defaultPresentation}
-        controls={controls}
+        sectionCapability={sectionCapability}
+        presentation={activePresentation}
         appearance={effectiveAppearance}
         baseAppearance={appearance}
         targetViewport={targetViewport}
@@ -98,12 +86,14 @@ export function AppearancePanel({
         onResponsiveChange={setResponsiveValue}
         onChange={onChange}
       />}
-      <fieldset>
+      {(() => {
+        const control = controlForViewport(controlCapability(sectionCapability, 'headingAlignment', presentation), targetViewport)
+        return control?.type === 'option' && <fieldset>
         <legend className="mb-2 flex items-center gap-2 text-sm font-semibold">
           Heading alignment {targetViewport !== 'desktop' && <span className="text-[10px] font-medium uppercase tracking-wide text-foreground-muted">{activeOverride?.headingAlignment === undefined ? 'Template default' : 'Override'}</span>}
         </legend>
         <OptionGrid
-          options={viewportControls?.headingAlignment?.options ?? options.headingAlignments}
+          options={control.options}
           value={effectiveAppearance.headingAlignment}
           onSelect={(headingAlignment) =>
             setResponsiveValue('headingAlignment', headingAlignment)
@@ -111,12 +101,15 @@ export function AppearancePanel({
           alignment
         />
       </fieldset>
-      <fieldset>
+      })()}
+      {(() => {
+        const control = controlForViewport(controlCapability(sectionCapability, 'bodyAlignment', presentation), targetViewport)
+        return control?.type === 'option' && <fieldset>
         <legend className="mb-2 flex items-center gap-2 text-sm font-semibold">
           Content alignment {targetViewport !== 'desktop' && <span className="text-[10px] font-medium uppercase tracking-wide text-foreground-muted">{activeOverride?.bodyAlignment === undefined ? 'Template default' : 'Override'}</span>}
         </legend>
         <OptionGrid
-          options={viewportControls?.bodyAlignment?.options ?? options.bodyAlignments}
+          options={control.options}
           value={effectiveAppearance.bodyAlignment}
           onSelect={(bodyAlignment) =>
             setResponsiveValue('bodyAlignment', bodyAlignment)
@@ -124,10 +117,13 @@ export function AppearancePanel({
           alignment
         />
       </fieldset>
-      <fieldset>
+      })()}
+      {(() => {
+        const control = controlCapability(sectionCapability, 'backgroundTreatment', presentation)
+        return control?.type === 'option' && <fieldset>
         <legend className="mb-2 text-sm font-semibold">Background</legend>
         <OptionGrid
-          options={options.backgroundTreatments}
+          options={control.options}
           value={appearance.backgroundTreatment}
           onSelect={(backgroundTreatment) =>
             onChange({
@@ -138,10 +134,13 @@ export function AppearancePanel({
           }
         />
       </fieldset>
-      <fieldset>
+      })()}
+      {(() => {
+        const control = controlCapability(sectionCapability, 'emphasis', presentation)
+        return control?.type === 'option' && <fieldset>
         <legend className="mb-2 text-sm font-semibold">Emphasis</legend>
         <OptionGrid
-          options={options.emphasisOptions}
+          options={control.options}
           value={appearance.emphasis}
           onSelect={(emphasis) =>
             onChange({
@@ -151,51 +150,57 @@ export function AppearancePanel({
           }
         />
       </fieldset>
+      })()}
     </div>
   );
 }
 
-function MediaStyleControls({ controls, appearance, baseAppearance, targetViewport, activeOverride, onResponsiveChange, onChange }: { controls: WebsiteSectionMediaControls | null; appearance: WebsiteSectionAppearance; baseAppearance: WebsiteSectionAppearance; targetViewport: ResponsiveViewport; activeOverride?: WebsiteSectionResponsiveAppearance; onResponsiveChange: (setting: keyof WebsiteSectionResponsiveAppearance, value: WebsiteSectionResponsiveAppearance[keyof WebsiteSectionResponsiveAppearance]) => void; onChange: (appearance: WebsiteSectionAppearance) => void }) {
-  if (!controls) return null
-  const viewportControls = targetViewport === 'desktop' ? undefined : controls.responsive?.[targetViewport]
+function MediaStyleControls({ sectionCapability, presentation, appearance, baseAppearance, targetViewport, activeOverride, onResponsiveChange, onChange }: { sectionCapability: SectionCapability; presentation: PresentationCapability | undefined; appearance: WebsiteSectionAppearance; baseAppearance: WebsiteSectionAppearance; targetViewport: ResponsiveViewport; activeOverride?: WebsiteSectionResponsiveAppearance; onResponsiveChange: (setting: keyof WebsiteSectionResponsiveAppearance, value: WebsiteSectionResponsiveAppearance[keyof WebsiteSectionResponsiveAppearance]) => void; onChange: (appearance: WebsiteSectionAppearance) => void }) {
+  if (!presentation || presentation.appearanceControls.length === 0) return null
+  const capability = (id: AppearanceControlCapability['id']) => controlForViewport(controlCapability(sectionCapability, id, presentation.id), targetViewport)
   const groups = [
-    ['Media placement', 'mediaPlacement', viewportControls?.mediaPlacement ?? controls.mediaPlacements, true],
-    ['Media size', 'mediaSize', viewportControls?.mediaSize ?? controls.mediaSizes, true],
-    ['Frame style', 'frameStyle', controls.frameStyles],
-    ['Corners', 'cornerStyle', controls.cornerStyles],
-    ['Shadow', 'shadowStyle', controls.shadowStyles],
+    ['Media placement', 'mediaPlacement', capability('mediaPlacement')],
+    ['Media size', 'mediaSize', capability('mediaSize')],
+    ['Frame style', 'frameStyle', capability('frameStyle')],
+    ['Corners', 'cornerStyle', capability('cornerStyle')],
+    ['Shadow', 'shadowStyle', capability('shadowStyle')],
   ] as const
   return <div className="space-y-4 border-y border-border py-4">
-    {groups.map(([label, setting, group, responsive = false]) => group && <fieldset key={setting}>
-      <legend className="mb-2 flex items-center gap-2 text-sm font-semibold">{label}{responsive && targetViewport !== 'desktop' && <span className="text-[10px] font-medium uppercase tracking-wide text-foreground-muted">{activeOverride?.[setting as keyof WebsiteSectionResponsiveAppearance] === undefined ? 'Template default' : 'Override'}</span>}</legend>
+    {groups.map(([label, setting, control]) => control?.type === 'option' && <fieldset key={setting}>
+      <legend className="mb-2 flex items-center gap-2 text-sm font-semibold">{label}{control.scope === 'responsive' && targetViewport !== 'desktop' && <span className="text-[10px] font-medium uppercase tracking-wide text-foreground-muted">{activeOverride?.[setting as keyof WebsiteSectionResponsiveAppearance] === undefined ? 'Template default' : 'Override'}</span>}</legend>
       <div className="grid grid-cols-2 gap-2">
-        {group.options.map((option) => {
-          const selected = (appearance[setting] ?? group.default) === option.key
-          const classicFrame = setting === 'frameStyle' && group.options.some((item) => item.key === 'heritage')
-          const modernFrame = setting === 'frameStyle' && group.options.some((item) => item.key === 'boldEdge')
-          const classicShadow = setting === 'shadowStyle' && controls.frameStyles?.options.some((item) => item.key === 'heritage')
-          const modernShadow = setting === 'shadowStyle' && controls.frameStyles?.options.some((item) => item.key === 'boldEdge')
-          return <Button className={`justify-start ${selected ? 'border-accent! border-2 bg-surface-muted' : ''}`} key={option.key} size="sm" variant="secondary" type="button" aria-pressed={selected} onClick={() => responsive ? onResponsiveChange(setting as keyof WebsiteSectionResponsiveAppearance, option.key) : onChange({ ...baseAppearance, [setting]: option.key })}>{classicFrame && <ClassicFramePreview frame={option.key} />}{modernFrame && <ModernFramePreview frame={option.key} />}{classicShadow && <ClassicShadowPreview shadow={option.key} />}{modernShadow && <ModernShadowPreview shadow={option.key} />}{option.displayName}</Button>
+        {control.options.map((option) => {
+          const selected = (appearance[setting] ?? control.default) === option.key
+          const frameControl = controlCapability(sectionCapability, 'frameStyle', presentation.id)
+          const classicFrame = setting === 'frameStyle' && control.options.some((item) => item.key === 'heritage')
+          const modernFrame = setting === 'frameStyle' && control.options.some((item) => item.key === 'boldEdge')
+          const classicShadow = setting === 'shadowStyle' && optionValues(frameControl).some((item) => item.key === 'heritage')
+          const modernShadow = setting === 'shadowStyle' && optionValues(frameControl).some((item) => item.key === 'boldEdge')
+          const change = () => control.scope === 'responsive' ? onResponsiveChange(setting as keyof WebsiteSectionResponsiveAppearance, option.key) : onChange({ ...baseAppearance, [setting]: option.key })
+          return <Button className={`justify-start ${selected ? 'border-accent! border-2 bg-surface-muted' : ''}`} key={option.key} size="sm" variant="secondary" type="button" aria-pressed={selected} onClick={change}>{classicFrame && <ClassicFramePreview frame={option.key} />}{modernFrame && <ModernFramePreview frame={option.key} />}{classicShadow && <ClassicShadowPreview shadow={option.key} />}{modernShadow && <ModernShadowPreview shadow={option.key} />}{option.displayName}</Button>
         })}
       </div>
     </fieldset>)}
-    {controls.mediaSpacing && <MediaSpacingControl capability={viewportControls?.mediaSpacing ?? controls.mediaSpacing} appearance={appearance} inherited={targetViewport !== 'desktop' && activeOverride?.mediaSpacing === undefined} onChange={(spacing) => onResponsiveChange('mediaSpacing', spacing)} />}
-    {controls.mediaContentGaps && <fieldset>
+    {capability('mediaSpacing')?.type === 'spacing' && <MediaSpacingControl capability={capability('mediaSpacing') as Extract<AppearanceControlCapability, { type: 'spacing' }>} appearance={appearance} inherited={targetViewport !== 'desktop' && activeOverride?.mediaSpacing === undefined} onChange={(spacing) => onResponsiveChange('mediaSpacing', spacing)} />}
+    {capability('mediaContentGap')?.type === 'option' && <fieldset>
       <legend className="mb-2 flex items-center gap-2 text-sm font-semibold">Gap between media and content{targetViewport !== 'desktop' && <span className="text-[10px] font-medium uppercase tracking-wide text-foreground-muted">{activeOverride?.mediaContentGap === undefined ? 'Template default' : 'Override'}</span>}</legend>
-      <div className="grid grid-cols-2 gap-2">{(viewportControls?.mediaContentGap ?? controls.mediaContentGaps).options.map((option) => { const selected = (appearance.mediaContentGap ?? (viewportControls?.mediaContentGap ?? controls.mediaContentGaps!).default) === option.key; return <Button className={selected ? 'border-accent! border-2 bg-surface-muted' : ''} key={option.key} size="sm" variant="secondary" type="button" aria-pressed={selected} onClick={() => onResponsiveChange('mediaContentGap', option.key)}>{option.displayName}</Button> })}</div>
+      <div className="grid grid-cols-2 gap-2">{optionValues(capability('mediaContentGap')).map((option) => { const selected = (appearance.mediaContentGap ?? controlDefault(capability('mediaContentGap'))) === option.key; return <Button className={selected ? 'border-accent! border-2 bg-surface-muted' : ''} key={option.key} size="sm" variant="secondary" type="button" aria-pressed={selected} onClick={() => onResponsiveChange('mediaContentGap', option.key)}>{option.displayName}</Button> })}</div>
     </fieldset>}
-    {controls.overlayStrength && <fieldset>
-      <div className="flex items-center justify-between gap-3"><legend className="text-sm font-semibold">Overlay strength</legend><span className="text-xs tabular-nums text-foreground-muted">{Math.round((appearance.overlayStrength ?? controls.overlayStrength.default) * 100)}%</span></div>
-      <input className="mt-2 w-full cursor-pointer accent-accent" type="range" aria-label="Overlay strength" min={controls.overlayStrength.min} max={controls.overlayStrength.max} step={controls.overlayStrength.step} value={baseAppearance.overlayStrength ?? controls.overlayStrength.default} onChange={(event) => onChange({ ...baseAppearance, overlayStrength: Number(event.target.value) })} />
-    </fieldset>}
-    {controls.foregroundColors && <fieldset>
+    {(() => {
+      const control = capability('overlayStrength')
+      return control?.type === 'number' && <fieldset>
+        <div className="flex items-center justify-between gap-3"><legend className="text-sm font-semibold">Overlay strength</legend><span className="text-xs tabular-nums text-foreground-muted">{Math.round((appearance.overlayStrength ?? control.default) * 100)}%</span></div>
+        <input className="mt-2 w-full cursor-pointer accent-accent" type="range" aria-label="Overlay strength" min={control.minimum} max={control.maximum} step={control.step} value={baseAppearance.overlayStrength ?? control.default} onChange={(event) => onChange({ ...baseAppearance, overlayStrength: Number(event.target.value) })} />
+      </fieldset>
+    })()}
+    {capability('foregroundColor')?.type === 'option' && <fieldset>
       <legend className="mb-2 text-sm font-semibold">Text color</legend>
-      <div className="grid grid-cols-2 gap-2">{controls.foregroundColors.options.map((option) => { const selected = (baseAppearance.foregroundColor ?? controls.foregroundColors!.default) === option.key; return <Button className={selected ? 'border-accent! border-2 bg-surface-muted' : ''} key={option.key} size="sm" variant="secondary" type="button" aria-pressed={selected} onClick={() => onChange({ ...baseAppearance, foregroundColor: option.key })}><span className="size-4 rounded-full border border-border" style={{ backgroundColor: option.key }} />{option.displayName}</Button> })}</div>
+      <div className="grid grid-cols-2 gap-2">{optionValues(capability('foregroundColor')).map((option) => { const selected = (baseAppearance.foregroundColor ?? controlDefault(capability('foregroundColor'))) === option.key; return <Button className={selected ? 'border-accent! border-2 bg-surface-muted' : ''} key={option.key} size="sm" variant="secondary" type="button" aria-pressed={selected} onClick={() => onChange({ ...baseAppearance, foregroundColor: option.key })}><span className="size-4 rounded-full border border-border" style={{ backgroundColor: option.key }} />{option.displayName}</Button> })}</div>
     </fieldset>}
   </div>
 }
 
-function MediaSpacingControl({ capability, appearance, inherited, onChange }: { capability: NonNullable<WebsiteSectionMediaControls['mediaSpacing']>; appearance: WebsiteSectionAppearance; inherited: boolean; onChange: (spacing: MediaSpacing) => void }) {
+function MediaSpacingControl({ capability, appearance, inherited, onChange }: { capability: Extract<AppearanceControlCapability, { type: 'spacing' }>; appearance: WebsiteSectionAppearance; inherited: boolean; onChange: (spacing: MediaSpacing) => void }) {
   const spacing = appearance.mediaSpacing ?? capability.default
   const [linked, setLinked] = useState(() => new Set(Object.values(spacing)).size === 1)
   const sides = ['top', 'right', 'bottom', 'left'] as const
