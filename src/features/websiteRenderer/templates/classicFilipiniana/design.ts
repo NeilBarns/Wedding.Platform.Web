@@ -1,19 +1,6 @@
 import type { CSSProperties } from 'react'
-import type { ColorTheme, WebsiteDesignSettings } from '../../../websiteEditor/types'
-
-const palettes: Record<string, Record<string, string>> = {
-  terracotta: { page: '#f8f0e4', surface: '#f1e5d5', text: '#3b312d', muted: '#6c5f57', accent: '#9d5b45', secondary: '#78805f', border: '#806d5e' },
-  olive: { page: '#f4f1e5', surface: '#e8e4d2', text: '#34372c', muted: '#626454', accent: '#70764e', secondary: '#a06a4f', border: '#74745f' },
-  sage: { page: '#f1f3e9', surface: '#e2e8d9', text: '#303a33', muted: '#5f6c63', accent: '#748a70', secondary: '#a86650', border: '#718075' },
-  burgundy: { page: '#f7eeea', surface: '#ecddda', text: '#3d292d', muted: '#715d61', accent: '#7d3443', secondary: '#7b7955', border: '#82696d' },
-  neutral: { page: '#f5f1eb', surface: '#e9e3dc', text: '#35312e', muted: '#69625d', accent: '#74645a', secondary: '#777363', border: '#7c746e' },
-}
-
-const typography: Record<string, { heading: string; body: string }> = {
-  editorial: { heading: 'Georgia, Cambria, "Times New Roman", serif', body: 'Inter, ui-sans-serif, system-ui, sans-serif' },
-  romantic: { heading: '"Palatino Linotype", Palatino, Book Antiqua, serif', body: 'Georgia, Cambria, serif' },
-  modern: { heading: 'Inter, ui-sans-serif, system-ui, sans-serif', body: 'Inter, ui-sans-serif, system-ui, sans-serif' },
-}
+import type { WebsiteDesignSettings } from '../../../websiteEditor/types'
+import { classicPaletteCatalog, classicTypographyCatalog } from '../../../websiteTemplates/design/catalogs'
 
 const patterns: Record<string, string> = {
   minimal: 'radial-gradient(rgb(117 91 70 / 7%) 0.7px, transparent 0.7px)',
@@ -23,22 +10,22 @@ const patterns: Record<string, string> = {
 }
 
 export function resolveClassicFilipinianaDesign(settings: WebsiteDesignSettings): CSSProperties {
-  const palette = palettes[settings.colorTheme] ?? palettes.terracotta
-  const fonts = typography[settings.fontSet] ?? typography.editorial
+  const palette = (classicPaletteCatalog[settings.colorTheme as keyof typeof classicPaletteCatalog] ?? classicPaletteCatalog.terracotta).tokens
+  const fonts = classicTypographyCatalog[settings.fontSet as keyof typeof classicTypographyCatalog] ?? classicTypographyCatalog.editorial
   return {
-    '--cf-page': palette.page,
+    '--cf-page': palette.canvas,
     '--cf-surface': palette.surface,
     '--cf-text': palette.text,
-    '--cf-muted': palette.muted,
+    '--cf-muted': palette.textMuted,
     '--cf-accent': palette.accent,
-    '--cf-theme-page': palette.page,
+    '--cf-theme-page': palette.canvas,
     '--cf-theme-surface': palette.surface,
     '--cf-theme-text': palette.text,
-    '--cf-theme-muted': palette.muted,
+    '--cf-theme-muted': palette.textMuted,
     '--cf-theme-accent': palette.accent,
-    '--cf-theme-secondary': palette.secondary,
+    '--cf-theme-secondary': palette.ornament,
     '--cf-theme-border': palette.border,
-    '--cf-secondary': palette.secondary,
+    '--cf-secondary': palette.ornament,
     '--cf-border': palette.border,
     '--cf-heading-font': fonts.heading,
     '--cf-body-font': fonts.body,
@@ -46,7 +33,3 @@ export function resolveClassicFilipinianaDesign(settings: WebsiteDesignSettings)
     backgroundSize: settings.artStyle === 'woven' ? '18px 18px' : settings.artStyle === 'minimal' ? '7px 7px' : '100% 100%',
   } as CSSProperties
 }
-
-export const colorSwatches: Record<ColorTheme, string> = Object.fromEntries(
-  Object.entries(palettes).map(([key, palette]) => [key, palette.accent]),
-) as Record<ColorTheme, string>
