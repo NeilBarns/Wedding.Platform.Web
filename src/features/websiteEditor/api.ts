@@ -20,18 +20,6 @@ export async function getWebsiteDraft(eventId: string, projectId: string, signal
   return parseWebsiteDraft(response.data)
 }
 
-export async function initializeWebsite(eventId: string, templateKey: string): Promise<WebsiteDraft> {
-  await ensureCsrfCookie()
-  const response = await apiRequest<ApiResource<unknown>>(`/api/events/${encodeURIComponent(eventId)}/website`, {
-    method: 'POST', body: { templateKey },
-  })
-  return parseWebsiteDraft(response.data)
-}
-
-export function updateWebsiteTemplate(eventId: string, projectId: string, templateKey: string) {
-  return mutation(eventId, projectId, '/template', { templateKey })
-}
-
 export function updateWebsiteDesignSettings(eventId: string, projectId: string, designSettings: WebsiteDesignSettings) {
   return mutation(eventId, projectId, '/design', { designSettings })
 }

@@ -9,11 +9,9 @@ const templateSchema = z.object({
   displayName: nonEmptyString,
   description: nonEmptyString,
   styleTags: z.array(nonEmptyString),
-  isSelected: z.boolean(),
 }).strict()
 
-export async function getCompatibleWebsiteTemplates(eventId: string, signal?: AbortSignal, projectId?: string): Promise<WebsiteTemplateOption[]> {
-  const suffix = projectId ? `/websites/${encodeURIComponent(projectId)}/templates` : '/website/templates'
-  const response = await apiRequest<ApiResource<unknown>>(`/api/events/${encodeURIComponent(eventId)}${suffix}`, { signal })
+export async function getWebsiteCreationTemplates(eventId: string, signal?: AbortSignal): Promise<WebsiteTemplateOption[]> {
+  const response = await apiRequest<ApiResource<unknown>>(`/api/events/${encodeURIComponent(eventId)}/website-templates`, { signal })
   return z.array(templateSchema).parse(response.data)
 }

@@ -3,5 +3,4 @@ export type WebsiteTemplateOption = {
   displayName: string
   description: string
   styleTags: string[]
-  isSelected: boolean
 }

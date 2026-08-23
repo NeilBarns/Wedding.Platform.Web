@@ -41,7 +41,7 @@ export function WebsitePreviewPage() {
         eventId={eventId}
         projectId={projectId}
         title="Website not initialized"
-        message="Choose a Template in the Website Builder before previewing the draft."
+        message="This Website Project has invalid or unsupported Template metadata."
       />
     );
   if (draftResult.error || !draftResult.draft)
