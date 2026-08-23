@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import type { WebsiteDesignSettings } from '../../../websiteEditor/types'
-import { classicPaletteCatalog, classicTypographyCatalog } from '../../../websiteTemplates/design/catalogs'
+import { classicPaletteCatalog, classicTypographyCatalog, resolveGlobalDesignTokens } from '../../../websiteTemplates/design/catalogs'
 
 const patterns: Record<string, string> = {
   minimal: 'radial-gradient(rgb(117 91 70 / 7%) 0.7px, transparent 0.7px)',
@@ -10,25 +10,30 @@ const patterns: Record<string, string> = {
 }
 
 export function resolveClassicFilipinianaDesign(settings: WebsiteDesignSettings): CSSProperties {
-  const palette = (classicPaletteCatalog[settings.colorTheme as keyof typeof classicPaletteCatalog] ?? classicPaletteCatalog.terracotta).tokens
-  const fonts = classicTypographyCatalog[settings.fontSet as keyof typeof classicTypographyCatalog] ?? classicTypographyCatalog.editorial
+  const tokens = resolveGlobalDesignTokens(settings, classicPaletteCatalog, classicTypographyCatalog, {
+    colorTheme: 'terracotta',
+    fontSet: 'editorial',
+  })
+  const { color, typography } = tokens
+
   return {
-    '--cf-page': palette.canvas,
-    '--cf-surface': palette.surface,
-    '--cf-text': palette.text,
-    '--cf-muted': palette.textMuted,
-    '--cf-accent': palette.accent,
-    '--cf-theme-page': palette.canvas,
-    '--cf-theme-surface': palette.surface,
-    '--cf-theme-text': palette.text,
-    '--cf-theme-muted': palette.textMuted,
-    '--cf-theme-accent': palette.accent,
-    '--cf-theme-secondary': palette.ornament,
-    '--cf-theme-border': palette.border,
-    '--cf-secondary': palette.ornament,
-    '--cf-border': palette.border,
-    '--cf-heading-font': fonts.heading,
-    '--cf-body-font': fonts.body,
+    '--cf-page': color.canvas,
+    '--cf-surface': color.surface,
+    '--cf-text': color.text,
+    '--cf-muted': color.textMuted,
+    '--cf-accent': color.accent,
+    '--cf-theme-page': color.canvas,
+    '--cf-theme-surface': color.surface,
+    '--cf-theme-text': color.text,
+    '--cf-theme-muted': color.textMuted,
+    '--cf-theme-accent': color.accent,
+    '--cf-theme-accent-contrast': color.accentContrast,
+    '--cf-theme-secondary': color.ornament,
+    '--cf-theme-border': color.border,
+    '--cf-secondary': color.ornament,
+    '--cf-border': color.border,
+    '--cf-heading-font': typography.heading,
+    '--cf-body-font': typography.body,
     backgroundImage: patterns[settings.artStyle] ?? patterns.minimal,
     backgroundSize: settings.artStyle === 'woven' ? '18px 18px' : settings.artStyle === 'minimal' ? '7px 7px' : '100% 100%',
   } as CSSProperties

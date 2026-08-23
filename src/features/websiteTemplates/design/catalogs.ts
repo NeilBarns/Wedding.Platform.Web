@@ -20,6 +20,16 @@ export type TypographyPairing = {
   previewClass: string
 }
 
+export type GlobalDesignTokens = {
+  color: SemanticPalette
+  typography: Pick<TypographyPairing, 'heading' | 'body'>
+}
+
+type GlobalDesignSelection = {
+  colorTheme: string
+  fontSet: string
+}
+
 const editorialTypography = {
   heading: 'Georgia, Cambria, "Times New Roman", serif',
   body: 'Inter, ui-sans-serif, system-ui, sans-serif',
@@ -67,6 +77,24 @@ export const modernTypographyCatalog = {
   },
   minimal: sansTypography,
 } as const satisfies Record<string, TypographyPairing>
+
+export function resolveGlobalDesignTokens(
+  selection: GlobalDesignSelection,
+  paletteCatalog: Record<string, TemplatePaletteDefinition>,
+  typographyCatalog: Record<string, TypographyPairing>,
+  defaults: GlobalDesignSelection,
+): GlobalDesignTokens {
+  const color = (paletteCatalog[selection.colorTheme] ?? paletteCatalog[defaults.colorTheme]).tokens
+  const typography = typographyCatalog[selection.fontSet] ?? typographyCatalog[defaults.fontSet]
+
+  return {
+    color,
+    typography: {
+      heading: typography.heading,
+      body: typography.body,
+    },
+  }
+}
 
 export function palettePreviewSwatches(catalog: Record<string, TemplatePaletteDefinition>): Record<string, string> {
   return Object.fromEntries(Object.entries(catalog).map(([id, definition]) => [

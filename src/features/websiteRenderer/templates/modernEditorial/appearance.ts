@@ -30,6 +30,6 @@ function resolveBackground(background: 'plain' | 'soft' | 'accent'): { className
   if (background === 'soft') return { className: 'bg-[var(--me-surface)]' }
   return {
     className: 'bg-[var(--me-accent)] [&_[data-rsvp-button]]:border-white [&_[data-rsvp-button]]:text-white',
-    style: { '--me-text': '#ffffff', '--me-muted': 'rgb(255 255 255 / 76%)', '--me-border': 'rgb(255 255 255 / 55%)' } as CSSProperties,
+    style: { '--me-text': 'var(--me-accent-contrast)', '--me-muted': 'rgb(255 255 255 / 76%)', '--me-border': 'rgb(255 255 255 / 55%)' } as CSSProperties,
   }
 }

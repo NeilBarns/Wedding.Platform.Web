@@ -45,10 +45,10 @@ function resolveBackground(background: 'plain' | 'soft' | 'accent'): { className
   return {
     className: 'bg-[var(--cf-theme-accent)] [&_[data-rsvp-button]]:bg-white [&_[data-rsvp-button]]:text-[var(--cf-theme-accent)]',
     style: {
-      '--cf-text': '#ffffff',
+      '--cf-text': 'var(--cf-theme-accent-contrast)',
       '--cf-muted': 'rgb(255 255 255 / 82%)',
       '--cf-surface': 'rgb(0 0 0 / 12%)',
-      '--cf-accent': '#ffffff',
+      '--cf-accent': 'var(--cf-theme-accent-contrast)',
       '--cf-secondary': 'rgb(255 255 255 / 76%)',
       '--cf-border': 'rgb(255 255 255 / 68%)',
     } as CSSProperties,
