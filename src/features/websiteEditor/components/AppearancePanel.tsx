@@ -10,34 +10,34 @@ import type {
   MediaSpacing,
   MediaSpacingValue,
   WebsiteSectionAppearance,
-  WebsiteSectionAppearanceOptions,
   WebsiteSectionMediaControls,
-  WebsiteSectionPresentationCapability,
   ResponsiveViewport,
   WebsiteSectionResponsiveAppearance,
 } from "../types";
+import { appearanceOptionsForSection, mediaControlsForPresentation, presentationCapability } from "../../websiteCapabilities/lookup";
+import type { SectionCapability } from "../../websiteCapabilities/types";
 import { canonicalizeResponsiveAppearance, pruneResponsiveAppearance, resolveSectionAppearanceForViewport } from "../responsiveAppearance";
 import { PresentationPicker } from "./PresentationPicker";
 
 export function AppearancePanel({
   appearance,
-  options,
-  presentationCapability,
+  sectionCapability,
   targetViewport,
   error,
   onChange,
 }: {
   appearance: WebsiteSectionAppearance;
-  options: WebsiteSectionAppearanceOptions;
-  presentationCapability: WebsiteSectionPresentationCapability | null;
+  sectionCapability: SectionCapability;
   targetViewport: ResponsiveViewport;
   error: string | null;
   onChange: (appearance: WebsiteSectionAppearance) => void;
 }) {
-  const presentation = appearance.presentation ?? presentationCapability?.default
-  const controls = presentationCapability?.options.find((option) => option.key === presentation)?.mediaControls ?? null
+  const options = appearanceOptionsForSection(sectionCapability)
+  const presentation = appearance.presentation ?? sectionCapability.defaultPresentation ?? undefined
+  const activePresentation = presentationCapability(sectionCapability, presentation)
+  const controls = mediaControlsForPresentation(activePresentation)
   const viewportControls = targetViewport === 'desktop' ? undefined : controls?.responsive?.[targetViewport]
-  const effectiveAppearance = resolveSectionAppearanceForViewport(appearance, targetViewport, controls)
+  const effectiveAppearance = resolveSectionAppearanceForViewport(appearance, targetViewport, sectionCapability)
   const activeOverride = targetViewport === 'desktop' ? undefined : appearance.responsive?.[targetViewport]
   const setResponsiveValue = (setting: keyof WebsiteSectionResponsiveAppearance, value: WebsiteSectionResponsiveAppearance[keyof WebsiteSectionResponsiveAppearance]) => {
     if (targetViewport === 'desktop') return onChange({ ...appearance, [setting]: value })
@@ -46,7 +46,7 @@ export function AppearancePanel({
     Object.assign(override, { [setting]: value })
     if (Object.keys(override).length > 0) responsive[targetViewport] = override
     else delete responsive[targetViewport]
-    onChange(canonicalizeResponsiveAppearance({ ...appearance, responsive }, controls))
+    onChange(canonicalizeResponsiveAppearance({ ...appearance, responsive }, sectionCapability))
   }
   const resetResponsive = () => {
     if (targetViewport === 'desktop') return
@@ -69,11 +69,11 @@ export function AppearancePanel({
         <div><p className="text-sm font-semibold">Editing {targetViewport} layout</p><p className="text-xs text-foreground-muted">{activeOverride ? 'Custom overrides are active.' : 'Using Template defaults.'}</p></div>
         <Button size="sm" variant="secondary" type="button" disabled={!activeOverride} onClick={resetResponsive}>Restore {targetViewport} defaults</Button>
       </div>}
-      {presentationCapability && <PresentationPicker
-        capability={presentationCapability}
-        value={appearance.presentation ?? presentationCapability.default}
+      {sectionCapability.defaultPresentation && <PresentationPicker
+        capability={sectionCapability}
+        value={appearance.presentation ?? sectionCapability.defaultPresentation}
         onChange={(presentation) => {
-          const controls = presentationCapability.options.find((option) => option.key === presentation)?.mediaControls
+          const controls = mediaControlsForPresentation(presentationCapability(sectionCapability, presentation))
           const next: WebsiteSectionAppearance = { ...appearance, presentation }
           for (const key of ['mediaPlacement', 'mediaSize', 'frameStyle', 'cornerStyle', 'shadowStyle', 'overlayStrength', 'foregroundColor', 'mediaSpacing', 'mediaContentGap'] as const) delete next[key]
           if (controls?.mediaPlacements) next.mediaPlacement = controls.mediaPlacements.default
@@ -85,11 +85,11 @@ export function AppearancePanel({
           if (controls?.foregroundColors) next.foregroundColor = controls.foregroundColors.default
           if (controls?.mediaSpacing) next.mediaSpacing = { ...controls.mediaSpacing.default }
           if (controls?.mediaContentGaps) next.mediaContentGap = controls.mediaContentGaps.default as MediaContentGap
-          onChange(canonicalizeResponsiveAppearance(next, controls ?? null))
+          onChange(canonicalizeResponsiveAppearance(next, sectionCapability))
         }}
       />}
-      {presentationCapability && <MediaStyleControls
-        key={appearance.presentation ?? presentationCapability.default}
+      {sectionCapability.defaultPresentation && <MediaStyleControls
+        key={appearance.presentation ?? sectionCapability.defaultPresentation}
         controls={controls}
         appearance={effectiveAppearance}
         baseAppearance={appearance}

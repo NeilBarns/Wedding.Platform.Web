@@ -3,6 +3,7 @@ import type { WebsiteDraft, WebsiteSection } from './types'
 import { CURRENT_WEBSITE_SCHEMA_VERSION } from './schema'
 import { narrativeBlockElementSchema } from '../websiteElements/schemas'
 import { templateCapabilitiesSchema } from '../websiteCapabilities/schemas'
+import { sectionCapability } from '../websiteCapabilities/lookup'
 
 const text = z.string()
 const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Required')
@@ -221,7 +222,8 @@ const draftSchema = z.object({
 
   draft.sections.forEach((section, index) => {
     const presentation = section.appearance.presentation
-    if (presentation && !section.presentationCapability?.options.some((option) => option.key === presentation)) {
+    const capability = sectionCapability(draft.template!.capabilities, section.type)
+    if (presentation && !capability?.presentations.some((option) => option.id === presentation)) {
       context.addIssue({
         code: 'custom',
         message: 'Presentation is not supported by the selected Template',

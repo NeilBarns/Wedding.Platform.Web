@@ -23,11 +23,12 @@ const viewportOptionSchema = z.object({
   default: z.string().min(1),
   options: z.array(optionSchema).min(1),
 }).strict()
+const spacingValueSchema = z.enum(['none', 'small', 'medium', 'large'])
 const spacingSchema = z.object({
-  top: z.string().min(1),
-  right: z.string().min(1),
-  bottom: z.string().min(1),
-  left: z.string().min(1),
+  top: spacingValueSchema,
+  right: spacingValueSchema,
+  bottom: spacingValueSchema,
+  left: spacingValueSchema,
 }).strict()
 const viewportSpacingSchema = z.object({
   default: spacingSchema,

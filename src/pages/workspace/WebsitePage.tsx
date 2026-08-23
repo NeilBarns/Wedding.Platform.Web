@@ -46,6 +46,8 @@ import { appearanceEquals, pruneResponsiveAppearance } from "../../features/webs
 import { accessiblePreviewViewports, PREVIEW_WIDTHS, useEditorDeviceCategory } from "../../features/websiteEditor/responsiveViewport";
 import { useWebsiteDraft } from "../../features/websiteEditor/useWebsiteDraft";
 import { WebsiteRenderer } from "../../features/websiteRenderer/WebsiteRenderer";
+import { sectionCapability } from "../../features/websiteCapabilities/lookup";
+import type { TemplateCapabilities } from "../../features/websiteCapabilities/types";
 import { ApiError } from "../../lib/api";
 
 type BuilderMode = "content" | "design";
@@ -372,6 +374,7 @@ export function WebsitePage() {
       />
     ) : (
       <SectionInspector
+        capabilities={draft.template?.capabilities}
         resolvedMedia={previewDraft.media}
         onMediaResolved={(media) => setMediaOverrides((current) => ({ ...current, [media.id]: media }))}
         selected={selected}
@@ -425,6 +428,7 @@ export function WebsitePage() {
       />
     ) : (
       <SectionInspector
+        capabilities={draft.template?.capabilities}
         resolvedMedia={previewDraft.media}
         onMediaResolved={(media) => setMediaOverrides((current) => ({ ...current, [media.id]: media }))}
         selected={selected}
@@ -913,6 +917,7 @@ function PreviewViewport({ viewport, children }: { viewport: ResponsiveViewport;
 }
 
 function SectionInspector({
+  capabilities,
   resolvedMedia,
   onMediaResolved,
   selected,
@@ -934,6 +939,7 @@ function SectionInspector({
   onAppearanceChange,
   onAppearanceSave,
 }: {
+  capabilities?: TemplateCapabilities;
   resolvedMedia: WebsiteDraft["media"];
   onMediaResolved: (media: WebsiteDraft["media"][string]) => void;
   selected: WebsiteSection | null;
@@ -956,6 +962,7 @@ function SectionInspector({
   onAppearanceSave: () => void;
 }) {
   if (!selected || !workingContent || !workingAppearance) return null;
+  const capability = capabilities ? sectionCapability(capabilities, selected.type) : undefined;
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="hidden shrink-0 border-b border-border xl:mb-4 xl:block xl:px-0 xl:pb-3 xl:pt-0">
@@ -1004,13 +1011,12 @@ function SectionInspector({
             onMediaResolved={onMediaResolved}
           />
         </div>
-      ) : selected.appearanceOptions ? (
+      ) : capability ? (
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
             <AppearancePanel
               appearance={workingAppearance}
-              options={selected.appearanceOptions}
-              presentationCapability={selected.presentationCapability}
+              sectionCapability={capability}
               targetViewport={targetViewport}
               error={appearanceError}
               onChange={onAppearanceChange}

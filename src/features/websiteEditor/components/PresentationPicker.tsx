@@ -1,22 +1,22 @@
 import { Check } from "lucide-react";
 import { SelectableCard } from "../../../components/ui/SelectableCard";
-import type { WebsiteSectionPresentationCapability } from "../types";
+import type { SectionCapability } from "../../websiteCapabilities/types";
 
 export function PresentationPicker({ capability, value, onChange }: {
-  capability: WebsiteSectionPresentationCapability;
+  capability: SectionCapability;
   value: string;
   onChange: (value: string) => void;
 }) {
   return <fieldset>
     <legend className="mb-2 text-sm font-semibold">Presentation</legend>
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label="Section presentation choices">
-      {capability.options.map((option) => {
-        const selected = option.key === value;
+      {capability.presentations.map((option) => {
+        const selected = option.id === value;
         return <SelectableCard
           className="min-h-32 overflow-hidden bg-surface p-3 data-[selected=true]:bg-surface-muted"
-          key={option.key}
+          key={option.id}
           selected={selected}
-          onClick={() => onChange(option.key)}
+          onClick={() => onChange(option.id)}
         >
           <div className="mb-3 grid grid-cols-[1fr_2.2rem] gap-2" aria-hidden="true">
             <PresentationSchematic kind={option.preview} />

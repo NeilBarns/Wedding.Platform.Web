@@ -1,39 +1,34 @@
 import type {
   ResponsiveViewport,
   WebsiteSectionAppearance,
-  WebsiteSectionMediaControls,
   WebsiteSectionResponsiveAppearance,
 } from './types'
+import { controlsForViewport, presentationCapability } from '../websiteCapabilities/lookup'
+import type { AppearanceControlCapability, SectionCapability } from '../websiteCapabilities/types'
 
 const responsiveSettings = ['mediaPlacement', 'mediaSize', 'mediaContentGap', 'headingAlignment', 'bodyAlignment', 'mediaSpacing'] as const
 
 export function responsiveTemplateDefaults(
-  controls: WebsiteSectionMediaControls | null,
+  section: SectionCapability,
+  presentationId: string | undefined,
   viewport: Exclude<ResponsiveViewport, 'desktop'>,
 ): WebsiteSectionResponsiveAppearance {
-  const viewportControls = controls?.responsive?.[viewport]
-  const defaults: WebsiteSectionResponsiveAppearance = {
-    headingAlignment: viewportControls?.headingAlignment?.default ?? 'inherit',
-    bodyAlignment: viewportControls?.bodyAlignment?.default ?? 'inherit',
+  const presentation = presentationCapability(section, presentationId)
+  const controls = controlsForViewport(section, presentation, viewport)
+  const defaults: WebsiteSectionResponsiveAppearance = {}
+  for (const setting of responsiveSettings) {
+    const control = controls.find((item) => item.id === setting)
+    if (control && control.type !== 'number') {
+      Object.assign(defaults, { [setting]: control.default })
+    }
   }
-  const groups = [
-    ['mediaPlacement', 'mediaPlacements'],
-    ['mediaSize', 'mediaSizes'],
-    ['mediaContentGap', 'mediaContentGaps'],
-  ] as const
-  for (const [setting, group] of groups) {
-    const value = viewportControls?.[setting]?.default ?? controls?.[group]?.default
-    if (value !== undefined) defaults[setting] = value
-  }
-  const spacing = viewportControls?.mediaSpacing?.default ?? controls?.mediaSpacing?.default
-  if (spacing !== undefined) defaults.mediaSpacing = spacing
   return defaults
 }
 
 export function resolveSectionAppearanceForViewport(
   appearance: WebsiteSectionAppearance,
   viewport: ResponsiveViewport,
-  controls: WebsiteSectionMediaControls | null,
+  section: SectionCapability,
 ): WebsiteSectionAppearance {
   const { responsive, ...base } = appearance
 
@@ -44,22 +39,24 @@ export function resolveSectionAppearanceForViewport(
 
   return {
     ...independent,
-    ...responsiveTemplateDefaults(controls, viewport),
+    ...responsiveTemplateDefaults(section, appearance.presentation, viewport),
     ...(responsive?.[viewport] ?? {}),
   } as WebsiteSectionAppearance
 }
 
 export function canonicalizeResponsiveAppearance(
   appearance: WebsiteSectionAppearance,
-  controls: WebsiteSectionMediaControls | null,
+  section: SectionCapability,
 ): WebsiteSectionAppearance {
   const responsive = { ...appearance.responsive }
   for (const viewport of ['tablet', 'mobile'] as const) {
-    const defaults = responsiveTemplateDefaults(controls, viewport)
+    const defaults = responsiveTemplateDefaults(section, appearance.presentation, viewport)
+    const presentation = presentationCapability(section, appearance.presentation)
+    const controls = controlsForViewport(section, presentation, viewport)
     const override = { ...responsive[viewport] }
     for (const setting of responsiveSettings) {
       if (override[setting] === undefined) continue
-      if (!responsiveValueIsSupported(setting, override[setting], controls, viewport) || valuesEqual(override[setting], defaults[setting])) delete override[setting]
+      if (!responsiveValueIsSupported(setting, override[setting], controls) || valuesEqual(override[setting], defaults[setting])) delete override[setting]
     }
     if (Object.keys(override).length > 0) responsive[viewport] = override
     else delete responsive[viewport]
@@ -70,20 +67,12 @@ export function canonicalizeResponsiveAppearance(
 function responsiveValueIsSupported(
   setting: keyof WebsiteSectionResponsiveAppearance,
   value: WebsiteSectionResponsiveAppearance[keyof WebsiteSectionResponsiveAppearance],
-  controls: WebsiteSectionMediaControls | null,
-  viewport: Exclude<ResponsiveViewport, 'desktop'>,
+  controls: AppearanceControlCapability[],
 ): boolean {
-  if (setting === 'headingAlignment' || setting === 'bodyAlignment') return typeof value === 'string'
-  const viewportControls = controls?.responsive?.[viewport]
-  if (setting === 'mediaSpacing') {
-    const control = viewportControls?.mediaSpacing ?? controls?.mediaSpacing
-    return Boolean(control && value && typeof value === 'object' && Object.values(value).every((side) => control.options.some((option) => option.key === side)))
-  }
-  const group = setting === 'mediaPlacement' ? controls?.mediaPlacements
-    : setting === 'mediaSize' ? controls?.mediaSizes
-      : controls?.mediaContentGaps
-  const control = viewportControls?.[setting] ?? group
-  return typeof value === 'string' && Boolean(control?.options.some((option) => option.key === value))
+  const control = controls.find((item) => item.id === setting)
+  if (!control || control.type === 'number') return false
+  if (control.type === 'spacing') return Boolean(value && typeof value === 'object' && Object.values(value).every((side) => control.options.some((option) => option.key === side)))
+  return typeof value === 'string' && control.options.some((option) => option.key === value)
 }
 
 function valuesEqual(left: unknown, right: unknown): boolean {
