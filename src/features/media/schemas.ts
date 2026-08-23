@@ -6,44 +6,35 @@ const mediaVariantSchema = z.object({
   url: z.string().url(),
 }).strict()
 
-const peopleUsageContextSchema = z.object({
-  groupId: z.string().min(1),
-  groupName: z.string(),
-  personId: z.string().min(1),
-  personName: z.string(),
-}).strict()
-
-const storyUsageContextSchema = z.object({
-  blockId: z.string().min(1),
-  blockHeading: z.string().nullable().optional(),
-}).strict()
-
-const mediaWebsiteSectionUsageSchema = z.union([
+const mediaUsageReferenceSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('sectionMedia') }).strict(),
+  z.object({ type: z.literal('storyNarrativeBlock'), elementId: z.string().min(1), label: z.string().optional() }).strict(),
   z.object({
-    sectionId: z.string().min(1),
-    type: z.literal('people'),
-    displayName: z.string().min(1),
-    context: peopleUsageContextSchema,
-  }).strict(),
-  z.object({
-    sectionId: z.string().min(1),
-    type: z.literal('story'),
-    displayName: z.string().min(1),
-    context: storyUsageContextSchema,
-  }).strict(),
-  z.object({
-    sectionId: z.string().min(1),
-    type: z.string().min(1),
-    displayName: z.string().min(1),
-    context: z.undefined().optional(),
+    type: z.literal('person'), personId: z.string().min(1), label: z.string().optional(),
+    groupId: z.string().optional(), groupLabel: z.string().optional(),
   }).strict(),
 ])
 
-const mediaUsageSchema = z.object({
+const mediaUsageRecordSchema = z.object({
+  mediaId: z.string().min(1),
+  eventId: z.string().min(1),
+  websiteProjectId: z.string().min(1),
+  websiteProjectName: z.string().min(1),
+  sectionId: z.string().min(1),
+  sectionType: z.string().min(1),
+  sectionName: z.string().min(1),
+  reference: mediaUsageReferenceSchema,
+}).strict()
+
+export const mediaUsageSchema = z.object({
   isInUse: z.boolean(),
-  website: z.object({
-    sections: z.array(mediaWebsiteSectionUsageSchema),
-  }).strict(),
+  references: z.array(mediaUsageRecordSchema),
+}).strict()
+
+export const mediaDeleteConflictSchema = z.object({
+  code: z.literal('media_asset_in_use'),
+  message: z.string(),
+  usage: mediaUsageSchema,
 }).strict()
 
 export const mediaAssetSchema = z.object({

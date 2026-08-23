@@ -97,6 +97,8 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       response.status,
       typeof error.message === 'string' ? error.message : `Request failed with status ${response.status}.`,
       validationErrors(error.errors),
+      undefined,
+      payload,
     )
   }
 

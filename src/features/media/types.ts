@@ -1,42 +1,36 @@
-export type MediaVariant = {
-  width: number
-  height: number
-  url: string
-}
+export type MediaVariant = { width: number; height: number; url: string }
 
-type MediaWebsiteSectionUsageBase = {
+export type MediaUsageReference =
+  | { type: 'sectionMedia' }
+  | { type: 'storyNarrativeBlock'; elementId: string; label?: string }
+  | { type: 'person'; personId: string; label?: string; groupId?: string; groupLabel?: string }
+
+export type MediaUsageV2Record = {
+  mediaId: string
+  eventId: string
+  websiteProjectId: string
+  websiteProjectName: string
   sectionId: string
-  displayName: string
+  sectionType: string
+  sectionName: string
+  reference: MediaUsageReference
 }
 
-export type MediaPeopleUsageContext = { groupId: string; groupName: string; personId: string; personName: string }
-export type MediaStoryUsageContext = { blockId: string; blockHeading?: string | null }
+export type MediaAssetUsage = { isInUse: boolean; references: MediaUsageV2Record[] }
+export type MediaDeleteConflict = { code: 'media_asset_in_use'; message: string; usage: MediaAssetUsage }
 
-export type MediaWebsiteSectionUsage = MediaWebsiteSectionUsageBase & (
-  | { type: 'people'; context: MediaPeopleUsageContext }
-  | { type: 'story'; context: MediaStoryUsageContext }
-  | { type: string; context?: undefined }
-)
-
-export function mediaUsageDetail(section: MediaWebsiteSectionUsage): string | null {
-  if (section.type === 'people' && section.context) {
-    return `${section.context.groupName} — ${section.context.personName}`
-  }
-  if (section.type === 'story' && section.context) {
-    return section.context.blockHeading?.trim() || 'Story block'
-  }
+export function mediaUsageDetail(record: MediaUsageV2Record): string | null {
+  const reference = record.reference
+  if (reference.type === 'person') return [reference.groupLabel, reference.label ?? 'Person'].filter(Boolean).join(' — ')
+  if (reference.type === 'storyNarrativeBlock') return reference.label?.trim() || 'Story block'
   return null
 }
 
-export function mediaUsageKey(section: MediaWebsiteSectionUsage): string {
-  if (section.type === 'people' && section.context) return `${section.sectionId}:person:${section.context.personId}`
-  if (section.type === 'story' && section.context) return `${section.sectionId}:block:${section.context.blockId}`
-  return `${section.sectionId}:section`
-}
-
-export type MediaAssetUsage = {
-  isInUse: boolean
-  website: { sections: MediaWebsiteSectionUsage[] }
+export function mediaUsageKey(record: MediaUsageV2Record): string {
+  const reference = record.reference
+  const identity = reference.type === 'storyNarrativeBlock' ? reference.elementId
+    : reference.type === 'person' ? `${reference.groupId ?? ''}:${reference.personId}` : 'section'
+  return `${record.websiteProjectId}:${record.sectionId}:${reference.type}:${identity}`
 }
 
 export type MediaAsset = {
@@ -59,9 +53,4 @@ export type MediaFilters = {
   page?: number
 }
 
-export type MediaPage = {
-  assets: MediaAsset[]
-  currentPage: number
-  lastPage: number
-  total: number
-}
+export type MediaPage = { assets: MediaAsset[]; currentPage: number; lastPage: number; total: number }
