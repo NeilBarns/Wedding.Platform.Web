@@ -12,7 +12,7 @@ type Props = {
 
 const sections = [
   { path: '.', label: 'Overview', icon: LayoutDashboard, end: true },
-  { path: 'website', label: 'Website', icon: Globe2 },
+  { path: 'websites', label: 'Websites', icon: Globe2 },
   { path: 'media', label: 'Media', icon: Images },
   { path: 'invitations', label: 'Invitations', icon: Mail },
   { path: 'settings', label: 'Settings', icon: Settings },

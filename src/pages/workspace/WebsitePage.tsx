@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
 import { Heading } from "../../components/ui/Heading";
 import { SegmentedControl } from "../../components/ui/SegmentedControl";
@@ -51,7 +51,6 @@ import { useWebsiteDraft } from "../../features/websiteEditor/useWebsiteDraft";
 import { WebsiteRenderer } from "../../features/websiteRenderer/WebsiteRenderer";
 import { TemplateChangeDialog } from "../../features/websiteTemplates/components/TemplateChangeDialog";
 import { TemplatePicker } from "../../features/websiteTemplates/components/TemplatePicker";
-import { WebsiteTemplateOnboarding } from "../../features/websiteTemplates/components/WebsiteTemplateOnboarding";
 import type { WebsiteTemplateOption } from "../../features/websiteTemplates/types";
 import { ApiError } from "../../lib/api";
 
@@ -67,8 +66,10 @@ function messageFor(error: unknown): string {
 
 export function WebsitePage() {
   const event = useEventWorkspace();
+  const { projectId = "" } = useParams();
   const { draft, setDraft, error, isLoading, isUninitialized, retry } = useWebsiteDraft(
     event.id,
+    projectId,
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pendingSelection, setPendingSelection] = useState<string | null>(null);
@@ -210,7 +211,7 @@ export function WebsitePage() {
     if (!templateCandidate) return;
     setTemplateSaving(true); setTemplateError(null);
     try {
-      setDraft(await updateWebsiteTemplate(event.id, templateCandidate.key));
+      setDraft(await updateWebsiteTemplate(event.id, projectId, templateCandidate.key));
       setContentOverride(null); setAppearanceOverride(null); setDesignOverride(null); setActiveInlineTarget(null);
       setTemplateCandidate(null); setTemplatePickerOpen(false);
     } catch (changeError) {
@@ -234,7 +235,7 @@ export function WebsitePage() {
 
   function toggle(section: WebsiteSection) {
     void mutateList(() =>
-      setWebsiteSectionEnabled(event.id, section.id, !section.isEnabled),
+      setWebsiteSectionEnabled(event.id, projectId, section.id, !section.isEnabled),
     );
   }
   function move(index: number, direction: -1 | 1) {
@@ -242,7 +243,7 @@ export function WebsitePage() {
     const ids = draft.sections.map(({ id }) => id);
     const target = index + direction;
     [ids[index], ids[target]] = [ids[target], ids[index]];
-    void mutateList(() => reorderWebsiteSections(event.id, ids));
+    void mutateList(() => reorderWebsiteSections(event.id, projectId, ids));
   }
 
   function updateWorkingContent(content: Record<string, unknown>) {
@@ -334,7 +335,7 @@ export function WebsitePage() {
     setDesignSaving(true);
     setDesignError(null);
     try {
-      setDraft(await updateWebsiteDesignSettings(event.id, designOverride));
+      setDraft(await updateWebsiteDesignSettings(event.id, projectId, designOverride));
       setDesignOverride(null);
     } catch (saveError) {
       setDesignError(messageFor(saveError));
@@ -351,6 +352,7 @@ export function WebsitePage() {
       setDraft(
         await updateWebsiteSectionAppearance(
           event.id,
+          projectId,
           effectiveSelectedId,
           pruneResponsiveAppearance(workingAppearance),
         ),
@@ -365,7 +367,7 @@ export function WebsitePage() {
 
   if (isLoading) return <EditorLoading eventId={event.id} />;
   if (isUninitialized)
-    return <WebsiteTemplateOnboarding eventId={event.id} onInitialized={setDraft} />;
+    return <EditorError eventId={event.id} message="Website Project not found." retry={retry} />;
   if (error || !draft || !previewDraft)
     return (
       <EditorError
@@ -420,7 +422,7 @@ export function WebsitePage() {
         onSectionReset={resetSelectedSection}
         onContentSave={(content) =>
           selected
-            ? updateWebsiteSectionContent(event.id, selected.id, content)
+            ? updateWebsiteSectionContent(event.id, projectId, selected.id, content)
             : Promise.reject()
         }
         onContentSaved={(updated) => {
@@ -473,7 +475,7 @@ export function WebsitePage() {
         onSectionReset={resetSelectedSection}
         onContentSave={(content) =>
           selected
-            ? updateWebsiteSectionContent(event.id, selected.id, content)
+            ? updateWebsiteSectionContent(event.id, projectId, selected.id, content)
             : Promise.reject()
         }
         onContentSaved={(updated) => {
@@ -512,7 +514,7 @@ export function WebsitePage() {
         </Button>
         <Link
           className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1.5 rounded-sm border border-border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted"
-          to={`/events/${event.id}/website/preview`}
+          to={`/events/${event.id}/websites/${projectId}/preview`}
           target="_blank"
           rel="noopener noreferrer"
           title={sectionDirty || designDirty ? "Shows the last saved draft. Unsaved builder changes are not included." : "Preview the saved Website on this device"}
@@ -611,7 +613,7 @@ export function WebsitePage() {
         </div>
       )}
 
-      <TemplatePicker open={templatePickerOpen} eventId={event.id} currentTemplateKey={draft.templateKey} onClose={() => setTemplatePickerOpen(false)} onChoose={chooseTemplate} />
+      <TemplatePicker open={templatePickerOpen} eventId={event.id} projectId={projectId} currentTemplateKey={draft.templateKey} onClose={() => setTemplatePickerOpen(false)} onChoose={chooseTemplate} />
       <TemplateChangeDialog template={templateCandidate} saving={templateSaving} error={templateError} onCancel={() => { if (!templateSaving) { setTemplateCandidate(null); setTemplateError(null) } }} onConfirm={() => void confirmTemplateChange()} />
 
       <DiscardChangesDialog

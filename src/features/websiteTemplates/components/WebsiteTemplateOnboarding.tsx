@@ -3,6 +3,7 @@ import { Button } from '../../../components/ui/Button'
 import { Heading } from '../../../components/ui/Heading'
 import { Text } from '../../../components/ui/Text'
 import { getWebsiteDraft, initializeWebsite } from '../../websiteEditor/api'
+import { listWebsiteProjects } from '../../websiteProjects/api'
 import type { WebsiteDraft } from '../../websiteEditor/types'
 import { ApiError } from '../../../lib/api'
 import { getCompatibleWebsiteTemplates } from '../api'
@@ -44,7 +45,9 @@ export function WebsiteTemplateOnboarding({ eventId, onInitialized }: { eventId:
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         try {
-          onInitialized(await getWebsiteDraft(eventId))
+          const projects = await listWebsiteProjects(eventId)
+          if (!projects[0]) throw new Error('The Website Project could not be found.', { cause: error })
+          onInitialized(await getWebsiteDraft(eventId, projects[0].id))
           return
         } catch (recoveryError) {
           setInitializeError(recoveryError instanceof Error ? recoveryError.message : 'The Website was created, but could not be loaded.')

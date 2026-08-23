@@ -17,7 +17,7 @@ export function AuthenticatedLayout() {
     () => localStorage.getItem(SIDEBAR_STORAGE_KEY) === "collapsed",
   );
   const inWorkspace = useMatch("/events/:eventId/*") !== null;
-  const inWebsiteBuilder = useMatch("/events/:eventId/website") !== null;
+  const inWebsiteBuilder = useMatch("/events/:eventId/websites/:projectId") !== null;
   const showWorkspaceSidebar = inWorkspace && !inWebsiteBuilder;
 
   const toggleSidebar = useCallback(() => {

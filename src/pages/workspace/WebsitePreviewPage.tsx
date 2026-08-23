@@ -20,9 +20,9 @@ function draftErrorMessage(error: unknown) {
 }
 
 export function WebsitePreviewPage() {
-  const { eventId = "" } = useParams();
+  const { eventId = "", projectId = "" } = useParams();
   const eventResult = useEventDetail(eventId);
-  const draftResult = useWebsiteDraft(eventId);
+  const draftResult = useWebsiteDraft(eventId, projectId);
   const targetViewport = useEditorDeviceCategory();
 
   if (eventResult.isLoading) return <EventWorkspaceLoading focused />;
@@ -39,6 +39,7 @@ export function WebsitePreviewPage() {
     return (
       <PreviewState
         eventId={eventId}
+        projectId={projectId}
         title="Website not initialized"
         message="Choose a Template in the Website Builder before previewing the draft."
       />
@@ -47,6 +48,7 @@ export function WebsitePreviewPage() {
     return (
       <PreviewState
         eventId={eventId}
+        projectId={projectId}
         title="Unable to load Website preview"
         message={draftErrorMessage(draftResult.error)}
         onRetry={draftResult.retry}
@@ -57,7 +59,7 @@ export function WebsitePreviewPage() {
     <main className="relative min-h-svh overflow-x-hidden bg-background">
       <Link
         className="fixed left-[max(0.75rem,env(safe-area-inset-left))] top-[max(0.75rem,env(safe-area-inset-top))] z-50 inline-flex min-h-9 items-center gap-2 rounded-sm border border-border/80 bg-surface/90 px-3 py-2 text-sm font-medium text-foreground shadow-[var(--shadow-dialog)] backdrop-blur-md transition-colors hover:bg-surface"
-        to={`/events/${eventId}/website`}
+        to={`/events/${eventId}/websites/${projectId}`}
       >
         <ArrowLeft aria-hidden="true" size={16} />
         Back to Builder
@@ -87,11 +89,13 @@ function PreviewLoading() {
 
 function PreviewState({
   eventId,
+  projectId,
   title,
   message,
   onRetry,
 }: {
   eventId: string;
+  projectId: string;
   title: string;
   message: string;
   onRetry?: () => void;
@@ -109,7 +113,7 @@ function PreviewState({
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           <Link
             className="inline-flex min-h-10 items-center gap-2 rounded-sm border border-border px-3.5 py-2 text-sm font-medium hover:bg-surface-muted"
-            to={`/events/${eventId}/website`}
+            to={`/events/${eventId}/websites/${projectId}`}
           >
             <ArrowLeft aria-hidden="true" size={16} /> Back to Builder
           </Link>

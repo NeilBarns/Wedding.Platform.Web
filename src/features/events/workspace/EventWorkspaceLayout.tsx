@@ -10,7 +10,7 @@ export function EventWorkspaceLayout() {
   const { eventId = '' } = useParams()
   const { event, setEvent, error, isLoading, retry } = useEventDetail(eventId)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const focusedBuilder = useMatch('/events/:eventId/website') !== null
+  const focusedBuilder = useMatch('/events/:eventId/websites/:projectId') !== null
 
   if (isLoading) return <EventWorkspaceLoading focused={focusedBuilder} />
   if (error) return <EventWorkspaceError error={error} retry={retry} />

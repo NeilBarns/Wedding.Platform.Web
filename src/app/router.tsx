@@ -11,6 +11,8 @@ import { EventSettingsPage } from '../pages/workspace/EventSettingsPage'
 import { MediaLibraryPage } from '../pages/workspace/MediaLibraryPage'
 import { EventOverviewPage } from '../pages/workspace/EventOverviewPage'
 import { WebsitePreviewPage } from '../pages/workspace/WebsitePreviewPage'
+import { WebsiteProjectsPage } from '../pages/workspace/WebsiteProjectsPage'
+import { LegacyWebsiteRedirect } from '../pages/workspace/LegacyWebsiteRedirect'
 
 export const router = createBrowserRouter([
   {
@@ -35,6 +37,10 @@ export const router = createBrowserRouter([
     children: [
       {
         path: '/events/:eventId/website/preview',
+        element: <LegacyWebsiteRedirect preview />,
+      },
+      {
+        path: '/events/:eventId/websites/:projectId/preview',
         element: <WebsitePreviewPage />,
       },
       {
@@ -54,6 +60,14 @@ export const router = createBrowserRouter([
               },
               {
                 path: 'website',
+                element: <LegacyWebsiteRedirect />,
+              },
+              {
+                path: 'websites',
+                element: <WebsiteProjectsPage />,
+              },
+              {
+                path: 'websites/:projectId',
                 element: <WebsitePage />,
               },
               {

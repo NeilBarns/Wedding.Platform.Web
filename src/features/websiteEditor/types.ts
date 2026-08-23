@@ -127,6 +127,7 @@ export type WebsiteTemplateSummary = { key: string; displayName: string; designO
 export type WebsiteDraft = {
   id: string
   eventId: string
+  name: string
   templateKey: string
   designSettings: WebsiteDesignSettings
   template: WebsiteTemplateSummary | null

@@ -17,7 +17,7 @@ export function EventOverviewPage() {
   return <WorkspaceSection eyebrow="Event overview" title={event.name} description={identity || formatEventType(event.type)}>
     {timing && <Text className="-mt-3 mb-6" variant="muted">{timing}</Text>}
     <div className="grid gap-4 md:grid-cols-2">
-      <EventOverviewCard icon={Globe2} title="Website" description="Design and manage your Event Website." action="Open Website" to="website" />
+      <EventOverviewCard icon={Globe2} title="Websites" description="Design and manage Website Projects for your Event." action="Open Websites" to="websites" />
       <EventOverviewCard icon={Images} title="Media" description="Upload and manage reusable images for your Event." action="Open Media" to="media" />
       <EventOverviewCard icon={Mail} title="Invitations" description="Manage your guest invitations and RSVPs." detail="Not set up yet" action="Open Invitations" to="invitations" />
       <EventOverviewCard icon={CalendarClock} title="Event details" description="Review the local timing configured for this Event." detail={eventDetails(date, time, event.timeZone)} action="Open Settings" to="settings" />

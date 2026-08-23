@@ -169,6 +169,7 @@ const sectionSchema = z.object({
 const draftSchema = z.object({
   id: z.string(),
   eventId: z.string(),
+  name: nonEmptyString.max(100),
   templateKey: z.string(),
   designSettings: z.object({
     colorTheme: nonEmptyString,

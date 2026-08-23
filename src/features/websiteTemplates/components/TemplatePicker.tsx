@@ -6,7 +6,7 @@ import { getCompatibleWebsiteTemplates } from '../api'
 import type { WebsiteTemplateOption } from '../types'
 import { TemplateCard } from './TemplateCard'
 
-export function TemplatePicker({ open, eventId, currentTemplateKey, onClose, onChoose }: { open: boolean; eventId: string; currentTemplateKey: string; onClose: () => void; onChoose: (template: WebsiteTemplateOption) => void }) {
+export function TemplatePicker({ open, eventId, projectId, currentTemplateKey, onClose, onChoose }: { open: boolean; eventId: string; projectId: string; currentTemplateKey: string; onClose: () => void; onChoose: (template: WebsiteTemplateOption) => void }) {
   const [templates, setTemplates] = useState<WebsiteTemplateOption[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -14,12 +14,12 @@ export function TemplatePicker({ open, eventId, currentTemplateKey, onClose, onC
   useEffect(() => {
     if (!open) return
     const controller = new AbortController()
-    getCompatibleWebsiteTemplates(eventId, controller.signal)
+    getCompatibleWebsiteTemplates(eventId, controller.signal, projectId)
       .then((loadedTemplates) => { setTemplates(loadedTemplates); setError(null) })
       .catch((loadError: unknown) => { if (!(loadError instanceof DOMException && loadError.name === 'AbortError')) setError(loadError instanceof Error ? loadError.message : 'Unable to load Templates.') })
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
-  }, [eventId, open, currentTemplateKey])
+  }, [eventId, projectId, open, currentTemplateKey])
 
   return <Dialog open={open} onClose={onClose} titleId="template-picker-title" descriptionId="template-picker-description">
     <div className="p-5 sm:p-6">
