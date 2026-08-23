@@ -19,6 +19,51 @@ export const APPEARANCE_CONTROL_IDS = [
 ] as const
 
 const optionSchema = z.object({ key: z.string().min(1), displayName: z.string().min(1) }).strict()
+const globalDesignControlBase = {
+  default: z.string().min(1),
+  options: z.array(optionSchema).min(1),
+}
+
+export const globalDesignControlCapabilitySchema = z.discriminatedUnion('type', [
+  z.object({
+    ...globalDesignControlBase,
+    id: z.literal('colorTheme'),
+    type: z.literal('palettePreset'),
+  }).strict(),
+  z.object({
+    ...globalDesignControlBase,
+    id: z.literal('fontSet'),
+    type: z.literal('typographyPairing'),
+  }).strict(),
+  z.object({
+    ...globalDesignControlBase,
+    id: z.literal('artStyle'),
+    type: z.literal('artStyle'),
+  }).strict(),
+]).superRefine((control, context) => {
+  const keys = control.options.map((option) => option.key)
+  if (new Set(keys).size !== keys.length) {
+    context.addIssue({ code: 'custom', message: 'Global design option keys must be unique', path: ['options'] })
+  }
+  if (!keys.includes(control.default)) {
+    context.addIssue({ code: 'custom', message: 'Global design default must be an allowed option', path: ['default'] })
+  }
+})
+
+export const globalDesignCapabilitySchema = z.object({
+  controls: z.tuple([
+    globalDesignControlCapabilitySchema,
+    globalDesignControlCapabilitySchema,
+    globalDesignControlCapabilitySchema,
+  ]),
+}).strict().superRefine((capability, context) => {
+  const expected = ['colorTheme', 'fontSet', 'artStyle'] as const
+  expected.forEach((id, index) => {
+    if (capability.controls[index].id !== id) {
+      context.addIssue({ code: 'custom', message: `Expected ${id} global design control`, path: ['controls', index, 'id'] })
+    }
+  })
+})
 const viewportOptionSchema = z.object({
   default: z.string().min(1),
   options: z.array(optionSchema).min(1),
@@ -89,6 +134,7 @@ export const sectionCapabilitySchema = z.object({
 }).strict()
 
 export const templateCapabilitiesSchema = z.object({
+  globalDesign: globalDesignCapabilitySchema,
   elements: z.array(z.enum(WEBSITE_ELEMENT_TYPES)),
   sections: z.array(sectionCapabilitySchema),
 }).strict()

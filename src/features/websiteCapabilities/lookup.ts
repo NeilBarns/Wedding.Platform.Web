@@ -1,6 +1,39 @@
 import type { WebsiteElement } from '../websiteElements/types'
 import type { ResponsiveViewport } from '../websiteEditor/types'
-import type { AppearanceControlCapability, PresentationCapability, SectionCapability, TemplateCapabilities } from './types'
+import type { AppearanceControlCapability, GlobalDesignCapability, GlobalDesignControlCapability, PresentationCapability, SectionCapability, TemplateCapabilities } from './types'
+
+export function globalDesignCapability(capabilities: TemplateCapabilities): GlobalDesignCapability {
+  return capabilities.globalDesign
+}
+
+export function globalDesignControl(
+  capability: GlobalDesignCapability,
+  controlId: GlobalDesignControlCapability['id'],
+): GlobalDesignControlCapability | undefined {
+  return capability.controls.find((control) => control.id === controlId)
+}
+
+export function globalDesignOptions(
+  capability: GlobalDesignCapability,
+  controlId: GlobalDesignControlCapability['id'],
+) {
+  return globalDesignControl(capability, controlId)?.options ?? []
+}
+
+export function globalDesignDefault(
+  capability: GlobalDesignCapability,
+  controlId: GlobalDesignControlCapability['id'],
+): string | undefined {
+  return globalDesignControl(capability, controlId)?.default
+}
+
+export function supportsGlobalDesignValue(
+  capability: GlobalDesignCapability,
+  controlId: GlobalDesignControlCapability['id'],
+  value: string,
+): boolean {
+  return globalDesignOptions(capability, controlId).some((option) => option.key === value)
+}
 
 export function sectionCapability(capabilities: TemplateCapabilities, sectionId: string): SectionCapability | undefined {
   return capabilities.sections.find((section) => section.id === sectionId)
