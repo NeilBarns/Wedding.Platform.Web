@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
 import { resolveSectionAppearanceForViewport } from '../websiteEditor/responsiveAppearance'
-import type { WebsiteSectionResponsiveAppearance } from '../websiteEditor/types'
 import { ClassicFilipinianaRenderer } from './templates/ClassicFilipinianaRenderer'
 import { ModernEditorialRenderer } from './templates/ModernEditorialRenderer'
 import type { WebsiteRendererProps } from './types'
@@ -30,11 +29,7 @@ export function WebsiteRenderer(props: WebsiteRendererProps) {
     sections: props.website.sections.map((section) => {
       const presentation = section.appearance.presentation ?? section.presentationCapability?.default
       const controls = section.presentationCapability?.options.find((option) => option.key === presentation)?.mediaControls
-      const viewportControls = targetViewport === 'desktop' ? undefined : controls?.responsive?.[targetViewport]
-      const defaults = Object.fromEntries(
-        Object.entries(viewportControls ?? {}).map(([setting, control]) => [setting, control.default]),
-      ) as WebsiteSectionResponsiveAppearance
-      return { ...section, appearance: resolveSectionAppearanceForViewport(section.appearance, targetViewport, defaults) }
+      return { ...section, appearance: resolveSectionAppearanceForViewport(section.appearance, targetViewport, controls ?? null) }
     }),
   }
 

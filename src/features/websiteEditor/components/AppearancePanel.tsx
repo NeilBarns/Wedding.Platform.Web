@@ -16,7 +16,7 @@ import type {
   ResponsiveViewport,
   WebsiteSectionResponsiveAppearance,
 } from "../types";
-import { pruneResponsiveAppearance, resolveSectionAppearanceForViewport } from "../responsiveAppearance";
+import { canonicalizeResponsiveAppearance, pruneResponsiveAppearance, resolveSectionAppearanceForViewport } from "../responsiveAppearance";
 import { PresentationPicker } from "./PresentationPicker";
 
 export function AppearancePanel({
@@ -37,20 +37,16 @@ export function AppearancePanel({
   const presentation = appearance.presentation ?? presentationCapability?.default
   const controls = presentationCapability?.options.find((option) => option.key === presentation)?.mediaControls ?? null
   const viewportControls = targetViewport === 'desktop' ? undefined : controls?.responsive?.[targetViewport]
-  const templateDefaults = Object.fromEntries(Object.entries(viewportControls ?? {}).map(([setting, control]) => [setting, control.default])) as WebsiteSectionResponsiveAppearance
-  const effectiveAppearance = resolveSectionAppearanceForViewport(appearance, targetViewport, templateDefaults)
+  const effectiveAppearance = resolveSectionAppearanceForViewport(appearance, targetViewport, controls)
   const activeOverride = targetViewport === 'desktop' ? undefined : appearance.responsive?.[targetViewport]
   const setResponsiveValue = (setting: keyof WebsiteSectionResponsiveAppearance, value: WebsiteSectionResponsiveAppearance[keyof WebsiteSectionResponsiveAppearance]) => {
     if (targetViewport === 'desktop') return onChange({ ...appearance, [setting]: value })
-    const withoutActive = pruneResponsiveAppearance({ ...appearance, responsive: { ...appearance.responsive, [targetViewport]: undefined } })
-    const inherited = resolveSectionAppearanceForViewport(withoutActive, targetViewport, templateDefaults)[setting]
     const responsive = { ...appearance.responsive }
     const override = { ...responsive[targetViewport] }
-    if (JSON.stringify(value) === JSON.stringify(inherited)) delete override[setting]
-    else Object.assign(override, { [setting]: value })
+    Object.assign(override, { [setting]: value })
     if (Object.keys(override).length > 0) responsive[targetViewport] = override
     else delete responsive[targetViewport]
-    onChange(pruneResponsiveAppearance({ ...appearance, responsive }))
+    onChange(canonicalizeResponsiveAppearance({ ...appearance, responsive }, controls))
   }
   const resetResponsive = () => {
     if (targetViewport === 'desktop') return
@@ -70,8 +66,8 @@ export function AppearancePanel({
         </p>
       )}
       {targetViewport !== 'desktop' && <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface-muted p-3">
-        <div><p className="text-sm font-semibold">Editing {targetViewport} layout</p><p className="text-xs text-foreground-muted">{activeOverride ? 'Custom overrides are active.' : 'Using saved and Template defaults.'}</p></div>
-        <Button size="sm" variant="secondary" type="button" disabled={!activeOverride} onClick={resetResponsive}>Reset {targetViewport}</Button>
+        <div><p className="text-sm font-semibold">Editing {targetViewport} layout</p><p className="text-xs text-foreground-muted">{activeOverride ? 'Custom overrides are active.' : 'Using Template defaults.'}</p></div>
+        <Button size="sm" variant="secondary" type="button" disabled={!activeOverride} onClick={resetResponsive}>Restore {targetViewport} defaults</Button>
       </div>}
       {presentationCapability && <PresentationPicker
         capability={presentationCapability}
@@ -89,7 +85,7 @@ export function AppearancePanel({
           if (controls?.foregroundColors) next.foregroundColor = controls.foregroundColors.default
           if (controls?.mediaSpacing) next.mediaSpacing = { ...controls.mediaSpacing.default }
           if (controls?.mediaContentGaps) next.mediaContentGap = controls.mediaContentGaps.default as MediaContentGap
-          onChange(next)
+          onChange(canonicalizeResponsiveAppearance(next, controls ?? null))
         }}
       />}
       {presentationCapability && <MediaStyleControls
@@ -104,7 +100,7 @@ export function AppearancePanel({
       />}
       <fieldset>
         <legend className="mb-2 flex items-center gap-2 text-sm font-semibold">
-          Heading alignment {targetViewport !== 'desktop' && <span className="text-[10px] font-medium uppercase tracking-wide text-foreground-muted">{activeOverride?.headingAlignment === undefined ? 'Inherited' : 'Override'}</span>}
+          Heading alignment {targetViewport !== 'desktop' && <span className="text-[10px] font-medium uppercase tracking-wide text-foreground-muted">{activeOverride?.headingAlignment === undefined ? 'Template default' : 'Override'}</span>}
         </legend>
         <OptionGrid
           options={viewportControls?.headingAlignment?.options ?? options.headingAlignments}
@@ -117,7 +113,7 @@ export function AppearancePanel({
       </fieldset>
       <fieldset>
         <legend className="mb-2 flex items-center gap-2 text-sm font-semibold">
-          Content alignment {targetViewport !== 'desktop' && <span className="text-[10px] font-medium uppercase tracking-wide text-foreground-muted">{activeOverride?.bodyAlignment === undefined ? 'Inherited' : 'Override'}</span>}
+          Content alignment {targetViewport !== 'desktop' && <span className="text-[10px] font-medium uppercase tracking-wide text-foreground-muted">{activeOverride?.bodyAlignment === undefined ? 'Template default' : 'Override'}</span>}
         </legend>
         <OptionGrid
           options={viewportControls?.bodyAlignment?.options ?? options.bodyAlignments}
@@ -171,7 +167,7 @@ function MediaStyleControls({ controls, appearance, baseAppearance, targetViewpo
   ] as const
   return <div className="space-y-4 border-y border-border py-4">
     {groups.map(([label, setting, group, responsive = false]) => group && <fieldset key={setting}>
-      <legend className="mb-2 flex items-center gap-2 text-sm font-semibold">{label}{responsive && targetViewport !== 'desktop' && <span className="text-[10px] font-medium uppercase tracking-wide text-foreground-muted">{activeOverride?.[setting as keyof WebsiteSectionResponsiveAppearance] === undefined ? 'Inherited' : 'Override'}</span>}</legend>
+      <legend className="mb-2 flex items-center gap-2 text-sm font-semibold">{label}{responsive && targetViewport !== 'desktop' && <span className="text-[10px] font-medium uppercase tracking-wide text-foreground-muted">{activeOverride?.[setting as keyof WebsiteSectionResponsiveAppearance] === undefined ? 'Template default' : 'Override'}</span>}</legend>
       <div className="grid grid-cols-2 gap-2">
         {group.options.map((option) => {
           const selected = (appearance[setting] ?? group.default) === option.key
@@ -185,7 +181,7 @@ function MediaStyleControls({ controls, appearance, baseAppearance, targetViewpo
     </fieldset>)}
     {controls.mediaSpacing && <MediaSpacingControl capability={viewportControls?.mediaSpacing ?? controls.mediaSpacing} appearance={appearance} inherited={targetViewport !== 'desktop' && activeOverride?.mediaSpacing === undefined} onChange={(spacing) => onResponsiveChange('mediaSpacing', spacing)} />}
     {controls.mediaContentGaps && <fieldset>
-      <legend className="mb-2 flex items-center gap-2 text-sm font-semibold">Gap between media and content{targetViewport !== 'desktop' && <span className="text-[10px] font-medium uppercase tracking-wide text-foreground-muted">{activeOverride?.mediaContentGap === undefined ? 'Inherited' : 'Override'}</span>}</legend>
+      <legend className="mb-2 flex items-center gap-2 text-sm font-semibold">Gap between media and content{targetViewport !== 'desktop' && <span className="text-[10px] font-medium uppercase tracking-wide text-foreground-muted">{activeOverride?.mediaContentGap === undefined ? 'Template default' : 'Override'}</span>}</legend>
       <div className="grid grid-cols-2 gap-2">{(viewportControls?.mediaContentGap ?? controls.mediaContentGaps).options.map((option) => { const selected = (appearance.mediaContentGap ?? (viewportControls?.mediaContentGap ?? controls.mediaContentGaps!).default) === option.key; return <Button className={selected ? 'border-accent! border-2 bg-surface-muted' : ''} key={option.key} size="sm" variant="secondary" type="button" aria-pressed={selected} onClick={() => onResponsiveChange('mediaContentGap', option.key)}>{option.displayName}</Button> })}</div>
     </fieldset>}
     {controls.overlayStrength && <fieldset>
@@ -216,7 +212,7 @@ function MediaSpacingControl({ capability, appearance, inherited, onChange }: { 
   }
 
   return <fieldset>
-    <div className="mb-2 flex items-center justify-between gap-2"><legend className="flex items-center gap-2 text-sm font-semibold">Media spacing{inherited && <span className="text-[10px] font-medium uppercase tracking-wide text-foreground-muted">Inherited</span>}</legend><Tooltip label={linked ? 'Unlink spacing sides' : 'Link spacing sides'}><IconButton size="sm" type="button" aria-label={linked ? 'Unlink spacing sides' : 'Link spacing sides'} aria-pressed={linked} onClick={toggleLinked}>{linked ? <Link2 size={15} /> : <Unlink2 size={15} />}</IconButton></Tooltip></div>
+    <div className="mb-2 flex items-center justify-between gap-2"><legend className="flex items-center gap-2 text-sm font-semibold">Media spacing{inherited && <span className="text-[10px] font-medium uppercase tracking-wide text-foreground-muted">Template default</span>}</legend><Tooltip label={linked ? 'Unlink spacing sides' : 'Link spacing sides'}><IconButton size="sm" type="button" aria-label={linked ? 'Unlink spacing sides' : 'Link spacing sides'} aria-pressed={linked} onClick={toggleLinked}>{linked ? <Link2 size={15} /> : <Unlink2 size={15} />}</IconButton></Tooltip></div>
     <div className="grid grid-cols-[3.25rem_3.25rem_3.25rem] items-center justify-center gap-2 rounded-md border border-border bg-surface-muted p-3">
       <div className="col-start-2"><MediaSpacingSideControl side="top" value={spacing.top} options={capability.options} onChange={(value) => update('top', value)} /></div>
       <div className="col-start-1 row-start-2"><MediaSpacingSideControl side="left" value={spacing.left} options={capability.options} onChange={(value) => update('left', value)} /></div>
