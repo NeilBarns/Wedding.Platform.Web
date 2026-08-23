@@ -3,7 +3,7 @@ import type { WebsiteDraft, WebsiteSection } from './types'
 import { CURRENT_WEBSITE_SCHEMA_VERSION } from './schema'
 import { narrativeBlockElementSchema } from '../websiteElements/schemas'
 import { templateCapabilitiesSchema } from '../websiteCapabilities/schemas'
-import { sectionCapability } from '../websiteCapabilities/lookup'
+import { globalDesignCapability, supportsGlobalDesignValue, sectionCapability } from '../websiteCapabilities/lookup'
 
 const text = z.string()
 const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Required')
@@ -203,15 +203,11 @@ const draftSchema = z.object({
 }).superRefine((draft, context) => {
   if (!draft.template) return
 
-  const optionGroups = {
-    colorTheme: draft.template.designOptions.colorThemes,
-    fontSet: draft.template.designOptions.fontSets,
-    artStyle: draft.template.designOptions.artStyles,
-  }
+  const designCapability = globalDesignCapability(draft.template.capabilities)
 
-  for (const [setting, options] of Object.entries(optionGroups)) {
-    const value = draft.designSettings[setting as keyof typeof draft.designSettings]
-    if (!options.some((option) => option.key === value)) {
+  for (const setting of ['colorTheme', 'fontSet', 'artStyle'] as const) {
+    const value = draft.designSettings[setting]
+    if (!supportsGlobalDesignValue(designCapability, setting, value)) {
       context.addIssue({
         code: 'custom',
         message: 'Design setting is not supported by the selected Template',

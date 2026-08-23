@@ -46,7 +46,7 @@ import { appearanceEquals, pruneResponsiveAppearance } from "../../features/webs
 import { accessiblePreviewViewports, PREVIEW_WIDTHS, useEditorDeviceCategory } from "../../features/websiteEditor/responsiveViewport";
 import { useWebsiteDraft } from "../../features/websiteEditor/useWebsiteDraft";
 import { WebsiteRenderer } from "../../features/websiteRenderer/WebsiteRenderer";
-import { sectionCapability } from "../../features/websiteCapabilities/lookup";
+import { globalDesignCapability, sectionCapability } from "../../features/websiteCapabilities/lookup";
 import type { TemplateCapabilities } from "../../features/websiteCapabilities/types";
 import { ApiError } from "../../lib/api";
 
@@ -363,7 +363,7 @@ export function WebsitePage() {
     mode === "design" && draft.template ? (
       <DesignPanel
         settings={designSettings}
-        options={draft.template.designOptions}
+        capability={globalDesignCapability(draft.template.capabilities)}
         dirty={designDirty}
         saving={designSaving}
         error={designError}
@@ -417,7 +417,7 @@ export function WebsitePage() {
     ) : drawerMode === "design" && draft.template ? (
       <DesignPanel
         settings={designSettings}
-        options={draft.template.designOptions}
+        capability={globalDesignCapability(draft.template.capabilities)}
         dirty={designDirty}
         saving={designSaving}
         error={designError}

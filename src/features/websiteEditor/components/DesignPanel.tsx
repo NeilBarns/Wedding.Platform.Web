@@ -3,13 +3,15 @@ import { DesignGroup } from "../../../components/ui/DesignGroup";
 import { Heading } from "../../../components/ui/Heading";
 import { SelectableCard } from "../../../components/ui/SelectableCard";
 import { Text } from "../../../components/ui/Text";
-import type { WebsiteDesignOptions, WebsiteDesignSettings } from "../types";
+import type { WebsiteDesignSettings } from "../types";
+import { globalDesignOptions } from "../../websiteCapabilities/lookup";
+import type { GlobalDesignCapability } from "../../websiteCapabilities/types";
 import { designPreviewFor } from "../../websiteTemplates/designPreviews";
 import { BuilderSaveBar } from "./BuilderSaveBar";
 
 export function DesignPanel({
   settings,
-  options,
+  capability,
   dirty,
   saving,
   error,
@@ -19,7 +21,7 @@ export function DesignPanel({
   onSave,
 }: {
   settings: WebsiteDesignSettings;
-  options: WebsiteDesignOptions;
+  capability: GlobalDesignCapability;
   dirty: boolean;
   saving: boolean;
   error: string | null;
@@ -29,6 +31,9 @@ export function DesignPanel({
   onSave: () => void;
 }) {
   const preview = designPreviewFor(templateKey);
+  const colorThemes = globalDesignOptions(capability, 'colorTheme');
+  const fontSets = globalDesignOptions(capability, 'fontSet');
+  const artStyles = globalDesignOptions(capability, 'artStyle');
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 sm:px-2 xl:px-0 xl:pb-6">
@@ -49,7 +54,7 @@ export function DesignPanel({
       )}
       <DesignGroup icon={<Palette size={16} />} title="Color">
         <div className="grid grid-cols-2 gap-2">
-          {options.colorThemes.map((option) => {
+          {colorThemes.map((option) => {
             const selected = settings.colorTheme === option.key;
             return (
               <SelectableCard
@@ -79,7 +84,7 @@ export function DesignPanel({
       </DesignGroup>
       <DesignGroup icon={<Type size={16} />} title="Font">
         <div className="space-y-2">
-          {options.fontSets.map((option) => {
+          {fontSets.map((option) => {
             const selected = settings.fontSet === option.key;
             const family = preview?.fontClasses[option.key] ?? "font-sans";
             return (
@@ -108,7 +113,7 @@ export function DesignPanel({
       </DesignGroup>
       <DesignGroup icon={<Sparkles size={16} />} title="Art">
         <div className="grid grid-cols-2 gap-2">
-          {options.artStyles.map((option) => {
+          {artStyles.map((option) => {
             const selected = settings.artStyle === option.key;
             return (
               <SelectableCard
