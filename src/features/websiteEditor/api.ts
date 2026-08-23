@@ -1,6 +1,6 @@
 import { apiRequest, ensureCsrfCookie } from '../../lib/api'
 import type { ApiResource } from '../../lib/api'
-import { parseWebsiteDraft } from './schemas'
+import { normalizeWebsiteDraftFromApi } from './schemas'
 import type { WebsiteDesignSettings, WebsiteDraft, WebsiteSectionAppearance } from './types'
 
 function projectPath(eventId: string, projectId: string): string {
@@ -12,12 +12,12 @@ async function mutation(eventId: string, projectId: string, path: string, body: 
   const response = await apiRequest<ApiResource<unknown>>(`${projectPath(eventId, projectId)}${path}`, {
     method: 'PUT', body,
   })
-  return parseWebsiteDraft(response.data)
+  return normalizeWebsiteDraftFromApi(response.data)
 }
 
 export async function getWebsiteDraft(eventId: string, projectId: string, signal?: AbortSignal): Promise<WebsiteDraft> {
   const response = await apiRequest<ApiResource<unknown>>(projectPath(eventId, projectId), { signal })
-  return parseWebsiteDraft(response.data)
+  return normalizeWebsiteDraftFromApi(response.data)
 }
 
 export function updateWebsiteDesignSettings(eventId: string, projectId: string, designSettings: WebsiteDesignSettings) {

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { WebsiteDraft, WebsiteSection } from './types'
+import { CURRENT_WEBSITE_SCHEMA_VERSION } from './schema'
 
 const text = z.string()
 const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Required')
@@ -167,6 +168,7 @@ const sectionSchema = z.object({
 })
 
 const draftSchema = z.object({
+  schemaVersion: z.literal(CURRENT_WEBSITE_SCHEMA_VERSION),
   id: z.string(),
   eventId: z.string(),
   name: nonEmptyString.max(100),
@@ -222,7 +224,7 @@ const draftSchema = z.object({
   })
 })
 
-export function parseWebsiteDraft(value: unknown): WebsiteDraft {
+export function normalizeWebsiteDraftFromApi(value: unknown): WebsiteDraft {
   const draft = draftSchema.parse(value)
   const sections = draft.sections.map((section) => {
     const schema = contentSchemas[section.type]

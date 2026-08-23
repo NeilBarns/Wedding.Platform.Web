@@ -1,6 +1,6 @@
 import { apiRequest, ensureCsrfCookie } from '../../lib/api'
 import type { ApiCollection, ApiResource } from '../../lib/api'
-import { parseWebsiteDraft } from '../websiteEditor/schemas'
+import { normalizeWebsiteDraftFromApi } from '../websiteEditor/schemas'
 import type { WebsiteDraft } from '../websiteEditor/types'
 import { parseWebsiteProjectList } from './schemas'
 import type { CreateWebsiteProjectInput, WebsiteProjectSummary } from './types'
@@ -16,7 +16,7 @@ export async function createWebsiteProject(eventId: string, input: CreateWebsite
     method: 'POST',
     body: { name: input.name.trim(), templateKey: input.templateKey },
   })
-  return parseWebsiteDraft(response.data)
+  return normalizeWebsiteDraftFromApi(response.data)
 }
 
 export const websiteProjectListKey = (eventId: string) => ['website-projects', eventId] as const

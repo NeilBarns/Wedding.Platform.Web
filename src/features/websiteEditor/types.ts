@@ -125,6 +125,7 @@ export type WebsiteDesignOptions = {
 export type WebsiteTemplateSummary = { key: string; displayName: string; designOptions: WebsiteDesignOptions }
 
 export type WebsiteDraft = {
+  schemaVersion: 1
   id: string
   eventId: string
   name: string
