@@ -115,9 +115,12 @@ function StoryEditor(props: EditorProps) {
   const reveal = useRevealNewItem();
   const [pickerBlockId, setPickerBlockId] = useState<string | null>(null);
   const content = props.content as StoryContent;
-  const blocks = Array.isArray(content.blocks) ? content.blocks : [];
-  const changeBlocks = (next: StoryBlock[]) => props.onChange({ ...props.content, blocks: next });
+  const blocks = Array.isArray(content.elements) ? content.elements : [];
+  const framing = content.mediaFraming ?? {};
+  const changeBlocks = (next: StoryBlock[], nextFraming = framing) => props.onChange({ ...props.content, elements: next, mediaFraming: nextFraming });
   const updateBlock = (id: string, update: (block: StoryBlock) => StoryBlock) => changeBlocks(blocks.map((block) => block.id === id ? update(block) : block));
+  const updateFraming = (id: string, value: StoryContent['mediaFraming'][string]) => changeBlocks(blocks, { ...framing, [id]: value });
+  const removeFraming = (id: string) => { const next = { ...framing }; delete next[id]; return next; };
   const pickerBlock = blocks.find((block) => block.id === pickerBlockId);
 
   return <EditorForm error={error} dirty={props.dirty} resetDirty={props.resetDirty} saving={saving} onSave={save} onReset={reset}>
@@ -127,31 +130,32 @@ function StoryEditor(props: EditorProps) {
       if (blocks.length >= 20) return;
       const id = createSemanticId("story");
       reveal.reveal(`story-${id}`);
-      changeBlocks([...blocks, { id, heading: null, body: "", media: null }]);
+      changeBlocks([...blocks, { id, type: "narrativeBlock", body: "" }]);
     }}>
       {blocks.map((block, index) => {
-        const asset = block.media ? props.resolvedMedia[block.media.assetId] : undefined;
+        const asset = block.media ? props.resolvedMedia[block.media.mediaId] : undefined;
+        const blockFraming = framing[block.id];
         return <div className="rounded-xl border border-border bg-background p-3 xl:rounded-md" key={block.id} ref={reveal.register(`story-${block.id}`)}>
-          <TextField label="Block heading (optional)" id={`${props.section.id}-${block.id}-heading`} value={block.heading ?? ""} onChange={(heading) => updateBlock(block.id, (current) => ({ ...current, heading: heading || null }))} />
+          <TextField label="Block heading (optional)" id={`${props.section.id}-${block.id}-heading`} value={block.heading ?? ""} onChange={(heading) => updateBlock(block.id, (current) => { const next = { ...current }; if (heading) next.heading = heading; else delete next.heading; return next; })} />
           <div className="mt-3"><TextField label="Body" id={`${props.section.id}-${block.id}-body`} value={block.body} multiline onChange={(body) => updateBlock(block.id, (current) => ({ ...current, body }))} /></div>
           <section className="mt-3 rounded-md border border-border bg-surface-muted p-3">
             <h4 className="text-xs font-semibold">Image</h4>
             {asset && block.media ? <div className="mt-2">
-              <FocalPointEditor url={asset.web.url} point={block.media.focalPoint ?? { x: 0.5, y: 0.5 }} zoom={block.media.zoom} onChange={({ point: focalPoint, zoom }) => updateBlock(block.id, (current) => current.media ? { ...current, media: { ...current.media, focalPoint, zoom } } : current)} />
+              <FocalPointEditor url={asset.web.url} point={blockFraming?.focalPoint ?? { x: 0.5, y: 0.5 }} zoom={blockFraming?.zoom} onChange={({ point: focalPoint, zoom }) => updateFraming(block.id, { focalPoint, zoom })} />
               <p className="mt-1 truncate text-xs text-foreground-muted">{asset.originalFilename}</p>
-              <div className="mt-2 flex flex-wrap gap-2"><Button size="sm" type="button" variant="secondary" onClick={() => setPickerBlockId(block.id)}>Change image</Button><Button size="sm" type="button" variant="ghost" onClick={() => updateBlock(block.id, (current) => ({ ...current, media: null }))}>Remove image</Button></div>
+              <div className="mt-2 flex flex-wrap gap-2"><Button size="sm" type="button" variant="secondary" onClick={() => setPickerBlockId(block.id)}>Change image</Button><Button size="sm" type="button" variant="ghost" onClick={() => changeBlocks(blocks.map((item) => { if (item.id !== block.id) return item; const next = { ...item }; delete next.media; return next }), removeFraming(block.id))}>Remove image</Button></div>
             </div> : <div className="mt-2"><p className="text-xs text-foreground-muted">No image selected</p><Button className="mt-2" size="sm" type="button" variant="secondary" onClick={() => setPickerBlockId(block.id)}>Choose from Media</Button></div>}
           </section>
-          <ItemActions label={block.heading?.trim() || `story block ${index + 1}`} index={index} length={blocks.length} onRemove={() => changeBlocks(blocks.filter((item) => item.id !== block.id))} onMove={(target) => { const next = [...blocks]; [next[index], next[target]] = [next[target], next[index]]; changeBlocks(next); }} />
+          <ItemActions label={block.heading?.trim() || `story block ${index + 1}`} index={index} length={blocks.length} onRemove={() => changeBlocks(blocks.filter((item) => item.id !== block.id), removeFraming(block.id))} onMove={(target) => { const next = [...blocks]; [next[index], next[target]] = [next[target], next[index]]; changeBlocks(next); }} />
         </div>;
       })}
     </ItemList>
     {blocks.length >= 20 && <p className="text-xs text-foreground-muted">Story sections support up to 20 blocks.</p>}
-    <MediaPickerDialog open={pickerBlockId !== null} eventId={event.id} selectedAssetId={pickerBlock?.media?.assetId} onClose={() => setPickerBlockId(null)} onSelect={(asset) => {
+    <MediaPickerDialog open={pickerBlockId !== null} eventId={event.id} selectedAssetId={pickerBlock?.media?.mediaId} onClose={() => setPickerBlockId(null)} onSelect={(asset) => {
       const blockId = pickerBlockId;
       if (!blockId) return;
       props.onMediaResolved({ id: asset.id, originalFilename: asset.originalFilename, width: asset.width, height: asset.height, web: asset.variants.web });
-      updateBlock(blockId, (block) => ({ ...block, media: { assetId: asset.id } }));
+      changeBlocks(blocks.map((block) => block.id === blockId ? { ...block, media: { type: 'image' as const, mediaId: asset.id } } : block), removeFraming(blockId));
       setPickerBlockId(null);
     }} />
   </EditorForm>;

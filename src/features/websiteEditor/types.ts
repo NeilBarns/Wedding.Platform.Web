@@ -1,9 +1,12 @@
+import type { NarrativeBlockElement } from '../websiteElements/types'
+
 export type SectionMedia = { assetId: string; focalPoint?: { x: number; y: number }; zoom?: number } | null
 type WithMedia = { media?: SectionMedia }
 export type HeroContent = { headline: string; subheadline: string } & WithMedia
 export type DateContent = { heading: string; description: string }
-export type StoryBlock = { id: string; heading?: string | null; body: string; media?: SectionMedia }
-export type StoryContent = { heading: string; intro?: string | null; blocks: StoryBlock[] }
+export type StoryBlock = NarrativeBlockElement
+export type StoryMediaFraming = { focalPoint?: { x: number; y: number }; zoom?: number }
+export type StoryContent = { heading: string; intro: string | null; elements: NarrativeBlockElement[]; mediaFraming: Record<string, StoryMediaFraming> }
 export type ScheduleContent = { heading: string; items: Array<{ time: string; title: string; description: string }> }
 export type VenueContent = { heading: string; name: string; address: string; description: string } & WithMedia
 export type DressCodeContent = { heading: string; description: string }
@@ -125,7 +128,7 @@ export type WebsiteDesignOptions = {
 export type WebsiteTemplateSummary = { key: string; displayName: string; designOptions: WebsiteDesignOptions }
 
 export type WebsiteDraft = {
-  schemaVersion: 1
+  schemaVersion: 2
   id: string
   eventId: string
   name: string

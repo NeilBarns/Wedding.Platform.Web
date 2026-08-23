@@ -2,6 +2,7 @@ import type { DateContent, DressCodeContent, FaqContent, GalleryContent, HeroCon
 import { formatDateOnly } from '../formatDateOnly'
 import type { WebsiteRendererProps } from '../types'
 import { ZoomedMediaImage } from '../ZoomedMediaImage'
+import { storyElementMedia } from '../../websiteEditor/storyMedia'
 import { resolveModernEditorialSectionAppearance } from './modernEditorial/appearance'
 import { resolveModernEditorialDesign } from './modernEditorial/design'
 import { ModernEditorialDate, ModernEditorialDressCode, ModernEditorialFaq, ModernEditorialGallery, ModernEditorialHero, ModernEditorialPeople, ModernEditorialRsvp, ModernEditorialSchedule, ModernEditorialStoryBlock, ModernEditorialStoryBlockBody, ModernEditorialStoryBlockHeading, ModernEditorialStoryHeader, ModernEditorialVenue } from './modernEditorial/sections'
@@ -30,7 +31,7 @@ function Section({ section, eventName, eventDate, mode, media, targetViewport }:
     case 'date': return <ModernEditorialDate sectionId={section.id} date={date} content={section.content as DateContent} />
     case 'story': {
       const content = section.content as StoryContent
-      return <><ModernEditorialStoryHeader sectionId={section.id} content={content} mode={mode} />{content.blocks.map((block, index) => <ModernMediaPresentation alternate={index % 2 === 1} key={block.id} section={section} media={media} mediaReference={block.media} mobileStoryHeading={<ModernEditorialStoryBlockHeading sectionId={section.id} block={block} index={index} />} mobileStoryBody={<ModernEditorialStoryBlockBody sectionId={section.id} block={block} index={index} />} presentation={presentation} targetViewport={targetViewport}><ModernEditorialStoryBlock sectionId={section.id} block={block} index={index} tabletEditorial={targetViewport === 'tablet' && presentation === 'editorial'} /></ModernMediaPresentation>)}</>
+      return <><ModernEditorialStoryHeader sectionId={section.id} content={content} mode={mode} />{content.elements.map((block, index) => <ModernMediaPresentation alternate={index % 2 === 1} key={block.id} section={section} media={media} mediaReference={storyElementMedia(content, block)} mobileStoryHeading={<ModernEditorialStoryBlockHeading sectionId={section.id} block={block} index={index} />} mobileStoryBody={<ModernEditorialStoryBlockBody sectionId={section.id} block={block} index={index} />} presentation={presentation} targetViewport={targetViewport}><ModernEditorialStoryBlock sectionId={section.id} block={block} index={index} tabletEditorial={targetViewport === 'tablet' && presentation === 'editorial'} /></ModernMediaPresentation>)}</>
     }
     case 'schedule': return <ModernEditorialSchedule sectionId={section.id} content={section.content as ScheduleContent} />
     case 'venue': return present(<ModernEditorialVenue sectionId={section.id} content={section.content as VenueContent} />)

@@ -3,6 +3,7 @@ import type {
   compositionGroupSchema,
   ctaActionSchema,
   flowCompositionGroupSchema,
+  narrativeBlockElementSchema,
   websiteElementSchema,
   websiteLeafElementSchema,
   zonedCompositionGroupSchema,
@@ -14,3 +15,4 @@ export type FlowCompositionGroup = z.infer<typeof flowCompositionGroupSchema>
 export type ZonedCompositionGroup = z.infer<typeof zonedCompositionGroupSchema>
 export type CompositionGroup = z.infer<typeof compositionGroupSchema>
 export type WebsiteElement = z.infer<typeof websiteElementSchema>
+export type NarrativeBlockElement = z.infer<typeof narrativeBlockElementSchema>

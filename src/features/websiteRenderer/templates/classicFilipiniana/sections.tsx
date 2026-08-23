@@ -22,7 +22,7 @@ export function ClassicFilipinianaDate({ sectionId, date, content }: { sectionId
 export function ClassicFilipinianaStoryHeader({ sectionId, content, mode }: { sectionId: string; content: StoryContent; mode: 'editor' | 'public' }) {
   return <ContentSection botanical eyebrow="Our journey" heading={<EditableText sectionId={sectionId} path={['heading']} value={content.heading} fallback="Our Story" placeholder="Add heading" label="Story heading" />}>
     {content.intro?.trim() || mode === 'editor' ? <p className="mx-auto max-w-2xl whitespace-pre-line leading-8"><EditableText sectionId={sectionId} path={['intro']} value={content.intro ?? ''} placeholder="Add introduction" label="Story introduction" multiline /></p> : null}
-    {content.blocks.length === 0 && mode === 'editor' ? <EmptyCopy>Add narrative blocks from the Content panel.</EmptyCopy> : null}
+    {content.elements.length === 0 && mode === 'editor' ? <EmptyCopy>Add narrative blocks from the Content panel.</EmptyCopy> : null}
   </ContentSection>
 }
 
@@ -35,11 +35,11 @@ export function ClassicFilipinianaStoryBlock({ sectionId, block, index }: { sect
 }
 
 export function ClassicFilipinianaStoryBlockHeading({ sectionId, block, index }: { sectionId: string; block: StoryBlock; index: number }) {
-  return block.heading?.trim() ? <h3 data-section-heading className="mx-auto max-w-2xl font-[family-name:var(--cf-heading-font)] text-3xl text-[var(--cf-text)]"><EditableText sectionId={sectionId} path={['blocks', index, 'heading']} value={block.heading} placeholder="Add block heading" label={`Story block ${index + 1} heading`} /></h3> : null
+  return block.heading?.trim() ? <h3 data-section-heading className="mx-auto max-w-2xl font-[family-name:var(--cf-heading-font)] text-3xl text-[var(--cf-text)]"><EditableText sectionId={sectionId} path={['elements', index, 'heading']} value={block.heading} placeholder="Add block heading" label={`Story block ${index + 1} heading`} /></h3> : null
 }
 
 export function ClassicFilipinianaStoryBlockBody({ sectionId, block, index }: { sectionId: string; block: StoryBlock; index: number }) {
-  return <p data-section-body className="mx-auto max-w-2xl whitespace-pre-line text-sm leading-8 text-[var(--cf-muted)]"><EditableText sectionId={sectionId} path={['blocks', index, 'body']} value={block.body} placeholder="Add story" label={`Story block ${index + 1} body`} multiline /></p>
+  return <p data-section-body className="mx-auto max-w-2xl whitespace-pre-line text-sm leading-8 text-[var(--cf-muted)]"><EditableText sectionId={sectionId} path={['elements', index, 'body']} value={block.body} placeholder="Add story" label={`Story block ${index + 1} body`} multiline /></p>
 }
 
 export function ClassicFilipinianaSchedule({ sectionId, content }: { sectionId: string; content: ScheduleContent }) {

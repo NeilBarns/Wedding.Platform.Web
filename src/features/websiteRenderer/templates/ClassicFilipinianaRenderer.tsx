@@ -2,6 +2,7 @@ import type { DateContent, DressCodeContent, FaqContent, GalleryContent, HeroCon
 import { formatDateOnly } from '../formatDateOnly'
 import type { WebsiteRendererProps } from '../types'
 import { ZoomedMediaImage } from '../ZoomedMediaImage'
+import { storyElementMedia } from '../../websiteEditor/storyMedia'
 import { ClassicFilipinianaDate, ClassicFilipinianaDressCode, ClassicFilipinianaFaq, ClassicFilipinianaGallery, ClassicFilipinianaHero, ClassicFilipinianaPeople, ClassicFilipinianaRsvp, ClassicFilipinianaSchedule, ClassicFilipinianaStoryBlock, ClassicFilipinianaStoryBlockBody, ClassicFilipinianaStoryBlockHeading, ClassicFilipinianaStoryHeader, ClassicFilipinianaVenue } from './classicFilipiniana/sections'
 import { resolveClassicFilipinianaSectionAppearance } from './classicFilipiniana/appearance'
 import { resolveClassicFilipinianaDesign } from './classicFilipiniana/design'
@@ -47,7 +48,7 @@ function Section({ section, eventName, eventDate, mode, media, targetViewport }:
     case 'date': return <ClassicFilipinianaDate sectionId={section.id} date={formatDateOnly(eventDate)} content={section.content as DateContent} />
     case 'story': {
       const content = section.content as StoryContent
-      return <><ClassicFilipinianaStoryHeader sectionId={section.id} content={content} mode={mode} />{content.blocks.map((block, index) => <div className={`relative ${index > 0 ? 'pt-10 sm:pt-14' : ''}`} key={block.id}>{index > 0 && <ClassicSectionDivider />}<ClassicMediaPresentation alternate={index % 2 === 1} section={section} media={media} mediaReference={block.media} mobileStoryHeading={<ClassicFilipinianaStoryBlockHeading sectionId={section.id} block={block} index={index} />} mobileStoryBody={<ClassicFilipinianaStoryBlockBody sectionId={section.id} block={block} index={index} />} presentation={presentation} targetViewport={targetViewport}><ClassicFilipinianaStoryBlock sectionId={section.id} block={block} index={index} /></ClassicMediaPresentation></div>)}</>
+      return <><ClassicFilipinianaStoryHeader sectionId={section.id} content={content} mode={mode} />{content.elements.map((block, index) => <div className={`relative ${index > 0 ? 'pt-10 sm:pt-14' : ''}`} key={block.id}>{index > 0 && <ClassicSectionDivider />}<ClassicMediaPresentation alternate={index % 2 === 1} section={section} media={media} mediaReference={storyElementMedia(content, block)} mobileStoryHeading={<ClassicFilipinianaStoryBlockHeading sectionId={section.id} block={block} index={index} />} mobileStoryBody={<ClassicFilipinianaStoryBlockBody sectionId={section.id} block={block} index={index} />} presentation={presentation} targetViewport={targetViewport}><ClassicFilipinianaStoryBlock sectionId={section.id} block={block} index={index} /></ClassicMediaPresentation></div>)}</>
     }
     case 'schedule': return <ClassicFilipinianaSchedule sectionId={section.id} content={section.content as ScheduleContent} />
     case 'venue': return present(<ClassicFilipinianaVenue sectionId={section.id} content={section.content as VenueContent} />)

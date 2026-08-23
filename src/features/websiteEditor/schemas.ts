@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { WebsiteDraft, WebsiteSection } from './types'
 import { CURRENT_WEBSITE_SCHEMA_VERSION } from './schema'
+import { narrativeBlockElementSchema } from '../websiteElements/schemas'
 
 const text = z.string()
 const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Required')
@@ -35,21 +36,25 @@ const responsiveControlSchema = z.object({
 }).strict()
 export const heroContentSchema = z.object({ headline: text, subheadline: text, media: sectionMediaSchema }).strict()
 export const dateContentSchema = z.object({ heading: text, description: text }).strict()
-const storyBlockSchema = z.object({
-  id: semanticId,
-  heading: text.max(255).nullable().optional(),
-  body: text.max(10000),
-  media: sectionMediaSchema,
+const storyMediaFramingSchema = z.object({
+  focalPoint: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().optional(),
+  zoom: z.number().min(1).max(3).optional(),
 }).strict()
 export const storyContentSchema = z.object({
   heading: text.max(255),
-  intro: text.max(5000).nullable().optional(),
-  blocks: z.array(storyBlockSchema).max(20),
+  intro: text.max(5000).nullable(),
+  elements: z.array(narrativeBlockElementSchema).max(20),
+  mediaFraming: z.record(z.string(), storyMediaFramingSchema),
 }).strict().superRefine((content, context) => {
   const ids = new Set<string>()
-  content.blocks.forEach((block, index) => {
-    if (ids.has(block.id)) context.addIssue({ code: 'custom', message: 'Story block IDs must be unique', path: ['blocks', index, 'id'] })
-    ids.add(block.id)
+  const imageIds = new Set<string>()
+  content.elements.forEach((element, index) => {
+    if (ids.has(element.id)) context.addIssue({ code: 'custom', message: 'Story element IDs must be unique', path: ['elements', index, 'id'] })
+    ids.add(element.id)
+    if (element.media?.type === 'image') imageIds.add(element.id)
+  })
+  Object.keys(content.mediaFraming).forEach((id) => {
+    if (!imageIds.has(id)) context.addIssue({ code: 'custom', message: 'Framing must reference a Story element with image media', path: ['mediaFraming', id] })
   })
 })
 export const scheduleContentSchema = z.object({
