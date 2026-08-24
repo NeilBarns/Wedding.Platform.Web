@@ -1,4 +1,4 @@
-import { Check, Palette, Sparkles, Type } from "lucide-react";
+import { Check, Palette, Type } from "lucide-react";
 import { DesignGroup } from "../../../components/ui/DesignGroup";
 import { Heading } from "../../../components/ui/Heading";
 import { SelectableCard } from "../../../components/ui/SelectableCard";
@@ -33,7 +33,6 @@ export function DesignPanel({
   const preview = designPreviewFor(templateKey);
   const colorThemes = globalDesignOptions(capability, 'colorTheme');
   const fontSets = globalDesignOptions(capability, 'fontSet');
-  const artStyles = globalDesignOptions(capability, 'artStyle');
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 sm:px-2 xl:px-0 xl:pb-6">
@@ -105,32 +104,6 @@ export function DesignPanel({
                 </span>
                 <span className={`mt-1 block truncate text-lg ${family}`}>
                   {eventName}
-                </span>
-              </SelectableCard>
-            );
-          })}
-        </div>
-      </DesignGroup>
-      <DesignGroup icon={<Sparkles size={16} />} title="Art">
-        <div className="grid grid-cols-2 gap-2">
-          {artStyles.map((option) => {
-            const selected = settings.artStyle === option.key;
-            return (
-              <SelectableCard
-                className="overflow-hidden"
-                key={option.key}
-                selected={selected}
-                onClick={() =>
-                  onChange({
-                    ...settings,
-                    artStyle: option.key as WebsiteDesignSettings["artStyle"],
-                  })
-                }
-              >
-                <span className={`block h-12 ${preview?.artClasses[option.key] ?? "bg-surface-muted"}`} />
-                <span className="flex items-center justify-between px-2.5 py-2 text-sm! xl:text-xs!">
-                  {option.displayName}
-                  {selected && <Check size={14} className="text-accent" />}
                 </span>
               </SelectableCard>
             );
