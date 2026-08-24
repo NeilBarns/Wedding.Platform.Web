@@ -119,7 +119,19 @@ export type WebsiteSection =
 export type ColorTheme = string
 export type FontSet = string
 export type ArtStyle = string
-export type WebsiteDesignSettings = { colorTheme: ColorTheme; fontSet: FontSet; artStyle: ArtStyle }
+export type ProjectDesignDefaultOverrides = {
+  headingFontId?: string
+  bodyFontId?: string
+  headingColorId?: string
+  bodyColorId?: string
+  accentColorId?: string
+}
+export type WebsiteDesignSettings = {
+  colorTheme: ColorTheme
+  fontSet: FontSet
+  artStyle: ArtStyle
+  projectDefaults: ProjectDesignDefaultOverrides
+}
 export type ProjectDesignDefaults = {
   headingFontId: string
   bodyFontId: string
@@ -136,7 +148,7 @@ export type WebsiteDesignOptions = {
 export type WebsiteTemplateSummary = { key: string; displayName: string; designOptions: WebsiteDesignOptions; capabilities: TemplateCapabilities }
 
 export type WebsiteDraft = {
-  schemaVersion: 2
+  schemaVersion: 2 | 3
   id: string
   eventId: string
   name: string

@@ -2,11 +2,27 @@ import { z } from 'zod'
 import type { WebsiteProjectSummary } from './types'
 
 const nonEmpty = z.string().refine((value) => value.trim().length > 0, 'Required')
-const designSettingsSchema = z.object({
+const legacyDesignSettingsSchema = z.object({
   colorTheme: nonEmpty,
   fontSet: nonEmpty,
   artStyle: nonEmpty,
 }).strict()
+const currentDesignSettingsSchema = legacyDesignSettingsSchema.extend({
+  projectDefaults: z.object({
+    headingFontId: nonEmpty.optional(),
+    bodyFontId: nonEmpty.optional(),
+    headingColorId: nonEmpty.optional(),
+    bodyColorId: nonEmpty.optional(),
+    accentColorId: nonEmpty.optional(),
+  }).strict(),
+}).strict()
+const designSettingsSchema = z.union([
+  currentDesignSettingsSchema,
+  legacyDesignSettingsSchema,
+]).transform((settings) => ({
+  ...settings,
+  projectDefaults: 'projectDefaults' in settings ? settings.projectDefaults : {},
+}))
 
 export const websiteProjectSummarySchema = z.object({
   id: nonEmpty,

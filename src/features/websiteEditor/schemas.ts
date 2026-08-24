@@ -175,17 +175,27 @@ const sectionSchema = z.object({
   }).strict().nullable(),
 })
 
-const draftSchema = z.object({
-  schemaVersion: z.literal(CURRENT_WEBSITE_SCHEMA_VERSION),
+const projectDesignDefaultOverridesSchema = z.object({
+  headingFontId: nonEmptyString.optional(),
+  bodyFontId: nonEmptyString.optional(),
+  headingColorId: nonEmptyString.optional(),
+  bodyColorId: nonEmptyString.optional(),
+  accentColorId: nonEmptyString.optional(),
+}).strict()
+const legacyDesignSettingsSchema = z.object({
+  colorTheme: nonEmptyString,
+  fontSet: nonEmptyString,
+  artStyle: nonEmptyString,
+}).strict()
+const currentDesignSettingsSchema = legacyDesignSettingsSchema.extend({
+  projectDefaults: projectDesignDefaultOverridesSchema,
+}).strict()
+
+const draftCommonSchema = z.object({
   id: z.string(),
   eventId: z.string(),
   name: nonEmptyString.max(100),
   templateKey: z.string(),
-  designSettings: z.object({
-    colorTheme: nonEmptyString,
-    fontSet: nonEmptyString,
-    artStyle: nonEmptyString,
-  }).strict(),
   projectDesignDefaults: z.object({
     headingFontId: nonEmptyString,
     bodyFontId: nonEmptyString,
@@ -208,7 +218,24 @@ const draftSchema = z.object({
     id: z.string(), originalFilename: z.string(), width: z.number(), height: z.number(),
     web: z.object({ width: z.number(), height: z.number(), url: z.string().url() }).strict(),
   }).strict()),
-}).superRefine((draft, context) => {
+}).strict()
+
+const draftSchema = z.discriminatedUnion('schemaVersion', [
+  draftCommonSchema.extend({
+    schemaVersion: z.literal(2),
+    designSettings: legacyDesignSettingsSchema,
+  }).strict(),
+  draftCommonSchema.extend({
+    schemaVersion: z.literal(CURRENT_WEBSITE_SCHEMA_VERSION),
+    designSettings: currentDesignSettingsSchema,
+  }).strict(),
+]).transform((draft) => ({
+  ...draft,
+  designSettings: {
+    ...draft.designSettings,
+    projectDefaults: 'projectDefaults' in draft.designSettings ? draft.designSettings.projectDefaults : {},
+  },
+})).superRefine((draft, context) => {
   if (!draft.template) return
 
   const designCapability = globalDesignCapability(draft.template.capabilities)
@@ -228,6 +255,20 @@ const draftSchema = z.object({
     ['bodyColorId', colorIds, capability.colors.bodyColor.allowedColorIds],
     ['accentColorId', colorIds, capability.colors.accentColor.allowedColorIds],
   ] as const
+
+  const overrideChecks = [
+    ['headingFontId', capability.typography.headingFont.allowedFontIds],
+    ['bodyFontId', capability.typography.bodyFont.allowedFontIds],
+    ['headingColorId', capability.colors.headingColor.allowedColorIds],
+    ['bodyColorId', capability.colors.bodyColor.allowedColorIds],
+    ['accentColorId', capability.colors.accentColor.allowedColorIds],
+  ] as const
+  overrideChecks.forEach(([key, allowedIds]) => {
+    const id = draft.designSettings.projectDefaults[key]
+    if (id !== undefined && !allowedIds.includes(id)) {
+      context.addIssue({ code: 'custom', message: 'Project Design Default override is not allowed by this Template', path: ['designSettings', 'projectDefaults', key] })
+    }
+  })
   resolvedChecks.forEach(([key, libraryIds, allowedIds]) => {
     const id = projectDesignDefaults[key]
     if (!libraryIds.has(id) || !allowedIds.includes(id)) {
