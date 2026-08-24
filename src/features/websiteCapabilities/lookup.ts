@@ -1,7 +1,7 @@
 import type { WebsiteElement } from '../websiteElements/types'
 import type { ProjectDesignDefaults } from '../websiteEditor/types'
 import type { ResponsiveViewport } from '../websiteEditor/types'
-import type { AppearanceControlCapability, GlobalDesignCapability, GlobalDesignControlCapability, PresentationCapability, SectionCapability, TemplateCapabilities, TemplateDesignLibrary } from './types'
+import type { AppearanceControlCapability, ElementCapability, GlobalDesignCapability, GlobalDesignControlCapability, PresentationCapability, SectionCapability, TemplateCapabilities, TemplateDesignLibrary } from './types'
 
 export function globalDesignCapability(capabilities: TemplateCapabilities): GlobalDesignCapability {
   return capabilities.globalDesign
@@ -97,6 +97,27 @@ export function controlsForViewport(
 
 export function elementCapability(section: SectionCapability, elementType: WebsiteElement['type']): WebsiteElement['type'] | undefined {
   return section.elements?.allowedTypes.find((type) => type === elementType)
+}
+
+export function templateElementCapability(
+  capabilities: TemplateCapabilities,
+  elementType: WebsiteElement['type'],
+): ElementCapability | undefined {
+  return capabilities.elementCapabilities.find(({ type }) => type === elementType)
+}
+
+export function elementTypographyCapability(
+  capability: ElementCapability | undefined,
+  role: 'heading' | 'body',
+) {
+  return capability?.appearance?.typography.find((control) => control.role === role)
+}
+
+export function elementColorCapability(
+  capability: ElementCapability | undefined,
+  role: 'headingColor' | 'textColor' | 'accentColor',
+) {
+  return capability?.appearance?.colors.find((control) => control.role === role)
 }
 
 export function appearanceControl(

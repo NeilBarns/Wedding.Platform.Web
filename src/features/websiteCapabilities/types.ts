@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type {
   appearanceControlCapabilitySchema,
+  elementCapabilitySchema,
   globalDesignCapabilitySchema,
   globalDesignControlCapabilitySchema,
   presentationCapabilitySchema,
@@ -11,6 +12,7 @@ import type {
 } from './schemas'
 
 export type AppearanceControlCapability = z.infer<typeof appearanceControlCapabilitySchema>
+export type ElementCapability = z.infer<typeof elementCapabilitySchema>
 export type GlobalDesignCapability = z.infer<typeof globalDesignCapabilitySchema>
 export type GlobalDesignControlCapability = z.infer<typeof globalDesignControlCapabilitySchema>
 export type PresentationCapability = z.infer<typeof presentationCapabilitySchema>

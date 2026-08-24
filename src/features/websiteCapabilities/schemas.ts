@@ -71,6 +71,7 @@ const designColorSchema = z.object({
   value: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   origin: z.literal('template'),
   allowedProjectRoles: z.array(z.enum(['heading', 'body', 'accent'])),
+  allowedElementRoles: z.array(z.enum(['headingColor', 'textColor', 'accentColor'])),
 }).strict()
 
 const typographyRoleSchema = z.enum(['heading', 'body'])
@@ -212,11 +213,45 @@ export const sectionCapabilitySchema = z.object({
   }).strict().nullable(),
 }).strict()
 
+const elementTypographyCapabilitySchema = z.object({
+  role: typographyRoleSchema,
+  allowedFontIds: z.array(z.string().min(1)).min(1),
+  scope: z.literal('shared'),
+}).strict()
+const elementColorCapabilitySchema = z.object({
+  role: z.enum(['headingColor', 'textColor', 'accentColor']),
+  allowedColorIds: z.array(z.string().min(1)).min(1),
+  scope: z.literal('shared'),
+}).strict()
+export const elementCapabilitySchema = z.object({
+  type: z.enum(WEBSITE_ELEMENT_TYPES),
+  appearance: z.object({
+    typography: z.array(elementTypographyCapabilitySchema),
+    colors: z.array(elementColorCapabilitySchema),
+  }).strict().nullable(),
+}).strict()
+
+const expectedElementAppearanceRoles = {
+  heading: { typography: ['heading'], colors: ['headingColor'] },
+  text: { typography: ['body'], colors: ['textColor'] },
+  quote: { typography: ['body'], colors: ['textColor'] },
+  narrativeBlock: { typography: ['heading', 'body'], colors: ['headingColor', 'textColor'] },
+  image: null,
+  divider: null,
+  cta: null,
+  mediaCollection: null,
+  compositionGroup: null,
+  eventDate: null,
+  eventTime: null,
+  countdown: null,
+} as const
+
 export const templateCapabilitiesSchema = z.object({
   globalDesign: globalDesignCapabilitySchema,
   designLibrary: templateDesignLibrarySchema,
   projectDefaults: projectDefaultsCapabilitySchema,
   elements: z.array(z.enum(WEBSITE_ELEMENT_TYPES)),
+  elementCapabilities: z.array(elementCapabilitySchema),
   sections: z.array(sectionCapabilitySchema),
 }).strict().superRefine((capabilities, context) => {
   for (const [controlId, presets] of [
@@ -231,6 +266,51 @@ export const templateCapabilitiesSchema = z.object({
 
   const families = new Map(capabilities.designLibrary.fontFamilies.map((family) => [family.id, family]))
   const colors = new Map(capabilities.designLibrary.colors.map((color) => [color.id, color]))
+  const elementTypes = capabilities.elementCapabilities.map(({ type }) => type)
+  if (new Set(elementTypes).size !== elementTypes.length) {
+    context.addIssue({ code: 'custom', message: 'Element capability types must be unique', path: ['elementCapabilities'] })
+  }
+  capabilities.elementCapabilities.forEach((element, elementIndex) => {
+    const expected = expectedElementAppearanceRoles[element.type]
+    if (expected === null) {
+      if (element.appearance !== null) {
+        context.addIssue({ code: 'custom', message: 'Element type does not support appearance', path: ['elementCapabilities', elementIndex, 'appearance'] })
+      }
+      return
+    }
+    if (!element.appearance) {
+      context.addIssue({ code: 'custom', message: 'Element appearance capability is required', path: ['elementCapabilities', elementIndex, 'appearance'] })
+      return
+    }
+    const typographyRoles = element.appearance.typography.map(({ role }) => role)
+    const colorRoles = element.appearance.colors.map(({ role }) => role)
+    if (new Set(typographyRoles).size !== typographyRoles.length) {
+      context.addIssue({ code: 'custom', message: 'Element typography roles must be unique', path: ['elementCapabilities', elementIndex, 'appearance', 'typography'] })
+    }
+    if (new Set(colorRoles).size !== colorRoles.length) {
+      context.addIssue({ code: 'custom', message: 'Element color roles must be unique', path: ['elementCapabilities', elementIndex, 'appearance', 'colors'] })
+    }
+    if (typographyRoles.length !== expected.typography.length || typographyRoles.some((role, index) => role !== expected.typography[index])) {
+      context.addIssue({ code: 'custom', message: 'Element typography roles do not match its semantic type', path: ['elementCapabilities', elementIndex, 'appearance', 'typography'] })
+    }
+    if (colorRoles.length !== expected.colors.length || colorRoles.some((role, index) => role !== expected.colors[index])) {
+      context.addIssue({ code: 'custom', message: 'Element color roles do not match its semantic type', path: ['elementCapabilities', elementIndex, 'appearance', 'colors'] })
+    }
+    element.appearance.typography.forEach((control, controlIndex) => {
+      control.allowedFontIds.forEach((id, idIndex) => {
+        if (!families.get(id)?.allowedRoles.includes(control.role)) {
+          context.addIssue({ code: 'custom', message: 'Illegal element font', path: ['elementCapabilities', elementIndex, 'appearance', 'typography', controlIndex, 'allowedFontIds', idIndex] })
+        }
+      })
+    })
+    element.appearance.colors.forEach((control, controlIndex) => {
+      control.allowedColorIds.forEach((id, idIndex) => {
+        if (!colors.get(id)?.allowedElementRoles.includes(control.role)) {
+          context.addIssue({ code: 'custom', message: 'Illegal element color', path: ['elementCapabilities', elementIndex, 'appearance', 'colors', controlIndex, 'allowedColorIds', idIndex] })
+        }
+      })
+    })
+  })
   for (const [path, ids, role] of [
     ['headingFont', capabilities.projectDefaults.typography.headingFont.allowedFontIds, 'heading'],
     ['bodyFont', capabilities.projectDefaults.typography.bodyFont.allowedFontIds, 'body'],
