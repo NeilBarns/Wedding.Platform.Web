@@ -23,12 +23,14 @@ import {
   updateWebsiteDesignSettings,
   updateWebsiteSectionAppearance,
   updateWebsiteSectionContent,
+  updateWebsiteSectionDesignDefaults,
 } from "../../features/websiteEditor/api";
 import { AppearancePanel } from "../../features/websiteEditor/components/AppearancePanel";
 import { BuilderSaveBar } from "../../features/websiteEditor/components/BuilderSaveBar";
 import { DesignPanel } from "../../features/websiteEditor/components/DesignPanel";
 import { DiscardChangesDialog } from "../../features/websiteEditor/components/DiscardChangesDialog";
 import { SectionEditor } from "../../features/websiteEditor/components/SectionEditor";
+import { SectionDesignDefaultsPanel } from "../../features/websiteEditor/components/SectionDesignDefaultsPanel";
 import { SectionNavigator } from "../../features/websiteEditor/components/SectionNavigator";
 import { InlineEditProvider } from "../../features/websiteEditor/inline/InlineEditContext";
 import type {
@@ -39,6 +41,7 @@ import type {
   ResponsiveViewport,
   WebsiteDesignSettings,
   WebsiteDraft,
+  SectionDesignDefaults,
   WebsiteSection,
   WebsiteSectionAppearance,
 } from "../../features/websiteEditor/types";
@@ -99,6 +102,8 @@ export function WebsitePage() {
   } | null>(null);
   const [appearanceSaving, setAppearanceSaving] = useState(false);
   const [appearanceError, setAppearanceError] = useState<string | null>(null);
+  const [sectionDesignSaving, setSectionDesignSaving] = useState(false);
+  const [sectionDesignError, setSectionDesignError] = useState<string | null>(null);
   const [activeInlineTarget, setActiveInlineTarget] =
     useState<InlineFieldTarget | null>(null);
   const [pendingInlineTarget, setPendingInlineTarget] =
@@ -151,6 +156,7 @@ export function WebsitePage() {
       setAppearanceOverride(null);
       setActiveInlineTarget(null);
       setAppearanceError(null);
+      setSectionDesignError(null);
     }
   }
 
@@ -335,6 +341,19 @@ export function WebsitePage() {
     }
   }
 
+  async function saveSectionDesignDefaults(defaults: SectionDesignDefaults) {
+    if (!effectiveSelectedId) return;
+    setSectionDesignSaving(true);
+    setSectionDesignError(null);
+    try {
+      setDraft(await updateWebsiteSectionDesignDefaults(event.id, projectId, effectiveSelectedId, defaults));
+    } catch (saveError) {
+      setSectionDesignError(messageFor(saveError));
+    } finally {
+      setSectionDesignSaving(false);
+    }
+  }
+
   if (isLoading) return <EditorLoading eventId={event.id} />;
   if (isUninitialized)
     return <EditorError eventId={event.id} message="Website Project not found." retry={retry} />;
@@ -388,6 +407,8 @@ export function WebsitePage() {
         sectionDirty={sectionDirty}
         appearanceSaving={appearanceSaving}
         appearanceError={appearanceError}
+        sectionDesignSaving={sectionDesignSaving}
+        sectionDesignError={sectionDesignError}
         onPanelModeChange={(next) => applyDrawerMode(next)}
         onContentChange={updateWorkingContent}
         onSectionReset={resetSelectedSection}
@@ -407,6 +428,7 @@ export function WebsitePage() {
           setAppearanceOverride({ sectionId: selected.id, appearance })
         }
         onAppearanceSave={() => void saveAppearance()}
+        onSectionDesignChange={(defaults) => void saveSectionDesignDefaults(defaults)}
       />
     );
   const mobileDrawerPanel =
@@ -442,6 +464,8 @@ export function WebsitePage() {
         sectionDirty={sectionDirty}
         appearanceSaving={appearanceSaving}
         appearanceError={appearanceError}
+        sectionDesignSaving={sectionDesignSaving}
+        sectionDesignError={sectionDesignError}
         onPanelModeChange={(next) => applyDrawerMode(next)}
         onContentChange={updateWorkingContent}
         onSectionReset={resetSelectedSection}
@@ -461,6 +485,7 @@ export function WebsitePage() {
           setAppearanceOverride({ sectionId: selected.id, appearance })
         }
         onAppearanceSave={() => void saveAppearance()}
+        onSectionDesignChange={(defaults) => void saveSectionDesignDefaults(defaults)}
       />
     );
 
@@ -931,6 +956,8 @@ function SectionInspector({
   sectionDirty,
   appearanceSaving,
   appearanceError,
+  sectionDesignSaving,
+  sectionDesignError,
   onPanelModeChange,
   onContentChange,
   onSectionReset,
@@ -938,6 +965,7 @@ function SectionInspector({
   onContentSaved,
   onAppearanceChange,
   onAppearanceSave,
+  onSectionDesignChange,
 }: {
   capabilities?: TemplateCapabilities;
   resolvedMedia: WebsiteDraft["media"];
@@ -953,6 +981,8 @@ function SectionInspector({
   sectionDirty: boolean;
   appearanceSaving: boolean;
   appearanceError: string | null;
+  sectionDesignSaving: boolean;
+  sectionDesignError: string | null;
   onPanelModeChange: (mode: SectionPanelMode) => void;
   onContentChange: (content: Record<string, unknown>) => void;
   onSectionReset: () => void;
@@ -960,6 +990,7 @@ function SectionInspector({
   onContentSaved: (draft: WebsiteDraft) => void;
   onAppearanceChange: (appearance: WebsiteSectionAppearance) => void;
   onAppearanceSave: () => void;
+  onSectionDesignChange: (defaults: SectionDesignDefaults) => void;
 }) {
   if (!selected || !workingContent || !workingAppearance) return null;
   const capability = capabilities ? sectionCapability(capabilities, selected.type) : undefined;
@@ -1020,6 +1051,17 @@ function SectionInspector({
               targetViewport={targetViewport}
               error={appearanceError}
               onChange={onAppearanceChange}
+            />
+            <SectionDesignDefaultsPanel
+              appearance={workingAppearance}
+              capability={capability}
+              defaults={selected.designDefaults}
+              resolved={selected.resolvedDesignContext}
+              library={capabilities!.designLibrary}
+              saving={sectionDesignSaving}
+              disabled={appearanceDirty}
+              error={sectionDesignError}
+              onChange={onSectionDesignChange}
             />
           </div>
           <BuilderSaveBar dirty={appearanceDirty} statusDirty={sectionDirty} resetDirty={sectionDirty} saving={appearanceSaving} onSave={onAppearanceSave} onReset={onSectionReset} />

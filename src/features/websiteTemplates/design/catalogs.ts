@@ -40,6 +40,32 @@ export type GlobalDesignTokens = {
   typography: Pick<TypographyPairing, 'heading' | 'body'>
 }
 
+type DesignLibraryValues = {
+  colors: Array<{ id: string; value: string }>
+}
+
+type SectionDesignContext = {
+  headingFontId: string
+  bodyFontId: string
+  headingColorId: string
+  bodyColorId: string
+  accentColorId: string
+}
+
+export function resolveSectionDesignTokens(templateKey: string, library: DesignLibraryValues, context: SectionDesignContext | null) {
+  const fontStacks: Record<string, string> | undefined = templateFontFamilyStacks[templateKey as keyof typeof templateFontFamilyStacks]
+  if (!context || !fontStacks) return null
+  const colors = new Map(library.colors.map(({ id, value }) => [id, value]))
+  const headingColor = colors.get(context.headingColorId)
+  const bodyColor = colors.get(context.bodyColorId)
+  const accentColor = colors.get(context.accentColorId)
+  const headingFont = fontStacks[context.headingFontId]
+  const bodyFont = fontStacks[context.bodyFontId]
+  if (!headingColor || !bodyColor || !accentColor || !headingFont || !bodyFont) return null
+
+  return { headingFont, bodyFont, headingColor, bodyColor, accentColor }
+}
+
 type GlobalDesignSelection = {
   colorTheme: string
   fontSet: string

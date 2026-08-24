@@ -136,6 +136,20 @@ const sectionSchema = z.object({
       mobile: responsiveAppearanceSchema.optional(),
     }).strict().optional(),
   }).strict(),
+  designDefaults: z.object({
+    headingFontId: nonEmptyString.optional(),
+    bodyFontId: nonEmptyString.optional(),
+    headingColorId: nonEmptyString.optional(),
+    bodyColorId: nonEmptyString.optional(),
+    accentColorId: nonEmptyString.optional(),
+  }).strict().default({}),
+  resolvedDesignContext: z.object({
+    headingFontId: nonEmptyString,
+    bodyFontId: nonEmptyString,
+    headingColorId: nonEmptyString,
+    bodyColorId: nonEmptyString,
+    accentColorId: nonEmptyString,
+  }).strict().nullable().default(null),
   appearanceOptions: z.object({
     headingAlignments: z.array(z.object({ key: z.string(), displayName: z.string() }).strict()),
     bodyAlignments: z.array(z.object({ key: z.string(), displayName: z.string() }).strict()),
@@ -294,6 +308,22 @@ const draftSchema = z.discriminatedUnion('schemaVersion', [
   draft.sections.forEach((section, index) => {
     const presentation = section.appearance.presentation
     const capability = sectionCapability(draft.template!.capabilities, section.type)
+    const allowedContextValues = new Map<string, string[]>()
+    capability?.contextDefaults.typography.forEach((control) => allowedContextValues.set(control.role === 'heading' ? 'headingFontId' : 'bodyFontId', control.allowedFontIds))
+    capability?.contextDefaults.colors.forEach((control) => allowedContextValues.set(`${control.role}Id`, control.allowedColorIds))
+    Object.entries(section.designDefaults).forEach(([key, id]) => {
+      if (!allowedContextValues.get(key)?.includes(id)) {
+        context.addIssue({ code: 'custom', message: 'Section Design Default is not allowed by this Template and Section', path: ['sections', index, 'designDefaults', key] })
+      }
+    })
+    if (section.resolvedDesignContext) {
+      const resolved = section.resolvedDesignContext
+      for (const [key, libraryIds, allowedIds] of resolvedChecks) {
+        if (!libraryIds.has(resolved[key]) || !allowedIds.includes(resolved[key])) {
+          context.addIssue({ code: 'custom', message: 'Resolved Section Design Context is not allowed by this Template', path: ['sections', index, 'resolvedDesignContext', key] })
+        }
+      }
+    }
     if (presentation && !capability?.presentations.some((option) => option.id === presentation)) {
       context.addIssue({
         code: 'custom',

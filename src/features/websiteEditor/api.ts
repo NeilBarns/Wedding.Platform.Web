@@ -1,7 +1,7 @@
 import { apiRequest, ensureCsrfCookie } from '../../lib/api'
 import type { ApiResource } from '../../lib/api'
 import { normalizeWebsiteDraftFromApi } from './schemas'
-import type { WebsiteDesignSettings, WebsiteDraft, WebsiteSectionAppearance } from './types'
+import type { SectionDesignDefaults, WebsiteDesignSettings, WebsiteDraft, WebsiteSectionAppearance } from './types'
 
 function projectPath(eventId: string, projectId: string): string {
   return `/api/events/${encodeURIComponent(eventId)}/websites/${encodeURIComponent(projectId)}`
@@ -30,6 +30,10 @@ export function updateWebsiteSectionContent(eventId: string, projectId: string, 
 
 export function updateWebsiteSectionAppearance(eventId: string, projectId: string, sectionId: string, appearance: WebsiteSectionAppearance) {
   return mutation(eventId, projectId, `/sections/${encodeURIComponent(sectionId)}/appearance`, { appearance })
+}
+
+export function updateWebsiteSectionDesignDefaults(eventId: string, projectId: string, sectionId: string, designDefaults: SectionDesignDefaults) {
+  return mutation(eventId, projectId, `/sections/${encodeURIComponent(sectionId)}/design-defaults`, { designDefaults })
 }
 
 export function setWebsiteSectionEnabled(eventId: string, projectId: string, sectionId: string, isEnabled: boolean) {

@@ -7,6 +7,7 @@ import { ClassicFilipinianaDate, ClassicFilipinianaDressCode, ClassicFilipiniana
 import { resolveClassicFilipinianaSectionAppearance } from './classicFilipiniana/appearance'
 import { resolveClassicFilipinianaDesign } from './classicFilipiniana/design'
 import { ClassicFrameCorners, ClassicSectionDivider } from './classicFilipiniana/decorations'
+import { resolveSectionDesignTokens } from '../../websiteTemplates/design/catalogs'
 
 export function ClassicFilipinianaRenderer({ event, website, mode = 'public', selectedSectionId, onSectionSelect, targetViewport = 'desktop' }: WebsiteRendererProps) {
   const enabledSections = website.sections.filter(({ isEnabled }) => isEnabled)
@@ -15,11 +16,19 @@ export function ClassicFilipinianaRenderer({ event, website, mode = 'public', se
     {enabledSections.length === 0 && <div className="flex min-h-96 items-center justify-center px-8 text-center text-sm italic text-[var(--cf-muted)]">Enabled sections will appear here.</div>}
     {enabledSections.map((section, index) => {
       const appearance = resolveClassicFilipinianaSectionAppearance(section.type, website.designSettings, section.appearance, index)
+      const design = resolveSectionDesignTokens(website.templateKey, website.template!.capabilities.designLibrary, section.resolvedDesignContext)
       const selected = mode === 'editor' && selectedSectionId === section.id
       return (
       <section
-        className={`${appearance.sectionClass} relative cursor-default transition-shadow ${selected ? 'z-10' : ''}`}
-        style={appearance.sectionStyle}
+        className={`${appearance.sectionClass} relative cursor-default font-[family-name:var(--cf-body-font)] transition-shadow ${selected ? 'z-10' : ''}`}
+        style={{ ...appearance.sectionStyle, ...(design ? {
+          '--cf-heading-font': design.headingFont,
+          '--cf-body-font': design.bodyFont,
+          '--cf-text': design.headingColor,
+          '--cf-muted': design.bodyColor,
+          '--cf-section-body': design.bodyColor,
+          '--cf-section-accent': design.accentColor,
+        } : {}) } as React.CSSProperties}
         data-preview-section={section.id}
         key={section.id}
         onClick={mode === 'editor' ? () => onSectionSelect?.(section.id) : undefined}
@@ -121,7 +130,7 @@ function ClassicMediaPresentation({ section, media, presentation, targetViewport
     const strength = section.appearance.overlayStrength ?? controls?.overlayStrength?.default ?? 0.5
     const foreground = value('foregroundColor', 'foregroundColors') ?? '#FFFFFF'
     const immersiveHeight = section.type === 'hero' ? targetViewport === 'desktop' ? 'min-h-screen' : 'min-h-[100svh]' : 'min-h-[32rem]'
-    return <div className={`relative isolate overflow-hidden ${immersiveHeight}`}>{image('h-full', true)}<div className={`relative grid place-items-stretch backdrop-blur-[1px] ${immersiveHeight} [&_[data-section-content]]:min-h-full`} style={{ background: `linear-gradient(180deg, color-mix(in srgb, var(--cf-page) ${Math.round(strength * 65)}%, transparent), color-mix(in srgb, var(--cf-page) ${Math.round(strength * 100)}%, transparent))`, color: foreground, '--cf-text': foreground, '--cf-muted': foreground, '--cf-secondary': foreground, textShadow: '0 1px 20px rgb(0 0 0 / 24%)' } as React.CSSProperties}>{children}</div></div>
+    return <div className={`relative isolate overflow-hidden ${immersiveHeight}`}>{image('h-full', true)}<div className={`relative grid place-items-stretch backdrop-blur-[1px] ${immersiveHeight} [&_[data-section-content]]:min-h-full`} style={{ background: `linear-gradient(180deg, color-mix(in srgb, var(--cf-page) ${Math.round(strength * 65)}%, transparent), color-mix(in srgb, var(--cf-page) ${Math.round(strength * 100)}%, transparent))`, color: foreground, '--cf-text': foreground, '--cf-muted': foreground, '--cf-secondary': foreground, '--cf-section-accent': foreground, textShadow: '0 1px 20px rgb(0 0 0 / 24%)' } as React.CSSProperties}>{children}</div></div>
   }
   if (section.type === 'story' && presentation === 'portraitStory') {
     if (tabletContainedLayout) return tabletVertical(<div className={`mx-auto ${tabletContainedLayout.wrapperClass}`}>{image(tabletContainedLayout.imageClass, false, false)}</div>)

@@ -6,6 +6,7 @@ import { storyElementMedia } from '../../websiteEditor/storyMedia'
 import { resolveModernEditorialSectionAppearance } from './modernEditorial/appearance'
 import { resolveModernEditorialDesign } from './modernEditorial/design'
 import { ModernEditorialDate, ModernEditorialDressCode, ModernEditorialFaq, ModernEditorialGallery, ModernEditorialHero, ModernEditorialPeople, ModernEditorialRsvp, ModernEditorialSchedule, ModernEditorialStoryBlock, ModernEditorialStoryBlockBody, ModernEditorialStoryBlockHeading, ModernEditorialStoryHeader, ModernEditorialVenue } from './modernEditorial/sections'
+import { resolveSectionDesignTokens } from '../../websiteTemplates/design/catalogs'
 
 export function ModernEditorialRenderer({ event, website, mode = 'public', selectedSectionId, onSectionSelect, targetViewport = 'desktop' }: WebsiteRendererProps) {
   const enabledSections = website.sections.filter(({ isEnabled }) => isEnabled)
@@ -13,8 +14,9 @@ export function ModernEditorialRenderer({ event, website, mode = 'public', selec
     {enabledSections.length === 0 && <div className="flex min-h-96 items-center justify-center px-8 text-center text-sm text-[var(--me-muted)]">Enabled sections will appear here.</div>}
     {enabledSections.map((section, index) => {
       const appearance = resolveModernEditorialSectionAppearance(section.type, section.appearance, index)
+      const design = resolveSectionDesignTokens(website.templateKey, website.template!.capabilities.designLibrary, section.resolvedDesignContext)
       const selected = mode === 'editor' && selectedSectionId === section.id
-      return <section className={`${appearance.sectionClass} relative cursor-default border-b border-[var(--me-border)] transition-shadow ${selected ? 'z-10' : ''}`} style={appearance.sectionStyle} data-preview-section={section.id} key={section.id} onClick={mode === 'editor' ? () => onSectionSelect?.(section.id) : undefined} onKeyDown={mode === 'editor' ? (keyboardEvent) => { if (keyboardEvent.target !== keyboardEvent.currentTarget) return; if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') { keyboardEvent.preventDefault(); onSectionSelect?.(section.id) } } : undefined} role={mode === 'editor' ? 'group' : undefined} aria-label={mode === 'editor' ? `${section.displayName} section` : undefined} tabIndex={mode === 'editor' ? 0 : undefined}>
+      return <section className={`${appearance.sectionClass} relative cursor-default border-b border-[var(--me-border)] font-[family-name:var(--me-body-font)] transition-shadow ${selected ? 'z-10' : ''}`} style={{ ...appearance.sectionStyle, ...(design ? { '--me-heading-font': design.headingFont, '--me-body-font': design.bodyFont, '--me-text': design.headingColor, '--me-muted': design.bodyColor, '--me-section-body': design.bodyColor, '--me-section-accent': design.accentColor } : {}) } as React.CSSProperties} data-preview-section={section.id} key={section.id} onClick={mode === 'editor' ? () => onSectionSelect?.(section.id) : undefined} onKeyDown={mode === 'editor' ? (keyboardEvent) => { if (keyboardEvent.target !== keyboardEvent.currentTarget) return; if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') { keyboardEvent.preventDefault(); onSectionSelect?.(section.id) } } : undefined} role={mode === 'editor' ? 'group' : undefined} aria-label={mode === 'editor' ? `${section.displayName} section` : undefined} tabIndex={mode === 'editor' ? 0 : undefined}>
         {selected && <span className="absolute right-3 top-3 z-20 rounded-full bg-[var(--editor-chrome-strong)] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wider text-[var(--editor-chrome-on-strong)] shadow-[var(--editor-chrome-shadow)]">Editing</span>}
         <Section section={section} eventName={event.name} eventDate={event.eventDate} mode={mode} media={website.media} targetViewport={targetViewport} />
       </section>
@@ -77,9 +79,9 @@ function ModernMediaPresentation({ section, media, presentation, targetViewport,
         ? 'shadow-[0_24px_50px_-14px_rgb(15_23_42/40%),0_6px_14px_-6px_rgb(15_23_42/28%)]'
         : ''
   const decorativeFrameClass = frame === 'offset'
-    ? `before:pointer-events-none before:absolute before:inset-0 ${placement === 'right' ? 'before:-translate-x-3' : 'before:translate-x-3'} before:translate-y-3 before:border-2 before:border-[var(--me-text)] before:content-[''] before:[border-radius:inherit] after:pointer-events-none after:absolute after:inset-0 after:z-[2] after:border after:border-[var(--me-border)] after:content-[''] after:[border-radius:inherit]`
+    ? `before:pointer-events-none before:absolute before:inset-0 ${placement === 'right' ? 'before:-translate-x-3' : 'before:translate-x-3'} before:translate-y-3 before:border-2 before:border-[var(--me-theme-text)] before:content-[''] before:[border-radius:inherit] after:pointer-events-none after:absolute after:inset-0 after:z-[2] after:border after:border-[var(--me-border)] after:content-[''] after:[border-radius:inherit]`
     : frame === 'boldEdge'
-      ? `after:pointer-events-none after:absolute after:inset-0 after:z-[2] after:border after:border-[var(--me-text)] ${placement === 'right' ? 'after:border-l-[6px]' : 'after:border-r-[6px]'} after:content-[''] after:[border-radius:inherit]`
+      ? `after:pointer-events-none after:absolute after:inset-0 after:z-[2] after:border after:border-[var(--me-theme-text)] ${placement === 'right' ? 'after:border-l-[6px]' : 'after:border-r-[6px]'} after:content-[''] after:[border-radius:inherit]`
       : ''
   const sizing = size === 'compact' ? 'mx-auto w-3/4' : size === 'balanced' ? 'mx-auto w-[90%]' : 'w-full'
   const splitStretchClass = targetViewport === 'mobile' ? '' : 'h-full'
@@ -97,7 +99,7 @@ function ModernMediaPresentation({ section, media, presentation, targetViewport,
     return <div className={`grid py-12 ${gapClass}`}>{mobileStoryHeading ? <div className="px-7">{mobileStoryHeading}</div> : null}{storyMedia}<div className="px-7">{mobileStoryBody}</div></div>
   }
 
-  if (presentation === 'scenic' || (section.type === 'hero' && presentation === 'immersive')) { const strength = section.appearance.overlayStrength ?? controls?.overlayStrength?.default ?? 0.5; const foreground = value('foregroundColor', 'foregroundColors') ?? '#FFFFFF'; return <div className="relative isolate min-h-[36rem] overflow-hidden">{image('h-full', true)}<div className="relative min-h-[36rem] backdrop-blur-[1px]" style={{ background: `color-mix(in srgb, var(--me-page) ${strength * 100}%, transparent)`, color: foreground, '--me-text': foreground, '--me-muted': foreground } as React.CSSProperties}>{children}</div></div> }
+  if (presentation === 'scenic' || (section.type === 'hero' && presentation === 'immersive')) { const strength = section.appearance.overlayStrength ?? controls?.overlayStrength?.default ?? 0.5; const foreground = value('foregroundColor', 'foregroundColors') ?? '#FFFFFF'; return <div className="relative isolate min-h-[36rem] overflow-hidden">{image('h-full', true)}<div className="relative min-h-[36rem] backdrop-blur-[1px]" style={{ background: `color-mix(in srgb, var(--me-page) ${strength * 100}%, transparent)`, color: foreground, '--me-text': foreground, '--me-muted': foreground, '--me-section-accent': foreground } as React.CSSProperties}>{children}</div></div> }
   if (presentation === 'editorial') {
     const hero = section.type === 'hero'
     const heroClass = targetViewport === 'mobile' ? 'min-h-[28rem] max-h-[52rem]' : 'h-full min-h-0 max-h-none'
@@ -130,12 +132,12 @@ function modernSplitGrid(placement: string, size: string, viewport: ResponsiveVi
 }
 
 function ModernOuterFrameDecoration({ frame, placement }: { frame?: string; placement?: string }) {
-  if (frame === 'outset') return <span className="pointer-events-none absolute inset-0 z-[2] border border-[var(--me-border)] outline outline-offset-[6px] outline-[color-mix(in_srgb,var(--me-text)_72%,transparent)] [border-radius:inherit]" aria-hidden="true" />
+  if (frame === 'outset') return <span className="pointer-events-none absolute inset-0 z-[2] border border-[var(--me-border)] outline outline-offset-[6px] outline-[color-mix(in_srgb,var(--me-theme-text)_72%,transparent)] [border-radius:inherit]" aria-hidden="true" />
   if (frame !== 'editorialFrame') return null
   const facingRight = placement !== 'right'
   return <span className="pointer-events-none absolute inset-0 z-[2] outline outline-offset-4 outline-[var(--me-border)] [border-radius:inherit]" aria-hidden="true">
-    <span className={`absolute top-1 size-7 border-t-2 border-[var(--me-text)] ${facingRight ? 'right-1 border-r-2' : 'left-1 border-l-2'}`} />
-    <span className={`absolute bottom-1 size-7 border-b-2 border-[var(--me-text)] ${facingRight ? 'right-1 border-r-2' : 'left-1 border-l-2'}`} />
+    <span className={`absolute top-1 size-7 border-t-2 border-[var(--me-theme-text)] ${facingRight ? 'right-1 border-r-2' : 'left-1 border-l-2'}`} />
+    <span className={`absolute bottom-1 size-7 border-b-2 border-[var(--me-theme-text)] ${facingRight ? 'right-1 border-r-2' : 'left-1 border-l-2'}`} />
     <span className={`absolute bottom-1 top-1 w-px bg-[var(--me-border)] ${facingRight ? 'left-2' : 'right-2'}`} />
   </span>
 }

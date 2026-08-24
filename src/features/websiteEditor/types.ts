@@ -1,5 +1,7 @@
 import type { NarrativeBlockElement } from '../websiteElements/types'
-import type { TemplateCapabilities } from '../websiteCapabilities/types'
+import type { ContextDefaultsIntent, ResolvedDesignContext, TemplateCapabilities } from '../websiteCapabilities/types'
+
+export type SectionDesignDefaults = ContextDefaultsIntent
 
 export type SectionMedia = { assetId: string; focalPoint?: { x: number; y: number }; zoom?: number } | null
 type WithMedia = { media?: SectionMedia }
@@ -26,6 +28,8 @@ type SectionBase<TType extends string, TContent> = {
   isEnabled: boolean
   content: TContent
   appearance: WebsiteSectionAppearance
+  designDefaults: SectionDesignDefaults
+  resolvedDesignContext: ResolvedDesignContext | null
   appearanceOptions: WebsiteSectionAppearanceOptions | null
   mediaCapability: { mode: 'single' | 'multiple' } | null
   itemMediaCapability: { itemType: 'person'; mode: 'single' } | null
