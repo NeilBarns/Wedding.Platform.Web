@@ -72,6 +72,7 @@ const designColorSchema = z.object({
   origin: z.literal('template'),
   allowedProjectRoles: z.array(z.enum(['heading', 'body', 'accent'])),
   allowedElementRoles: z.array(z.enum(['headingColor', 'textColor', 'accentColor'])),
+  allowedContainerRoles: z.array(z.enum(['headingColor', 'bodyColor', 'accentColor'])),
 }).strict()
 
 const typographyRoleSchema = z.enum(['heading', 'body'])
@@ -199,11 +200,26 @@ export const presentationCapabilitySchema = z.object({
   description: z.string().min(1),
   preview: z.string().min(1),
   appearanceControls: z.array(appearanceControlCapabilitySchema),
+  contextDefaults: z.lazy(() => contextDefaultsCapabilitySchema).nullable(),
+}).strict()
+
+export const contextDefaultsCapabilitySchema = z.object({
+  typography: z.array(z.object({
+    role: typographyRoleSchema,
+    allowedFontIds: z.array(z.string().min(1)).min(1),
+    scope: z.literal('shared'),
+  }).strict()),
+  colors: z.array(z.object({
+    role: z.enum(['headingColor', 'bodyColor', 'accentColor']),
+    allowedColorIds: z.array(z.string().min(1)).min(1),
+    scope: z.literal('shared'),
+  }).strict()),
 }).strict()
 
 export const sectionCapabilitySchema = z.object({
   id: z.string().min(1),
   appearanceControls: z.array(appearanceControlCapabilitySchema),
+  contextDefaults: contextDefaultsCapabilitySchema,
   defaultPresentation: z.string().min(1).nullable(),
   presentations: z.array(presentationCapabilitySchema),
   elements: z.object({
@@ -266,6 +282,24 @@ export const templateCapabilitiesSchema = z.object({
 
   const families = new Map(capabilities.designLibrary.fontFamilies.map((family) => [family.id, family]))
   const colors = new Map(capabilities.designLibrary.colors.map((color) => [color.id, color]))
+  const validateContextDefaults = (capability: z.infer<typeof contextDefaultsCapabilitySchema>, path: Array<string | number>) => {
+    const typographyRoles = capability.typography.map(({ role }) => role)
+    const colorRoles = capability.colors.map(({ role }) => role)
+    if (new Set(typographyRoles).size !== typographyRoles.length) context.addIssue({ code: 'custom', message: 'Context typography roles must be unique', path: [...path, 'typography'] })
+    if (new Set(colorRoles).size !== colorRoles.length) context.addIssue({ code: 'custom', message: 'Context color roles must be unique', path: [...path, 'colors'] })
+    capability.typography.forEach((control, controlIndex) => control.allowedFontIds.forEach((id, idIndex) => {
+      if (!families.get(id)?.allowedRoles.includes(control.role)) context.addIssue({ code: 'custom', message: 'Illegal context font', path: [...path, 'typography', controlIndex, 'allowedFontIds', idIndex] })
+    }))
+    capability.colors.forEach((control, controlIndex) => control.allowedColorIds.forEach((id, idIndex) => {
+      if (!colors.get(id)?.allowedContainerRoles.includes(control.role)) context.addIssue({ code: 'custom', message: 'Illegal context color', path: [...path, 'colors', controlIndex, 'allowedColorIds', idIndex] })
+    }))
+  }
+  capabilities.sections.forEach((section, sectionIndex) => {
+    validateContextDefaults(section.contextDefaults, ['sections', sectionIndex, 'contextDefaults'])
+    section.presentations.forEach((presentation, presentationIndex) => {
+      if (presentation.contextDefaults) validateContextDefaults(presentation.contextDefaults, ['sections', sectionIndex, 'presentations', presentationIndex, 'contextDefaults'])
+    })
+  })
   const elementTypes = capabilities.elementCapabilities.map(({ type }) => type)
   if (new Set(elementTypes).size !== elementTypes.length) {
     context.addIssue({ code: 'custom', message: 'Element capability types must be unique', path: ['elementCapabilities'] })

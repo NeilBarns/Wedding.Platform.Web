@@ -1,7 +1,7 @@
 import type { WebsiteElement } from '../websiteElements/types'
 import type { ProjectDesignDefaults } from '../websiteEditor/types'
 import type { ResponsiveViewport } from '../websiteEditor/types'
-import type { AppearanceControlCapability, ElementCapability, GlobalDesignCapability, GlobalDesignControlCapability, PresentationCapability, SectionCapability, TemplateCapabilities, TemplateDesignLibrary } from './types'
+import type { AppearanceControlCapability, ContextDefaultsCapability, ContextDefaultsIntent, ElementCapability, GlobalDesignCapability, GlobalDesignControlCapability, PresentationCapability, ResolvedDesignContext, SectionCapability, TemplateCapabilities, TemplateDesignLibrary } from './types'
 
 export function globalDesignCapability(capabilities: TemplateCapabilities): GlobalDesignCapability {
   return capabilities.globalDesign
@@ -78,6 +78,27 @@ export function supportsGlobalDesignValue(
 
 export function sectionCapability(capabilities: TemplateCapabilities, sectionId: string): SectionCapability | undefined {
   return capabilities.sections.find((section) => section.id === sectionId)
+}
+
+export function sectionContextDefaultsCapability(
+  section: SectionCapability,
+  presentation?: PresentationCapability,
+): ContextDefaultsCapability {
+  return presentation?.contextDefaults ?? section.contextDefaults
+}
+
+export function resolveInheritedDesignContext(
+  parent: ResolvedDesignContext,
+  capability: ContextDefaultsCapability,
+  intent: ContextDefaultsIntent,
+): ResolvedDesignContext {
+  const allowed = new Map<string, string[]>()
+  capability.typography.forEach((control) => allowed.set(control.role === 'heading' ? 'headingFontId' : 'bodyFontId', control.allowedFontIds))
+  capability.colors.forEach((control) => allowed.set(`${control.role}Id`, control.allowedColorIds))
+  Object.entries(intent).forEach(([key, value]) => {
+    if (!value || !allowed.get(key)?.includes(value)) throw new Error(`Invalid contextual default: ${key}`)
+  })
+  return { ...parent, ...intent }
 }
 
 export function presentationCapability(section: SectionCapability, presentationId?: string): PresentationCapability | undefined {

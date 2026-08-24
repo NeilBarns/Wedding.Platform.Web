@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type {
   appearanceControlCapabilitySchema,
+  contextDefaultsCapabilitySchema,
   elementCapabilitySchema,
   globalDesignCapabilitySchema,
   globalDesignControlCapabilitySchema,
@@ -12,6 +13,7 @@ import type {
 } from './schemas'
 
 export type AppearanceControlCapability = z.infer<typeof appearanceControlCapabilitySchema>
+export type ContextDefaultsCapability = z.infer<typeof contextDefaultsCapabilitySchema>
 export type ElementCapability = z.infer<typeof elementCapabilitySchema>
 export type GlobalDesignCapability = z.infer<typeof globalDesignCapabilitySchema>
 export type GlobalDesignControlCapability = z.infer<typeof globalDesignControlCapabilitySchema>
@@ -20,3 +22,19 @@ export type ProjectDefaultsCapability = z.infer<typeof projectDefaultsCapability
 export type SectionCapability = z.infer<typeof sectionCapabilitySchema>
 export type TemplateDesignLibrary = z.infer<typeof templateDesignLibrarySchema>
 export type TemplateCapabilities = z.infer<typeof templateCapabilitiesSchema>
+
+export type ContextDefaultsIntent = {
+  headingFontId?: string
+  bodyFontId?: string
+  headingColorId?: string
+  bodyColorId?: string
+  accentColorId?: string
+}
+
+export type ResolvedDesignContext = {
+  headingFontId: string
+  bodyFontId: string
+  headingColorId: string
+  bodyColorId: string
+  accentColorId: string
+}
