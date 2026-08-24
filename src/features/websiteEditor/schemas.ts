@@ -186,6 +186,13 @@ const draftSchema = z.object({
     fontSet: nonEmptyString,
     artStyle: nonEmptyString,
   }).strict(),
+  projectDesignDefaults: z.object({
+    headingFontId: nonEmptyString,
+    bodyFontId: nonEmptyString,
+    headingColorId: nonEmptyString,
+    bodyColorId: nonEmptyString,
+    accentColorId: nonEmptyString,
+  }).strict().nullable(),
   template: z.object({
     key: nonEmptyString,
     displayName: nonEmptyString,
@@ -205,6 +212,28 @@ const draftSchema = z.object({
   if (!draft.template) return
 
   const designCapability = globalDesignCapability(draft.template.capabilities)
+  if (!draft.projectDesignDefaults) {
+    context.addIssue({ code: 'custom', message: 'Resolved Project Design Defaults are required for a supported Template', path: ['projectDesignDefaults'] })
+    return
+  }
+  const projectDesignDefaults = draft.projectDesignDefaults
+  const library = draft.template.capabilities.designLibrary
+  const capability = draft.template.capabilities.projectDefaults
+  const familyIds = new Set(library.fontFamilies.map(({ id }) => id))
+  const colorIds = new Set(library.colors.map(({ id }) => id))
+  const resolvedChecks = [
+    ['headingFontId', familyIds, capability.typography.headingFont.allowedFontIds],
+    ['bodyFontId', familyIds, capability.typography.bodyFont.allowedFontIds],
+    ['headingColorId', colorIds, capability.colors.headingColor.allowedColorIds],
+    ['bodyColorId', colorIds, capability.colors.bodyColor.allowedColorIds],
+    ['accentColorId', colorIds, capability.colors.accentColor.allowedColorIds],
+  ] as const
+  resolvedChecks.forEach(([key, libraryIds, allowedIds]) => {
+    const id = projectDesignDefaults[key]
+    if (!libraryIds.has(id) || !allowedIds.includes(id)) {
+      context.addIssue({ code: 'custom', message: 'Resolved Project Design Default is not allowed by this Template', path: ['projectDesignDefaults', key] })
+    }
+  })
 
   if (!matchesCurrentDesignCatalog(draft.template.key, draft.template.capabilities.designLibrary)) {
     context.addIssue({ code: 'custom', message: 'Template Design Library does not match the current renderer catalog', path: ['template', 'capabilities', 'designLibrary'] })

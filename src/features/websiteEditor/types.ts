@@ -120,6 +120,13 @@ export type ColorTheme = string
 export type FontSet = string
 export type ArtStyle = string
 export type WebsiteDesignSettings = { colorTheme: ColorTheme; fontSet: FontSet; artStyle: ArtStyle }
+export type ProjectDesignDefaults = {
+  headingFontId: string
+  bodyFontId: string
+  headingColorId: string
+  bodyColorId: string
+  accentColorId: string
+}
 export type DesignOption = { key: string; displayName: string }
 export type WebsiteDesignOptions = {
   colorThemes: DesignOption[]
@@ -135,6 +142,7 @@ export type WebsiteDraft = {
   name: string
   templateKey: string
   designSettings: WebsiteDesignSettings
+  projectDesignDefaults: ProjectDesignDefaults | null
   template: WebsiteTemplateSummary | null
   sections: WebsiteSection[]
   media: Record<string, ResolvedWebsiteMedia>

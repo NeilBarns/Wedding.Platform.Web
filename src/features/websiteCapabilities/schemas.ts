@@ -70,6 +70,7 @@ const designColorSchema = z.object({
   displayName: z.string().min(1),
   value: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   origin: z.literal('template'),
+  allowedProjectRoles: z.array(z.enum(['heading', 'body', 'accent'])),
 }).strict()
 
 const typographyRoleSchema = z.enum(['heading', 'body'])
@@ -130,6 +131,18 @@ export const templateDesignLibrarySchema = z.object({
     }
   })
 })
+
+export const projectDefaultsCapabilitySchema = z.object({
+  typography: z.object({
+    headingFont: z.object({ allowedFontIds: z.array(z.string().min(1)).min(1) }).strict(),
+    bodyFont: z.object({ allowedFontIds: z.array(z.string().min(1)).min(1) }).strict(),
+  }).strict(),
+  colors: z.object({
+    headingColor: z.object({ allowedColorIds: z.array(z.string().min(1)).min(1) }).strict(),
+    bodyColor: z.object({ allowedColorIds: z.array(z.string().min(1)).min(1) }).strict(),
+    accentColor: z.object({ allowedColorIds: z.array(z.string().min(1)).min(1) }).strict(),
+  }).strict(),
+}).strict()
 const viewportOptionSchema = z.object({
   default: z.string().min(1),
   options: z.array(optionSchema).min(1),
@@ -202,6 +215,7 @@ export const sectionCapabilitySchema = z.object({
 export const templateCapabilitiesSchema = z.object({
   globalDesign: globalDesignCapabilitySchema,
   designLibrary: templateDesignLibrarySchema,
+  projectDefaults: projectDefaultsCapabilitySchema,
   elements: z.array(z.enum(WEBSITE_ELEMENT_TYPES)),
   sections: z.array(sectionCapabilitySchema),
 }).strict().superRefine((capabilities, context) => {
@@ -213,5 +227,25 @@ export const templateCapabilitiesSchema = z.object({
     if (options.length !== presets.length || options.some((option, index) => option.key !== presets[index]?.id || option.displayName !== presets[index]?.displayName)) {
       context.addIssue({ code: 'custom', message: `${controlId} options must match design-library presets`, path: ['globalDesign', 'controls'] })
     }
+  }
+
+  const families = new Map(capabilities.designLibrary.fontFamilies.map((family) => [family.id, family]))
+  const colors = new Map(capabilities.designLibrary.colors.map((color) => [color.id, color]))
+  for (const [path, ids, role] of [
+    ['headingFont', capabilities.projectDefaults.typography.headingFont.allowedFontIds, 'heading'],
+    ['bodyFont', capabilities.projectDefaults.typography.bodyFont.allowedFontIds, 'body'],
+  ] as const) {
+    ids.forEach((id, index) => {
+      if (!families.get(id)?.allowedRoles.includes(role)) context.addIssue({ code: 'custom', message: `Illegal ${role} font`, path: ['projectDefaults', 'typography', path, 'allowedFontIds', index] })
+    })
+  }
+  for (const [path, ids, role] of [
+    ['headingColor', capabilities.projectDefaults.colors.headingColor.allowedColorIds, 'heading'],
+    ['bodyColor', capabilities.projectDefaults.colors.bodyColor.allowedColorIds, 'body'],
+    ['accentColor', capabilities.projectDefaults.colors.accentColor.allowedColorIds, 'accent'],
+  ] as const) {
+    ids.forEach((id, index) => {
+      if (!colors.get(id)?.allowedProjectRoles.includes(role)) context.addIssue({ code: 'custom', message: `Illegal ${role} color`, path: ['projectDefaults', 'colors', path, 'allowedColorIds', index] })
+    })
   }
 })

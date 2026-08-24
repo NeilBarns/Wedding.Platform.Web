@@ -1,4 +1,5 @@
 import type { WebsiteElement } from '../websiteElements/types'
+import type { ProjectDesignDefaults } from '../websiteEditor/types'
 import type { ResponsiveViewport } from '../websiteEditor/types'
 import type { AppearanceControlCapability, GlobalDesignCapability, GlobalDesignControlCapability, PresentationCapability, SectionCapability, TemplateCapabilities, TemplateDesignLibrary } from './types'
 
@@ -24,6 +25,26 @@ export function fontFamily(library: TemplateDesignLibrary, fontId: string) {
 
 export function typographyPreset(library: TemplateDesignLibrary, presetId: string) {
   return library.typographyPresets.find(({ id }) => id === presetId)
+}
+
+export function projectHeadingFont(library: TemplateDesignLibrary, defaults: ProjectDesignDefaults) {
+  return fontFamily(library, defaults.headingFontId)
+}
+
+export function projectBodyFont(library: TemplateDesignLibrary, defaults: ProjectDesignDefaults) {
+  return fontFamily(library, defaults.bodyFontId)
+}
+
+export function projectHeadingColor(library: TemplateDesignLibrary, defaults: ProjectDesignDefaults) {
+  return designColor(library, defaults.headingColorId)
+}
+
+export function projectBodyColor(library: TemplateDesignLibrary, defaults: ProjectDesignDefaults) {
+  return designColor(library, defaults.bodyColorId)
+}
+
+export function projectAccentColor(library: TemplateDesignLibrary, defaults: ProjectDesignDefaults) {
+  return designColor(library, defaults.accentColorId)
 }
 
 export function globalDesignControl(
