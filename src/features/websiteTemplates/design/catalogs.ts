@@ -20,6 +20,21 @@ export type TypographyPairing = {
   previewClass: string
 }
 
+export const templateFontFamilyStacks = {
+  'classic-filipiniana-v1': {
+    'editorial-serif': 'Georgia, Cambria, "Times New Roman", serif',
+    'modern-sans': 'Inter, ui-sans-serif, system-ui, sans-serif',
+    'romantic-serif': '"Palatino Linotype", Palatino, Book Antiqua, serif',
+    'classic-serif': 'Georgia, Cambria, serif',
+  },
+  'modern-editorial-v1': {
+    'editorial-serif': 'Georgia, Cambria, "Times New Roman", serif',
+    'modern-sans': 'Inter, ui-sans-serif, system-ui, sans-serif',
+    'fashion-serif': '"Bodoni 72", Didot, Georgia, serif',
+    'fashion-sans': 'Arial Narrow, Inter, ui-sans-serif, sans-serif',
+  },
+} as const
+
 export type GlobalDesignTokens = {
   color: SemanticPalette
   typography: Pick<TypographyPairing, 'heading' | 'body'>
@@ -31,14 +46,14 @@ type GlobalDesignSelection = {
 }
 
 const editorialTypography = {
-  heading: 'Georgia, Cambria, "Times New Roman", serif',
-  body: 'Inter, ui-sans-serif, system-ui, sans-serif',
+  heading: templateFontFamilyStacks['classic-filipiniana-v1']['editorial-serif'],
+  body: templateFontFamilyStacks['classic-filipiniana-v1']['modern-sans'],
   previewClass: 'font-serif',
 } as const satisfies TypographyPairing
 
 const sansTypography = {
-  heading: 'Inter, ui-sans-serif, system-ui, sans-serif',
-  body: 'Inter, ui-sans-serif, system-ui, sans-serif',
+  heading: templateFontFamilyStacks['classic-filipiniana-v1']['modern-sans'],
+  body: templateFontFamilyStacks['classic-filipiniana-v1']['modern-sans'],
   previewClass: 'font-sans',
 } as const satisfies TypographyPairing
 
@@ -61,8 +76,8 @@ export const modernPaletteCatalog = {
 export const classicTypographyCatalog = {
   editorial: editorialTypography,
   romantic: {
-    heading: '"Palatino Linotype", Palatino, Book Antiqua, serif',
-    body: 'Georgia, Cambria, serif',
+    heading: templateFontFamilyStacks['classic-filipiniana-v1']['romantic-serif'],
+    body: templateFontFamilyStacks['classic-filipiniana-v1']['classic-serif'],
     previewClass: '[font-family:Palatino,Georgia,serif]',
   },
   modern: sansTypography,
@@ -71,12 +86,45 @@ export const classicTypographyCatalog = {
 export const modernTypographyCatalog = {
   editorial: editorialTypography,
   fashion: {
-    heading: '"Bodoni 72", Didot, Georgia, serif',
-    body: 'Arial Narrow, Inter, ui-sans-serif, sans-serif',
+    heading: templateFontFamilyStacks['modern-editorial-v1']['fashion-serif'],
+    body: templateFontFamilyStacks['modern-editorial-v1']['fashion-sans'],
     previewClass: '[font-family:Didot,Georgia,serif]',
   },
   minimal: sansTypography,
 } as const satisfies Record<string, TypographyPairing>
+
+type DesignLibraryParityInput = {
+  colors: Array<{ id: string; value: string }>
+  palettePresets: Array<{ id: string; roles: Record<string, string> }>
+  typographyPresets: Array<{ id: string; headingFontId: string; bodyFontId: string }>
+}
+
+export function matchesCurrentDesignCatalog(templateKey: string, library: DesignLibraryParityInput): boolean {
+  const paletteCatalog: Record<string, TemplatePaletteDefinition> | undefined = templateKey === 'classic-filipiniana-v1'
+    ? classicPaletteCatalog
+    : templateKey === 'modern-editorial-v1' ? modernPaletteCatalog : undefined
+  const typographyCatalog: Record<string, TypographyPairing> | undefined = templateKey === 'classic-filipiniana-v1'
+    ? classicTypographyCatalog
+    : templateKey === 'modern-editorial-v1' ? modernTypographyCatalog : undefined
+  const fontStacks: Record<string, string> | undefined = templateFontFamilyStacks[templateKey as keyof typeof templateFontFamilyStacks]
+  if (!paletteCatalog || !typographyCatalog || !fontStacks) return true
+
+  const colors = new Map(library.colors.map((color) => [color.id, color.value]))
+  const palettesMatch = library.palettePresets.every((preset) => {
+    const current = paletteCatalog[preset.id]?.tokens
+    return current !== undefined && Object.entries(preset.roles).every(([role, colorId]) => (
+      colors.get(colorId) === current[role as keyof SemanticPalette]
+    ))
+  })
+  const typographyMatches = library.typographyPresets.every((preset) => {
+    const current = typographyCatalog[preset.id]
+    return current !== undefined
+      && fontStacks[preset.headingFontId] === current.heading
+      && fontStacks[preset.bodyFontId] === current.body
+  })
+
+  return palettesMatch && typographyMatches
+}
 
 export function resolveGlobalDesignTokens(
   selection: GlobalDesignSelection,

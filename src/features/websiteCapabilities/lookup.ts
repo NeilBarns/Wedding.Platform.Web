@@ -1,9 +1,29 @@
 import type { WebsiteElement } from '../websiteElements/types'
 import type { ResponsiveViewport } from '../websiteEditor/types'
-import type { AppearanceControlCapability, GlobalDesignCapability, GlobalDesignControlCapability, PresentationCapability, SectionCapability, TemplateCapabilities } from './types'
+import type { AppearanceControlCapability, GlobalDesignCapability, GlobalDesignControlCapability, PresentationCapability, SectionCapability, TemplateCapabilities, TemplateDesignLibrary } from './types'
 
 export function globalDesignCapability(capabilities: TemplateCapabilities): GlobalDesignCapability {
   return capabilities.globalDesign
+}
+
+export function templateDesignLibrary(capabilities: TemplateCapabilities): TemplateDesignLibrary {
+  return capabilities.designLibrary
+}
+
+export function designColor(library: TemplateDesignLibrary, colorId: string) {
+  return library.colors.find(({ id }) => id === colorId)
+}
+
+export function palettePreset(library: TemplateDesignLibrary, presetId: string) {
+  return library.palettePresets.find(({ id }) => id === presetId)
+}
+
+export function fontFamily(library: TemplateDesignLibrary, fontId: string) {
+  return library.fontFamilies.find(({ id }) => id === fontId)
+}
+
+export function typographyPreset(library: TemplateDesignLibrary, presetId: string) {
+  return library.typographyPresets.find(({ id }) => id === presetId)
 }
 
 export function globalDesignControl(

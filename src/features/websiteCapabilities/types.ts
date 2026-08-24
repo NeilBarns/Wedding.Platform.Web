@@ -5,6 +5,7 @@ import type {
   globalDesignControlCapabilitySchema,
   presentationCapabilitySchema,
   sectionCapabilitySchema,
+  templateDesignLibrarySchema,
   templateCapabilitiesSchema,
 } from './schemas'
 
@@ -13,4 +14,5 @@ export type GlobalDesignCapability = z.infer<typeof globalDesignCapabilitySchema
 export type GlobalDesignControlCapability = z.infer<typeof globalDesignControlCapabilitySchema>
 export type PresentationCapability = z.infer<typeof presentationCapabilitySchema>
 export type SectionCapability = z.infer<typeof sectionCapabilitySchema>
+export type TemplateDesignLibrary = z.infer<typeof templateDesignLibrarySchema>
 export type TemplateCapabilities = z.infer<typeof templateCapabilitiesSchema>

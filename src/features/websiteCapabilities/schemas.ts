@@ -64,6 +64,72 @@ export const globalDesignCapabilitySchema = z.object({
     }
   })
 })
+
+const designColorSchema = z.object({
+  id: z.string().min(1),
+  displayName: z.string().min(1),
+  value: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  origin: z.literal('template'),
+}).strict()
+
+const typographyRoleSchema = z.enum(['heading', 'body'])
+const fontFamilySchema = z.object({
+  id: z.string().min(1),
+  displayName: z.string().min(1),
+  allowedRoles: z.array(typographyRoleSchema).min(1),
+}).strict()
+const paletteRolesSchema = z.object({
+  canvas: z.string().min(1),
+  surface: z.string().min(1),
+  text: z.string().min(1),
+  textMuted: z.string().min(1),
+  accent: z.string().min(1),
+  accentContrast: z.string().min(1),
+  border: z.string().min(1),
+  ornament: z.string().min(1).optional(),
+}).strict()
+const palettePresetSchema = z.object({
+  id: z.string().min(1),
+  displayName: z.string().min(1),
+  roles: paletteRolesSchema,
+}).strict()
+const typographyPresetSchema = z.object({
+  id: z.string().min(1),
+  displayName: z.string().min(1),
+  headingFontId: z.string().min(1),
+  bodyFontId: z.string().min(1),
+}).strict()
+
+export const templateDesignLibrarySchema = z.object({
+  colors: z.array(designColorSchema).min(1),
+  fontFamilies: z.array(fontFamilySchema).min(1),
+  palettePresets: z.array(palettePresetSchema).min(1),
+  typographyPresets: z.array(typographyPresetSchema).min(1),
+}).strict().superRefine((library, context) => {
+  for (const collection of ['colors', 'fontFamilies', 'palettePresets', 'typographyPresets'] as const) {
+    const ids = library[collection].map(({ id }) => id)
+    if (new Set(ids).size !== ids.length) {
+      context.addIssue({ code: 'custom', message: `${collection} IDs must be unique`, path: [collection] })
+    }
+  }
+
+  const colorIds = new Set(library.colors.map(({ id }) => id))
+  library.palettePresets.forEach((preset, index) => {
+    Object.entries(preset.roles).forEach(([role, colorId]) => {
+      if (!colorIds.has(colorId)) context.addIssue({ code: 'custom', message: 'Unknown color reference', path: ['palettePresets', index, 'roles', role] })
+    })
+  })
+
+  const families = new Map(library.fontFamilies.map((family) => [family.id, family]))
+  library.typographyPresets.forEach((preset, index) => {
+    if (!families.get(preset.headingFontId)?.allowedRoles.includes('heading')) {
+      context.addIssue({ code: 'custom', message: 'Invalid heading font reference', path: ['typographyPresets', index, 'headingFontId'] })
+    }
+    if (!families.get(preset.bodyFontId)?.allowedRoles.includes('body')) {
+      context.addIssue({ code: 'custom', message: 'Invalid body font reference', path: ['typographyPresets', index, 'bodyFontId'] })
+    }
+  })
+})
 const viewportOptionSchema = z.object({
   default: z.string().min(1),
   options: z.array(optionSchema).min(1),
@@ -135,6 +201,17 @@ export const sectionCapabilitySchema = z.object({
 
 export const templateCapabilitiesSchema = z.object({
   globalDesign: globalDesignCapabilitySchema,
+  designLibrary: templateDesignLibrarySchema,
   elements: z.array(z.enum(WEBSITE_ELEMENT_TYPES)),
   sections: z.array(sectionCapabilitySchema),
-}).strict()
+}).strict().superRefine((capabilities, context) => {
+  for (const [controlId, presets] of [
+    ['colorTheme', capabilities.designLibrary.palettePresets],
+    ['fontSet', capabilities.designLibrary.typographyPresets],
+  ] as const) {
+    const options = capabilities.globalDesign.controls.find(({ id }) => id === controlId)?.options ?? []
+    if (options.length !== presets.length || options.some((option, index) => option.key !== presets[index]?.id || option.displayName !== presets[index]?.displayName)) {
+      context.addIssue({ code: 'custom', message: `${controlId} options must match design-library presets`, path: ['globalDesign', 'controls'] })
+    }
+  }
+})

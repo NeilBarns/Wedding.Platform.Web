@@ -3,6 +3,7 @@ import type { WebsiteDraft, WebsiteSection } from './types'
 import { CURRENT_WEBSITE_SCHEMA_VERSION } from './schema'
 import { narrativeBlockElementSchema } from '../websiteElements/schemas'
 import { templateCapabilitiesSchema } from '../websiteCapabilities/schemas'
+import { matchesCurrentDesignCatalog } from '../websiteTemplates/design/catalogs'
 import { globalDesignCapability, supportsGlobalDesignValue, sectionCapability } from '../websiteCapabilities/lookup'
 
 const text = z.string()
@@ -204,6 +205,10 @@ const draftSchema = z.object({
   if (!draft.template) return
 
   const designCapability = globalDesignCapability(draft.template.capabilities)
+
+  if (!matchesCurrentDesignCatalog(draft.template.key, draft.template.capabilities.designLibrary)) {
+    context.addIssue({ code: 'custom', message: 'Template Design Library does not match the current renderer catalog', path: ['template', 'capabilities', 'designLibrary'] })
+  }
 
   for (const setting of ['colorTheme', 'fontSet', 'artStyle'] as const) {
     const value = draft.designSettings[setting]
