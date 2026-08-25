@@ -226,7 +226,7 @@ export const sectionCapabilitySchema = z.object({
     allowedTypes: z.array(z.enum(WEBSITE_ELEMENT_TYPES)),
     maxCount: z.number().int().positive(),
     compositionGroups: z.null(),
-  }).strict().nullable(),
+  }).strict().nullable().optional(),
 }).strict()
 
 const elementTypographyCapabilitySchema = z.object({
@@ -239,18 +239,37 @@ const elementColorCapabilitySchema = z.object({
   allowedColorIds: z.array(z.string().min(1)).min(1),
   scope: z.literal('shared'),
 }).strict()
+const narrativePresentations = z.enum(['editorial', 'mediaFirst', 'quoteLed', 'textOnly'])
+const narrativePlacements = z.enum(['leading', 'trailing', 'above', 'below', 'splitStart', 'splitEnd', 'inset'])
+const narrativeTreatments = z.enum(['standard', 'wide', 'cinematic', 'fullBleed'])
+const narrativeSlots = z.tuple([z.literal('eyebrow'), z.literal('heading'), z.literal('divider'), z.literal('body'), z.literal('quote'), z.literal('media'), z.literal('caption'), z.literal('cta')])
 export const elementCapabilitySchema = z.object({
   type: z.enum(WEBSITE_ELEMENT_TYPES),
   appearance: z.object({
     typography: z.array(elementTypographyCapabilitySchema),
     colors: z.array(elementColorCapabilitySchema),
   }).strict().nullable(),
-  narrativeBlockV1: z.object({
-    version: z.literal(1),
-    slots: z.tuple([z.literal('eyebrow'), z.literal('heading'), z.literal('divider'), z.literal('body'), z.literal('quote'), z.literal('media'), z.literal('caption'), z.literal('cta')]),
-    textAppearanceControls: z.tuple([z.literal('fontFamilyId'), z.literal('fontSize'), z.literal('lineSpacing'), z.literal('letterSpacing'), z.literal('colorId')]),
-    fontSizeOptions: z.tuple([z.literal('xs'), z.literal('s'), z.literal('m'), z.literal('l'), z.literal('xl')]),
-    responsiveFontSizeViewports: z.tuple([z.literal('desktop'), z.literal('tablet'), z.literal('mobile')]),
+  narrativeBlock: z.object({
+    slots: narrativeSlots,
+    appearance: z.object({
+      controls: z.tuple([z.literal('fontFamilyId'), z.literal('fontSize'), z.literal('lineSpacing'), z.literal('letterSpacing'), z.literal('colorId')]),
+      fontSizeOptions: z.tuple([z.literal('xs'), z.literal('s'), z.literal('m'), z.literal('l'), z.literal('xl')]),
+      responsiveFontSizeViewports: z.tuple([z.literal('desktop'), z.literal('tablet'), z.literal('mobile')]),
+    }).strict(),
+    composition: z.object({
+      presentations: z.tuple([z.literal('editorial'), z.literal('mediaFirst'), z.literal('quoteLed'), z.literal('textOnly')]),
+      mediaPlacementsByPresentation: z.object({ editorial: z.array(narrativePlacements), mediaFirst: z.array(narrativePlacements), quoteLed: z.array(narrativePlacements), textOnly: z.array(narrativePlacements) }).strict(),
+      mediaTreatmentsByPresentationAndPlacement: z.object({ editorial: z.partialRecord(narrativePlacements, z.array(narrativeTreatments)), mediaFirst: z.partialRecord(narrativePlacements, z.array(narrativeTreatments)), quoteLed: z.partialRecord(narrativePlacements, z.array(narrativeTreatments)), textOnly: z.partialRecord(narrativePlacements, z.array(narrativeTreatments)) }).strict(),
+      textAlignments: z.tuple([z.literal('start'), z.literal('center'), z.literal('end')]),
+      surfaces: z.tuple([z.literal('none'), z.literal('soft'), z.literal('feature')]),
+      defaults: z.object({
+        presentation: z.literal('editorial'),
+        mediaPlacementByPresentation: z.object({ editorial: narrativePlacements, mediaFirst: narrativePlacements, quoteLed: narrativePlacements }).strict(),
+        mediaTreatment: narrativeTreatments,
+        textAlignmentByPresentation: z.record(narrativePresentations, z.enum(['start', 'center', 'end'])),
+        surface: z.enum(['none', 'soft', 'feature']),
+      }).strict(),
+    }).strict(),
   }).strict().nullable(),
 }).strict()
 

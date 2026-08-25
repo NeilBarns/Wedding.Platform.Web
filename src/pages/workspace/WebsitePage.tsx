@@ -520,7 +520,6 @@ export function WebsitePage() {
                 projectId,
                 selected.id,
                 content,
-                selected.type === "story" ? 4 : draft.schemaVersion,
               )
             : Promise.reject()
         }
@@ -583,7 +582,6 @@ export function WebsitePage() {
                 projectId,
                 selected.id,
                 content,
-                selected.type === "story" ? 4 : draft.schemaVersion,
               )
             : Promise.reject()
         }

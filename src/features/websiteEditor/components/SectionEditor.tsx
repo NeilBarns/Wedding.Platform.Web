@@ -130,7 +130,7 @@ function StoryEditor(props: EditorProps) {
       if (blocks.length >= 20) return;
       const id = createSemanticId("story");
       reveal.reveal(`story-${id}`);
-      changeBlocks([...blocks, { id, type: "narrativeBlock", isHidden: false, slots: { eyebrow: { isHidden: true, text: '' }, heading: { isHidden: false, text: '' }, divider: { isHidden: true }, body: { isHidden: false, text: '' }, quote: { isHidden: true, text: '' }, media: { isHidden: true, content: null }, caption: { isHidden: true, text: '' }, cta: { isHidden: true, label: '', action: null } } }]);
+      changeBlocks([...blocks, { id, type: "narrativeBlock", isHidden: false, composition: { presentation: 'editorial' }, slots: { eyebrow: { isHidden: true, text: '' }, heading: { isHidden: false, text: '' }, divider: { isHidden: true }, body: { isHidden: false, text: '' }, quote: { isHidden: true, text: '' }, media: { isHidden: true, content: null }, caption: { isHidden: true, text: '' }, cta: { isHidden: true, label: '', action: null } } }]);
     }}>
       {blocks.map((block, index) => {
         const image = block.slots.media.content?.type === 'image' ? block.slots.media.content : undefined;

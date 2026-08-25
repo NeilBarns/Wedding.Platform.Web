@@ -177,7 +177,7 @@ export const legacyNarrativeBlockElementSchema = z
   })
   .strict();
 
-export const narrativeBlockElementSchema = z
+export const legacySlotNarrativeBlockElementSchema = z
   .object({
     ...baseShape,
     type: z.literal("narrativeBlock"),
@@ -208,6 +208,18 @@ export const narrativeBlockElementSchema = z
       .strict(),
   })
   .strict();
+
+export const narrativeCompositionSchema = z.object({
+  presentation: z.enum(["editorial", "mediaFirst", "quoteLed", "textOnly"]),
+  mediaPlacement: z.enum(["leading", "trailing", "above", "below", "splitStart", "splitEnd", "inset"]).optional(),
+  mediaTreatment: z.enum(["standard", "wide", "cinematic", "fullBleed"]).optional(),
+  textAlignment: z.enum(["start", "center", "end"]).optional(),
+  surface: z.enum(["none", "soft", "feature"]).optional(),
+}).strict();
+
+export const narrativeBlockElementSchema = legacySlotNarrativeBlockElementSchema.extend({
+  composition: narrativeCompositionSchema,
+}).strict();
 
 export const eventDateElementSchema = z
   .object({
@@ -332,7 +344,7 @@ type ElementWithIdentity = {
   id: string;
   type?: string;
   items?: Array<{ id: string }>;
-  composition?: "flow" | "zoned";
+  composition?: "flow" | "zoned" | z.infer<typeof narrativeCompositionSchema>;
   children?: ElementWithIdentity[];
   zones?: { media: ElementWithIdentity[]; content: ElementWithIdentity[] };
 };

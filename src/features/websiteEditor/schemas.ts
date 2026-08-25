@@ -2,7 +2,6 @@ import { z } from 'zod'
 import type { WebsiteDraft, WebsiteSection } from './types'
 import { CURRENT_WEBSITE_SCHEMA_VERSION } from './schema'
 import { narrativeBlockElementSchema } from '../websiteElements/schemas'
-import { normalizeNarrativeBlock } from '../websiteElements/narrativeBlock'
 import { templateCapabilitiesSchema } from '../websiteCapabilities/schemas'
 import { matchesCurrentDesignCatalog } from '../websiteTemplates/design/catalogs'
 import { globalDesignCapability, supportsGlobalDesignValue, sectionCapability } from '../websiteCapabilities/lookup'
@@ -235,20 +234,10 @@ const draftCommonSchema = z.object({
   }).strict()),
 }).strict()
 
-const draftSchema = z.discriminatedUnion('schemaVersion', [
-  draftCommonSchema.extend({
-    schemaVersion: z.literal(2),
-    designSettings: legacyDesignSettingsSchema,
-  }).strict(),
-  draftCommonSchema.extend({
-    schemaVersion: z.literal(3),
-    designSettings: currentDesignSettingsSchema,
-  }).strict(),
-  draftCommonSchema.extend({
-    schemaVersion: z.literal(CURRENT_WEBSITE_SCHEMA_VERSION),
-    designSettings: currentDesignSettingsSchema,
-  }).strict(),
-]).transform((draft) => ({
+const draftSchema = draftCommonSchema.extend({
+  schemaVersion: z.literal(CURRENT_WEBSITE_SCHEMA_VERSION),
+  designSettings: currentDesignSettingsSchema,
+}).strict().transform((draft) => ({
   ...draft,
   designSettings: {
     ...draft.designSettings,
@@ -344,15 +333,7 @@ export function normalizeWebsiteDraftFromApi(value: unknown): WebsiteDraft {
   const sections = draft.sections.map((section) => {
     const schema = contentSchemas[section.type]
     if (!schema) return section as WebsiteSection
-    const content = section.type === 'story' && draft.schemaVersion < 4
-      ? {
-          ...section.content,
-          elements: Array.isArray(section.content.elements)
-            ? section.content.elements.map(normalizeNarrativeBlock)
-            : section.content.elements,
-        }
-      : section.content
-    return { ...section, content: schema.parse(content) } as WebsiteSection
+    return { ...section, content: schema.parse(section.content) } as WebsiteSection
   })
   return { ...draft, sections }
 }

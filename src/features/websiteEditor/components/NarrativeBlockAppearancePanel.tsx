@@ -31,11 +31,11 @@ export function NarrativeBlockAppearancePanel({
   library: TemplateDesignLibrary;
   onChange: (block: StoryBlock) => void;
 }) {
-  const contract = capability.narrativeBlockV1;
+  const contract = capability.narrativeBlock;
   if (!contract)
     return (
       <p className="text-sm text-foreground-muted">
-        This Template does not advertise Narrative Block v1 appearance controls.
+        This Template does not advertise Narrative Block appearance controls.
       </p>
     );
 
@@ -93,7 +93,7 @@ export function NarrativeBlockAppearancePanel({
           else next[property] = value;
           update(key, next);
         };
-        const sizes = contract.fontSizeOptions.map((value) => ({
+        const sizes = contract.appearance.fontSizeOptions.map((value) => ({
           value,
           label: value.toUpperCase(),
         }));

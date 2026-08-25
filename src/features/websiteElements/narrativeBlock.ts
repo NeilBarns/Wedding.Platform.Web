@@ -1,5 +1,5 @@
 import type { z } from 'zod'
-import { legacyNarrativeBlockElementSchema, narrativeBlockElementSchema } from './schemas'
+import { legacyNarrativeBlockElementSchema, legacySlotNarrativeBlockElementSchema, narrativeBlockElementSchema } from './schemas'
 
 export const NARRATIVE_SLOT_ORDER = ['eyebrow', 'heading', 'divider', 'body', 'quote', 'media', 'caption', 'cta'] as const
 
@@ -10,11 +10,15 @@ export function normalizeNarrativeBlock(element: unknown): NarrativeBlockElement
   const canonical = narrativeBlockElementSchema.safeParse(element)
   if (canonical.success) return canonical.data
 
+  const legacySlots = legacySlotNarrativeBlockElementSchema.safeParse(element)
+  if (legacySlots.success) return { ...legacySlots.data, composition: { presentation: 'editorial' } }
+
   const legacy = legacyNarrativeBlockElementSchema.parse(element)
   return {
     id: legacy.id,
     type: 'narrativeBlock',
     isHidden: false,
+    composition: { presentation: 'editorial' },
     slots: {
       eyebrow: { isHidden: true, text: '' },
       heading: { isHidden: false, text: legacy.heading ?? '' },

@@ -152,7 +152,7 @@ export type WebsiteDesignOptions = {
 export type WebsiteTemplateSummary = { key: string; displayName: string; designOptions: WebsiteDesignOptions; capabilities: TemplateCapabilities }
 
 export type WebsiteDraft = {
-  schemaVersion: 2 | 3 | 4
+  schemaVersion: 5
   id: string
   eventId: string
   name: string

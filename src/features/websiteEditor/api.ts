@@ -24,8 +24,8 @@ export function updateWebsiteDesignSettings(eventId: string, projectId: string, 
   return mutation(eventId, projectId, '/design', { designSettings })
 }
 
-export function updateWebsiteSectionContent(eventId: string, projectId: string, sectionId: string, content: Record<string, unknown>, schemaVersion?: 2 | 3 | 4) {
-  return mutation(eventId, projectId, `/sections/${encodeURIComponent(sectionId)}`, { content, ...(schemaVersion ? { schemaVersion } : {}) })
+export function updateWebsiteSectionContent(eventId: string, projectId: string, sectionId: string, content: Record<string, unknown>) {
+  return mutation(eventId, projectId, `/sections/${encodeURIComponent(sectionId)}`, { content })
 }
 
 export function updateWebsiteSectionAppearance(eventId: string, projectId: string, sectionId: string, appearance: WebsiteSectionAppearance) {
