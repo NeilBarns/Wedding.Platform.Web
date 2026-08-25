@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { WebsiteDraft, WebsiteSection } from './types'
 import { CURRENT_WEBSITE_SCHEMA_VERSION } from './schema'
 import { narrativeBlockElementSchema } from '../websiteElements/schemas'
+import { normalizeNarrativeBlock } from '../websiteElements/narrativeBlock'
 import { templateCapabilitiesSchema } from '../websiteCapabilities/schemas'
 import { matchesCurrentDesignCatalog } from '../websiteTemplates/design/catalogs'
 import { globalDesignCapability, supportsGlobalDesignValue, sectionCapability } from '../websiteCapabilities/lookup'
@@ -54,7 +55,7 @@ export const storyContentSchema = z.object({
   content.elements.forEach((element, index) => {
     if (ids.has(element.id)) context.addIssue({ code: 'custom', message: 'Story element IDs must be unique', path: ['elements', index, 'id'] })
     ids.add(element.id)
-    if (element.media?.type === 'image') imageIds.add(element.id)
+    if (element.slots.media.content?.type === 'image') imageIds.add(element.id)
   })
   Object.keys(content.mediaFraming).forEach((id) => {
     if (!imageIds.has(id)) context.addIssue({ code: 'custom', message: 'Framing must reference a Story element with image media', path: ['mediaFraming', id] })
@@ -240,6 +241,10 @@ const draftSchema = z.discriminatedUnion('schemaVersion', [
     designSettings: legacyDesignSettingsSchema,
   }).strict(),
   draftCommonSchema.extend({
+    schemaVersion: z.literal(3),
+    designSettings: currentDesignSettingsSchema,
+  }).strict(),
+  draftCommonSchema.extend({
     schemaVersion: z.literal(CURRENT_WEBSITE_SCHEMA_VERSION),
     designSettings: currentDesignSettingsSchema,
   }).strict(),
@@ -339,7 +344,15 @@ export function normalizeWebsiteDraftFromApi(value: unknown): WebsiteDraft {
   const sections = draft.sections.map((section) => {
     const schema = contentSchemas[section.type]
     if (!schema) return section as WebsiteSection
-    return { ...section, content: schema.parse(section.content) } as WebsiteSection
+    const content = section.type === 'story' && draft.schemaVersion < 4
+      ? {
+          ...section.content,
+          elements: Array.isArray(section.content.elements)
+            ? section.content.elements.map(normalizeNarrativeBlock)
+            : section.content.elements,
+        }
+      : section.content
+    return { ...section, content: schema.parse(content) } as WebsiteSection
   })
   return { ...draft, sections }
 }

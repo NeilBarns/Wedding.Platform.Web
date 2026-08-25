@@ -15,10 +15,10 @@ export function WebsiteRenderer(props: WebsiteRendererProps) {
   const Renderer = templateRenderers[props.website.templateKey as keyof typeof templateRenderers]
 
   useEffect(() => {
-    if (props.mode !== 'editor' || !props.selectedSectionId) return
+    if (props.mode !== 'editor' || props.scope?.kind === 'single-section' || !props.selectedSectionId) return
     const element = rootRef.current?.querySelector(`[data-preview-section="${CSS.escape(props.selectedSectionId)}"]`)
     element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [props.mode, props.selectedSectionId])
+  }, [props.mode, props.scope, props.selectedSectionId])
 
   if (!Renderer) {
     return <div className="flex min-h-80 items-center justify-center bg-[#f7f0e6] p-8 text-center text-sm text-[#665d54]">This Template is not supported by this version of the renderer.</div>

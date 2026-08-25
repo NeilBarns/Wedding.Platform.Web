@@ -1,10 +1,10 @@
 import { createContext, useContext } from 'react'
-import type { InlineFieldPath, InlineFieldTarget } from './types'
+import type { InlineEditingTarget } from './types'
 
 type InlineEditContextValue = {
-  activeTarget: InlineFieldTarget | null
-  requestEdit: (target: InlineFieldTarget) => void
-  updateValue: (sectionId: string, path: InlineFieldPath, value: string) => void
+  activeTarget: InlineEditingTarget | null
+  requestEdit: (target: InlineEditingTarget) => void
+  updateValue: (target: InlineEditingTarget, value: string) => void
   finishEdit: () => void
 }
 

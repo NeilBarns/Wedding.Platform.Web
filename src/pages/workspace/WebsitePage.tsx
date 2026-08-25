@@ -30,12 +30,14 @@ import { BuilderSaveBar } from "../../features/websiteEditor/components/BuilderS
 import { DesignPanel } from "../../features/websiteEditor/components/DesignPanel";
 import { DiscardChangesDialog } from "../../features/websiteEditor/components/DiscardChangesDialog";
 import { SectionEditor } from "../../features/websiteEditor/components/SectionEditor";
+import { NarrativeBlockContentPanel } from "../../features/websiteEditor/components/NarrativeBlockContentPanel";
+import { NarrativeBlockAppearancePanel } from "../../features/websiteEditor/components/NarrativeBlockAppearancePanel";
 import { SectionDesignDefaultsPanel } from "../../features/websiteEditor/components/SectionDesignDefaultsPanel";
 import { SectionNavigator } from "../../features/websiteEditor/components/SectionNavigator";
 import { InlineEditProvider } from "../../features/websiteEditor/inline/InlineEditContext";
 import type {
   InlineFieldPath,
-  InlineFieldTarget,
+  InlineEditingTarget,
 } from "../../features/websiteEditor/inline/types";
 import type {
   ResponsiveViewport,
@@ -45,11 +47,22 @@ import type {
   WebsiteSection,
   WebsiteSectionAppearance,
 } from "../../features/websiteEditor/types";
-import { appearanceEquals, pruneResponsiveAppearance } from "../../features/websiteEditor/responsiveAppearance";
-import { accessiblePreviewViewports, PREVIEW_WIDTHS, useEditorDeviceCategory } from "../../features/websiteEditor/responsiveViewport";
+import {
+  appearanceEquals,
+  pruneResponsiveAppearance,
+} from "../../features/websiteEditor/responsiveAppearance";
+import {
+  accessiblePreviewViewports,
+  PREVIEW_WIDTHS,
+  useEditorDeviceCategory,
+} from "../../features/websiteEditor/responsiveViewport";
 import { useWebsiteDraft } from "../../features/websiteEditor/useWebsiteDraft";
 import { WebsiteRenderer } from "../../features/websiteRenderer/WebsiteRenderer";
-import { globalDesignCapability, sectionCapability } from "../../features/websiteCapabilities/lookup";
+import {
+  globalDesignCapability,
+  sectionCapability,
+  templateElementCapability,
+} from "../../features/websiteCapabilities/lookup";
 import type { TemplateCapabilities } from "../../features/websiteCapabilities/types";
 import { ApiError } from "../../lib/api";
 
@@ -57,6 +70,7 @@ type BuilderMode = "content" | "design";
 type SectionPanelMode = "content" | "appearance";
 type DrawerMode = "sections" | "content" | "appearance" | "design";
 type MobileDrawerSnap = "hidden" | "medium" | "tall";
+type EditorMode = "edit" | "preview";
 function messageFor(error: unknown): string {
   return error instanceof ApiError
     ? error.message
@@ -66,14 +80,13 @@ function messageFor(error: unknown): string {
 export function WebsitePage() {
   const event = useEventWorkspace();
   const { projectId = "" } = useParams();
-  const { draft, setDraft, error, isLoading, isUninitialized, retry } = useWebsiteDraft(
-    event.id,
-    projectId,
-  );
+  const { draft, setDraft, error, isLoading, isUninitialized, retry } =
+    useWebsiteDraft(event.id, projectId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pendingSelection, setPendingSelection] = useState<string | null>(null);
   const [pendingMode, setPendingMode] = useState<BuilderMode | null>(null);
   const [mode, setMode] = useState<BuilderMode>("content");
+  const [editorMode, setEditorMode] = useState<EditorMode>("edit");
   const [sectionPanelMode, setSectionPanelMode] =
     useState<SectionPanelMode>("content");
   const [drawerMode, setDrawerMode] = useState<DrawerMode>("content");
@@ -84,13 +97,20 @@ export function WebsitePage() {
   const [listPending, setListPending] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
   const deviceCategory = useEditorDeviceCategory();
-  const [previewMode, setPreviewMode] = useState<ResponsiveViewport>(deviceCategory);
-  const accessibleViewports = useMemo(() => accessiblePreviewViewports(deviceCategory), [deviceCategory]);
+  const [previewMode, setPreviewMode] =
+    useState<ResponsiveViewport>(deviceCategory);
+  const accessibleViewports = useMemo(
+    () => accessiblePreviewViewports(deviceCategory),
+    [deviceCategory],
+  );
 
   useEffect(() => {
-    if (accessibleViewports.includes(previewMode)) return
-    const timer = window.setTimeout(() => setPreviewMode(accessibleViewports[0]), 0)
-    return () => window.clearTimeout(timer)
+    if (accessibleViewports.includes(previewMode)) return;
+    const timer = window.setTimeout(
+      () => setPreviewMode(accessibleViewports[0]),
+      0,
+    );
+    return () => window.clearTimeout(timer);
   }, [accessibleViewports, previewMode]);
   const [contentOverride, setContentOverride] = useState<{
     sectionId: string;
@@ -103,16 +123,20 @@ export function WebsitePage() {
   const [appearanceSaving, setAppearanceSaving] = useState(false);
   const [appearanceError, setAppearanceError] = useState<string | null>(null);
   const [sectionDesignSaving, setSectionDesignSaving] = useState(false);
-  const [sectionDesignError, setSectionDesignError] = useState<string | null>(null);
-  const [activeInlineTarget, setActiveInlineTarget] =
-    useState<InlineFieldTarget | null>(null);
-  const [pendingInlineTarget, setPendingInlineTarget] =
-    useState<InlineFieldTarget | null>(null);
+  const [sectionDesignError, setSectionDesignError] = useState<string | null>(
+    null,
+  );
+  const [inlineEditingTarget, setInlineEditingTarget] =
+    useState<InlineEditingTarget | null>(null);
+  const [selectedNarrativeBlockId, setSelectedNarrativeBlockId] =
+    useState<string | null>(null);
   const [designOverride, setDesignOverride] =
     useState<WebsiteDesignSettings | null>(null);
   const [designSaving, setDesignSaving] = useState(false);
   const [designError, setDesignError] = useState<string | null>(null);
-  const [mediaOverrides, setMediaOverrides] = useState<WebsiteDraft["media"]>({});
+  const [mediaOverrides, setMediaOverrides] = useState<WebsiteDraft["media"]>(
+    {},
+  );
 
   const effectiveSelectedId = draft?.sections.some(
     ({ id }) => id === selectedId,
@@ -148,13 +172,18 @@ export function WebsitePage() {
   );
 
   function selectSection(id: string) {
-    if (id === effectiveSelectedId) return;
+    if (id === effectiveSelectedId) {
+      setInlineEditingTarget(null);
+      setSelectedNarrativeBlockId(null);
+      return;
+    }
     if (sectionDirty) setPendingSelection(id);
     else {
       setSelectedId(id);
       setContentOverride(null);
       setAppearanceOverride(null);
-      setActiveInlineTarget(null);
+      setInlineEditingTarget(null);
+      setSelectedNarrativeBlockId(null);
       setAppearanceError(null);
       setSectionDesignError(null);
     }
@@ -163,6 +192,7 @@ export function WebsitePage() {
   function applyDrawerMode(next: DrawerMode) {
     setDrawerMode(next);
     if (next === "content" || next === "appearance") setSectionPanelMode(next);
+    if (next === "appearance") setInlineEditingTarget(null);
   }
 
   function changeMode(
@@ -185,7 +215,8 @@ export function WebsitePage() {
       setContentOverride(null);
       setAppearanceOverride(null);
       setDesignOverride(null);
-      setActiveInlineTarget(null);
+      setInlineEditingTarget(null);
+      setSelectedNarrativeBlockId(null);
     }
   }
 
@@ -211,7 +242,12 @@ export function WebsitePage() {
 
   function toggle(section: WebsiteSection) {
     void mutateList(() =>
-      setWebsiteSectionEnabled(event.id, projectId, section.id, !section.isEnabled),
+      setWebsiteSectionEnabled(
+        event.id,
+        projectId,
+        section.id,
+        !section.isEnabled,
+      ),
     );
   }
   function move(index: number, direction: -1 | 1) {
@@ -223,51 +259,92 @@ export function WebsitePage() {
   }
 
   function updateWorkingContent(content: Record<string, unknown>) {
-    if (effectiveSelectedId)
+    if (effectiveSelectedId) {
       setContentOverride({ sectionId: effectiveSelectedId, content });
+      if (selectedNarrativeBlockId) {
+        const exists =
+          (
+            content.elements as
+              | import("../../features/websiteEditor/types").StoryBlock[]
+              | undefined
+          )?.some(({ id }) => id === selectedNarrativeBlockId) ?? false;
+        if (!exists) {
+          setSelectedNarrativeBlockId(null);
+          setInlineEditingTarget(null);
+        }
+      }
+    }
   }
 
   function resetSelectedSection() {
     if (!sectionDirty) return;
     setContentOverride(null);
     setAppearanceOverride(null);
-    setActiveInlineTarget(null);
-    setPendingInlineTarget(null);
+    setInlineEditingTarget(null);
     setAppearanceError(null);
     setMediaOverrides({});
+    if (selectedNarrativeBlockId && authoritativeSelected?.type === "story") {
+      const exists = (
+        authoritativeSelected.content as import("../../features/websiteEditor/types").StoryContent
+      ).elements.some(({ id }) => id === selectedNarrativeBlockId);
+      if (!exists) setSelectedNarrativeBlockId(null);
+    }
   }
 
-  function requestInlineEdit(target: InlineFieldTarget) {
-    if (target.sectionId === effectiveSelectedId) {
-      applyDrawerMode("content");
-      setActiveInlineTarget(target);
-      return;
-    }
-    if (sectionDirty) {
-      setPendingSelection(target.sectionId);
-      setPendingInlineTarget(target);
-      return;
-    }
-    const targetSection = draft?.sections.find(
-      ({ id }) => id === target.sectionId,
-    );
-    setSelectedId(target.sectionId);
-    if (targetSection)
-      setContentOverride({
-        sectionId: target.sectionId,
-        content: targetSection.content as Record<string, unknown>,
-      });
-    applyDrawerMode("content");
-    setActiveInlineTarget(target);
+  function selectNarrativeBlock(blockId: string) {
+    setInlineEditingTarget(null);
+    setSelectedNarrativeBlockId(blockId);
   }
 
-  function updateInlineValue(
-    sectionId: string,
-    path: InlineFieldPath,
-    value: string,
-  ) {
-    if (sectionId !== effectiveSelectedId || !workingContent) return;
+  function requestInlineEdit(target: InlineEditingTarget) {
+    if (target.sectionId !== effectiveSelectedId) return;
+    setInlineEditingTarget(target);
+    if (target.narrativeBlockId) {
+      setSelectedNarrativeBlockId(target.narrativeBlockId);
+    } else {
+      setSelectedNarrativeBlockId(null);
+    }
+  }
+
+  function changeEditorMode(next: EditorMode) {
+    setEditorMode(next);
+    if (next === "preview") setInlineEditingTarget(null);
+  }
+
+  function contentSaved(updated: WebsiteDraft) {
+    setDraft(updated);
+    setContentOverride(null);
+    setInlineEditingTarget(null);
+    setMediaOverrides({});
+    if (selectedNarrativeBlockId) {
+      const section = updated.sections.find(({ id }) => id === effectiveSelectedId);
+      const exists =
+        section?.type === "story" &&
+        (
+          section.content as import("../../features/websiteEditor/types").StoryContent
+        ).elements.some(({ id }) => id === selectedNarrativeBlockId);
+      if (!exists) setSelectedNarrativeBlockId(null);
+    }
+  }
+
+  function updateInlineValue(target: InlineEditingTarget, value: string) {
+    if (target.sectionId !== effectiveSelectedId || !workingContent) return;
     const next = structuredClone(workingContent);
+    let path: InlineFieldPath = target.path;
+    if (target.narrativeBlockId) {
+      const elementIndex =
+        (
+          next.elements as
+            | import("../../features/websiteEditor/types").StoryBlock[]
+            | undefined
+        )?.findIndex(({ id }) => id === target.narrativeBlockId) ?? -1;
+      if (elementIndex < 0) {
+        setInlineEditingTarget(null);
+        setSelectedNarrativeBlockId(null);
+        return;
+      }
+      path = ["elements", elementIndex, "slots", target.slot, "text"];
+    }
     let cursor: unknown = next;
     path.forEach((part, index) => {
       if (Array.isArray(cursor) && typeof part === "number") {
@@ -283,7 +360,7 @@ export function WebsitePage() {
         else cursor = record[part];
       }
     });
-    setContentOverride({ sectionId, content: next });
+    setContentOverride({ sectionId: target.sectionId, content: next });
   }
 
   const previewDraft = useMemo(() => {
@@ -304,14 +381,22 @@ export function WebsitePage() {
             : section.appearance,
       })),
     } as WebsiteDraft;
-  }, [appearanceOverride, contentOverride, designOverride, draft, mediaOverrides]);
+  }, [
+    appearanceOverride,
+    contentOverride,
+    designOverride,
+    draft,
+    mediaOverrides,
+  ]);
 
   async function saveDesign() {
     if (!designOverride) return;
     setDesignSaving(true);
     setDesignError(null);
     try {
-      setDraft(await updateWebsiteDesignSettings(event.id, projectId, designOverride));
+      setDraft(
+        await updateWebsiteDesignSettings(event.id, projectId, designOverride),
+      );
       setDesignOverride(null);
     } catch (saveError) {
       setDesignError(messageFor(saveError));
@@ -346,7 +431,14 @@ export function WebsitePage() {
     setSectionDesignSaving(true);
     setSectionDesignError(null);
     try {
-      setDraft(await updateWebsiteSectionDesignDefaults(event.id, projectId, effectiveSelectedId, defaults));
+      setDraft(
+        await updateWebsiteSectionDesignDefaults(
+          event.id,
+          projectId,
+          effectiveSelectedId,
+          defaults,
+        ),
+      );
     } catch (saveError) {
       setSectionDesignError(messageFor(saveError));
     } finally {
@@ -356,7 +448,13 @@ export function WebsitePage() {
 
   if (isLoading) return <EditorLoading eventId={event.id} />;
   if (isUninitialized)
-    return <EditorError eventId={event.id} message="Website Project not found." retry={retry} />;
+    return (
+      <EditorError
+        eventId={event.id}
+        message="Website Project not found."
+        retry={retry}
+      />
+    );
   if (error || !draft || !previewDraft)
     return (
       <EditorError
@@ -395,11 +493,14 @@ export function WebsitePage() {
       <SectionInspector
         capabilities={draft.template?.capabilities}
         resolvedMedia={previewDraft.media}
-        onMediaResolved={(media) => setMediaOverrides((current) => ({ ...current, [media.id]: media }))}
+        onMediaResolved={(media) =>
+          setMediaOverrides((current) => ({ ...current, [media.id]: media }))
+        }
         selected={selected}
         workingContent={workingContent}
         workingAppearance={workingAppearance}
         targetViewport={previewMode}
+        selectedNarrativeBlockId={selectedNarrativeBlockId}
         panelMode={sectionPanelMode}
         showModeSwitch
         contentDirty={contentDirty}
@@ -414,21 +515,24 @@ export function WebsitePage() {
         onSectionReset={resetSelectedSection}
         onContentSave={(content) =>
           selected
-            ? updateWebsiteSectionContent(event.id, projectId, selected.id, content)
+            ? updateWebsiteSectionContent(
+                event.id,
+                projectId,
+                selected.id,
+                content,
+                selected.type === "story" ? 4 : draft.schemaVersion,
+              )
             : Promise.reject()
         }
-        onContentSaved={(updated) => {
-          setDraft(updated);
-          setContentOverride(null);
-          setActiveInlineTarget(null);
-          setMediaOverrides({});
-        }}
+        onContentSaved={contentSaved}
         onAppearanceChange={(appearance) =>
           selected &&
           setAppearanceOverride({ sectionId: selected.id, appearance })
         }
         onAppearanceSave={() => void saveAppearance()}
-        onSectionDesignChange={(defaults) => void saveSectionDesignDefaults(defaults)}
+        onSectionDesignChange={(defaults) =>
+          void saveSectionDesignDefaults(defaults)
+        }
       />
     );
   const mobileDrawerPanel =
@@ -452,11 +556,14 @@ export function WebsitePage() {
       <SectionInspector
         capabilities={draft.template?.capabilities}
         resolvedMedia={previewDraft.media}
-        onMediaResolved={(media) => setMediaOverrides((current) => ({ ...current, [media.id]: media }))}
+        onMediaResolved={(media) =>
+          setMediaOverrides((current) => ({ ...current, [media.id]: media }))
+        }
         selected={selected}
         workingContent={workingContent}
         workingAppearance={workingAppearance}
         targetViewport={previewMode}
+        selectedNarrativeBlockId={selectedNarrativeBlockId}
         panelMode={drawerMode === "appearance" ? "appearance" : "content"}
         showModeSwitch={false}
         contentDirty={contentDirty}
@@ -471,21 +578,24 @@ export function WebsitePage() {
         onSectionReset={resetSelectedSection}
         onContentSave={(content) =>
           selected
-            ? updateWebsiteSectionContent(event.id, projectId, selected.id, content)
+            ? updateWebsiteSectionContent(
+                event.id,
+                projectId,
+                selected.id,
+                content,
+                selected.type === "story" ? 4 : draft.schemaVersion,
+              )
             : Promise.reject()
         }
-        onContentSaved={(updated) => {
-          setDraft(updated);
-          setContentOverride(null);
-          setActiveInlineTarget(null);
-          setMediaOverrides({});
-        }}
+        onContentSaved={contentSaved}
         onAppearanceChange={(appearance) =>
           selected &&
           setAppearanceOverride({ sectionId: selected.id, appearance })
         }
         onAppearanceSave={() => void saveAppearance()}
-        onSectionDesignChange={(defaults) => void saveSectionDesignDefaults(defaults)}
+        onSectionDesignChange={(defaults) =>
+          void saveSectionDesignDefaults(defaults)
+        }
       />
     );
 
@@ -499,7 +609,10 @@ export function WebsitePage() {
           <ArrowLeft size={16} aria-hidden="true" /> Back to Event
         </Link>
         <div className="hidden h-6 w-px bg-border sm:block" />
-        <div className="mr-auto flex min-w-0 items-center gap-2 px-2" aria-label={`Template: ${draft.template?.displayName ?? draft.templateKey}`}>
+        <div
+          className="mr-auto flex min-w-0 items-center gap-2 px-2"
+          aria-label={`Template: ${draft.template?.displayName ?? draft.templateKey}`}
+        >
           <LayoutTemplate size={16} className="shrink-0 text-accent" />
           <span className="hidden text-xs text-foreground-muted sm:inline">
             Template
@@ -508,16 +621,37 @@ export function WebsitePage() {
             {draft.template?.displayName ?? draft.templateKey}
           </span>
         </div>
+        <SegmentedControl
+          value={editorMode}
+          options={[
+            { value: "edit", label: "Edit" },
+            { value: "preview", label: "Preview" },
+          ]}
+          label="Editor mode"
+          onChange={changeEditorMode}
+        />
         <Link
           className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1.5 rounded-sm border border-border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted"
           to={`/events/${event.id}/websites/${projectId}/preview`}
           target="_blank"
           rel="noopener noreferrer"
-          title={sectionDirty || designDirty ? "Shows the last saved draft. Unsaved builder changes are not included." : "Preview the saved Website on this device"}
-          aria-label={sectionDirty || designDirty ? "Preview saved Website draft in a new tab. Unsaved changes are not included." : "Preview Website in a new tab"}
+          title={
+            sectionDirty || designDirty
+              ? "Shows the last saved draft. Unsaved builder changes are not included."
+              : "Preview the saved Website on this device"
+          }
+          aria-label={
+            sectionDirty || designDirty
+              ? "Preview saved Website draft in a new tab. Unsaved changes are not included."
+              : "Preview Website in a new tab"
+          }
         >
           <ExternalLink aria-hidden="true" size={15} />
-          <span>{sectionDirty || designDirty ? "Preview saved draft" : "Preview Website"}</span>
+          <span>
+            {sectionDirty || designDirty
+              ? "Preview saved draft"
+              : "Preview Website"}
+          </span>
         </Link>
         <div className="hidden xl:block">
           <SegmentedControl
@@ -530,18 +664,27 @@ export function WebsitePage() {
             onChange={changeMode}
           />
         </div>
-        {accessibleViewports.length > 1 && <div>
-          <SegmentedControl
-            value={previewMode}
-            options={accessibleViewports.map((viewport) => ({
-              value: viewport,
-              label: viewport[0].toUpperCase() + viewport.slice(1),
-              icon: viewport === "desktop" ? <Monitor size={14} /> : viewport === "tablet" ? <Tablet size={14} /> : <Smartphone size={14} />,
-            }))}
-            label="Preview and editing viewport"
-            onChange={setPreviewMode}
-          />
-        </div>}
+        {accessibleViewports.length > 1 && (
+          <div>
+            <SegmentedControl
+              value={previewMode}
+              options={accessibleViewports.map((viewport) => ({
+                value: viewport,
+                label: viewport[0].toUpperCase() + viewport.slice(1),
+                icon:
+                  viewport === "desktop" ? (
+                    <Monitor size={14} />
+                  ) : viewport === "tablet" ? (
+                    <Tablet size={14} />
+                  ) : (
+                    <Smartphone size={14} />
+                  ),
+              }))}
+              label="Preview and editing viewport"
+              onChange={setPreviewMode}
+            />
+          </div>
+        )}
       </header>
 
       {listError && (
@@ -566,23 +709,23 @@ export function WebsitePage() {
             event={event}
             draft={previewDraft}
             mode={mode}
+            editorMode={editorMode}
             selectedId={effectiveSelectedId}
             previewMode={previewMode}
             unsaved={sectionDirty || designDirty}
             inlineValue={
               mode === "content"
                 ? {
-                    activeTarget: activeInlineTarget,
+                    activeTarget: inlineEditingTarget,
                     requestEdit: requestInlineEdit,
                     updateValue: updateInlineValue,
-                    finishEdit: () => setActiveInlineTarget(null),
+                    finishEdit: () => setInlineEditingTarget(null),
                   }
                 : null
             }
-            onSectionSelect={(id) => {
-              if (mode === "content") selectSection(id);
-              else setSelectedId(id);
-            }}
+            selectedNarrativeBlockId={selectedNarrativeBlockId}
+            onNarrativeBlockSelect={selectNarrativeBlock}
+            onSectionSelect={selectSection}
           />
           <aside
             className="hidden min-h-0 overflow-hidden border-l border-border bg-background p-3 xl:block"
@@ -615,15 +758,15 @@ export function WebsitePage() {
           setPendingSelection(null);
           setPendingMode(null);
           setPendingDrawerMode(null);
-          setPendingInlineTarget(null);
         }}
         onDiscard={() => {
           if (pendingSelection) setSelectedId(pendingSelection);
           if (pendingMode) setMode(pendingMode);
           if (pendingDrawerMode) applyDrawerMode(pendingDrawerMode);
-          if (pendingInlineTarget) applyDrawerMode("content");
-          setActiveInlineTarget(pendingInlineTarget);
-          setPendingInlineTarget(null);
+          if (pendingSelection || pendingMode) {
+            setInlineEditingTarget(null);
+            setSelectedNarrativeBlockId(null);
+          }
           setPendingSelection(null);
           setPendingMode(null);
           setPendingDrawerMode(null);
@@ -849,7 +992,11 @@ function MobileBuilderDrawer({
           id="builder-drawer-panel"
           role="tabpanel"
           aria-labelledby={`builder-drawer-tab-${mode}`}
-          style={mode === "sections" ? { paddingBottom: "max(1rem, env(safe-area-inset-bottom))" } : undefined}
+          style={
+            mode === "sections"
+              ? { paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }
+              : undefined
+          }
         >
           <div className="mx-auto h-full max-w-2xl">{children}</div>
         </div>
@@ -862,19 +1009,25 @@ function PreviewCanvas({
   event,
   draft,
   mode,
+  editorMode,
   selectedId,
   previewMode,
   unsaved,
   inlineValue,
+  selectedNarrativeBlockId,
+  onNarrativeBlockSelect,
   onSectionSelect,
 }: {
   event: ReturnType<typeof useEventWorkspace>;
   draft: WebsiteDraft;
   mode: BuilderMode;
+  editorMode: EditorMode;
   selectedId: string | null;
   previewMode: ResponsiveViewport;
   unsaved: boolean;
   inlineValue: React.ComponentProps<typeof InlineEditProvider>["value"];
+  selectedNarrativeBlockId: string | null;
+  onNarrativeBlockSelect: (blockId: string) => void;
   onSectionSelect: (id: string) => void;
 }) {
   return (
@@ -885,10 +1038,12 @@ function PreviewCanvas({
       <div className="flex shrink-0 items-center justify-between gap-3 px-1 pb-2">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
-            Live preview
+            {editorMode === "edit" ? "Live editor" : "Website preview"}
           </p>
           <p className="text-[11px] text-foreground-muted">
-            Changes appear before saving.
+            {editorMode === "edit"
+              ? "Changes appear before saving."
+              : "All enabled sections · non-editable"}
           </p>
         </div>
         {unsaved && (
@@ -899,14 +1054,31 @@ function PreviewCanvas({
       </div>
       <div className="min-h-0 flex-1 overflow-x-auto rounded-xl bg-background/45 p-2">
         <PreviewViewport viewport={previewMode}>
-          <InlineEditProvider value={inlineValue}>
+          <InlineEditProvider
+            value={editorMode === "edit" ? inlineValue : null}
+          >
             <WebsiteRenderer
               event={event}
               website={draft}
-              mode="editor"
-              selectedSectionId={mode === "content" ? selectedId : null}
-              onSectionSelect={onSectionSelect}
+              mode={editorMode === "edit" ? "editor" : "public"}
+              selectedSectionId={
+                editorMode === "edit" && mode === "content" ? selectedId : null
+              }
+              onSectionSelect={
+                editorMode === "edit" ? onSectionSelect : undefined
+              }
+              selectedNarrativeBlockId={
+                editorMode === "edit" ? selectedNarrativeBlockId : null
+              }
+              onNarrativeBlockSelect={
+                editorMode === "edit" ? onNarrativeBlockSelect : undefined
+              }
               targetViewport={previewMode}
+              scope={
+                editorMode === "edit" && selectedId
+                  ? { kind: "single-section", sectionId: selectedId }
+                  : { kind: "full" }
+              }
             />
           </InlineEditProvider>
         </PreviewViewport>
@@ -915,30 +1087,51 @@ function PreviewCanvas({
   );
 }
 
-function PreviewViewport({ viewport, children }: { viewport: ResponsiveViewport; children: React.ReactNode }) {
-  const frameRef = useRef<HTMLIFrameElement>(null)
-  const [mount, setMount] = useState<HTMLElement | null>(null)
+function PreviewViewport({
+  viewport,
+  children,
+}: {
+  viewport: ResponsiveViewport;
+  children: React.ReactNode;
+}) {
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  const [mount, setMount] = useState<HTMLElement | null>(null);
 
-  if (viewport === 'desktop') return <div className="mx-auto h-full min-h-0 max-w-full overflow-y-auto rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)]">{children}</div>
+  if (viewport === "desktop")
+    return (
+      <div className="mx-auto h-full min-h-0 max-w-full overflow-y-auto rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)]">
+        {children}
+      </div>
+    );
 
-  return <div className="mx-auto h-full max-w-full overflow-hidden rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)]" style={{ width: PREVIEW_WIDTHS[viewport] }}>
-    <iframe
-      ref={frameRef}
-      className="h-full w-full border-0"
-      title={`${viewport[0].toUpperCase() + viewport.slice(1)} Website preview`}
-      srcDoc="<!doctype html><html><head></head><body><div id='responsive-preview-root'></div></body></html>"
-      onLoad={() => {
-        const documentTarget = frameRef.current?.contentDocument
-        if (!documentTarget) return
-        document.querySelectorAll('style, link[rel="stylesheet"]').forEach((node) => documentTarget.head.appendChild(node.cloneNode(true)))
-        documentTarget.documentElement.className = document.documentElement.className
-        documentTarget.body.style.margin = '0'
-        const root = documentTarget.getElementById('responsive-preview-root')
-        if (root) setMount(root)
-      }}
-    />
-    {mount && createPortal(children, mount)}
-  </div>
+  return (
+    <div
+      className="mx-auto h-full max-w-full overflow-hidden rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)]"
+      style={{ width: PREVIEW_WIDTHS[viewport] }}
+    >
+      <iframe
+        ref={frameRef}
+        className="h-full w-full border-0"
+        title={`${viewport[0].toUpperCase() + viewport.slice(1)} Website preview`}
+        srcDoc="<!doctype html><html><head></head><body><div id='responsive-preview-root'></div></body></html>"
+        onLoad={() => {
+          const documentTarget = frameRef.current?.contentDocument;
+          if (!documentTarget) return;
+          document
+            .querySelectorAll('style, link[rel="stylesheet"]')
+            .forEach((node) =>
+              documentTarget.head.appendChild(node.cloneNode(true)),
+            );
+          documentTarget.documentElement.className =
+            document.documentElement.className;
+          documentTarget.body.style.margin = "0";
+          const root = documentTarget.getElementById("responsive-preview-root");
+          if (root) setMount(root);
+        }}
+      />
+      {mount && createPortal(children, mount)}
+    </div>
+  );
 }
 
 function SectionInspector({
@@ -949,6 +1142,7 @@ function SectionInspector({
   workingContent,
   workingAppearance,
   targetViewport,
+  selectedNarrativeBlockId,
   panelMode,
   showModeSwitch,
   contentDirty,
@@ -974,6 +1168,7 @@ function SectionInspector({
   workingContent?: Record<string, unknown>;
   workingAppearance?: WebsiteSectionAppearance;
   targetViewport: ResponsiveViewport;
+  selectedNarrativeBlockId: string | null;
   panelMode: SectionPanelMode;
   showModeSwitch: boolean;
   contentDirty: boolean;
@@ -993,14 +1188,29 @@ function SectionInspector({
   onSectionDesignChange: (defaults: SectionDesignDefaults) => void;
 }) {
   if (!selected || !workingContent || !workingAppearance) return null;
-  const capability = capabilities ? sectionCapability(capabilities, selected.type) : undefined;
+  const capability = capabilities
+    ? sectionCapability(capabilities, selected.type)
+    : undefined;
+  const narrativeElements =
+    selected.type === "story"
+      ? (workingContent.elements as
+          import("../../features/websiteEditor/types").StoryBlock[] | undefined)
+      : undefined;
+  const narrativeIndex = selectedNarrativeBlockId
+    ? (narrativeElements?.findIndex(({ id }) => id === selectedNarrativeBlockId) ?? -1)
+    : -1;
+  const narrativeBlock =
+    narrativeIndex >= 0 ? (narrativeElements?.[narrativeIndex] ?? null) : null;
+  const narrativeCapability = capabilities
+    ? templateElementCapability(capabilities, "narrativeBlock")
+    : undefined;
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="hidden shrink-0 border-b border-border xl:mb-4 xl:block xl:px-0 xl:pb-3 xl:pt-0">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Heading className="xl:text-base!" level={2} variant="panel">
-              {selected.displayName}
+              {narrativeBlock ? "Narrative Block" : selected.displayName}
             </Heading>
             {!selected.isEnabled && (
               <span className="rounded-full bg-surface-muted px-2 py-1 text-[10px] text-foreground-muted">
@@ -1022,49 +1232,99 @@ function SectionInspector({
         </div>
         <Text className="mt-2 xl:mt-1" variant="helper">
           {panelMode === "content"
-            ? "Edit semantic content."
+            ? narrativeBlock
+              ? "Edit this Narrative Block’s canonical content and visibility."
+              : "Edit semantic content."
             : "Customize this Section’s presentation."}
         </Text>
       </div>
       {panelMode === "content" ? (
-        <div className="min-h-0 flex-1">
-          <SectionEditor
-            key={selected.id}
-            section={selected}
-            content={workingContent}
+        narrativeBlock && selected.type === "story" ? (
+          <NarrativeBlockContentPanel
+            block={narrativeBlock}
+            content={
+              workingContent as import("../../features/websiteEditor/types").StoryContent
+            }
             dirty={contentDirty}
             resetDirty={sectionDirty}
-            onChange={onContentChange}
-            onReset={onSectionReset}
-            onSave={onContentSave}
-            onSaved={onContentSaved}
             resolvedMedia={resolvedMedia}
             onMediaResolved={onMediaResolved}
+            onChange={onContentChange}
+            onSave={onContentSave}
+            onSaved={onContentSaved}
+            onReset={onSectionReset}
           />
-        </div>
+        ) : (
+          <div className="min-h-0 flex-1">
+            <SectionEditor
+              key={selected.id}
+              section={selected}
+              content={workingContent}
+              dirty={contentDirty}
+              resetDirty={sectionDirty}
+              onChange={onContentChange}
+              onReset={onSectionReset}
+              onSave={onContentSave}
+              onSaved={onContentSaved}
+              resolvedMedia={resolvedMedia}
+              onMediaResolved={onMediaResolved}
+            />
+          </div>
+        )
       ) : capability ? (
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
-            <AppearancePanel
-              appearance={workingAppearance}
-              sectionCapability={capability}
-              targetViewport={targetViewport}
-              error={appearanceError}
-              onChange={onAppearanceChange}
-            />
-            <SectionDesignDefaultsPanel
-              appearance={workingAppearance}
-              capability={capability}
-              defaults={selected.designDefaults}
-              resolved={selected.resolvedDesignContext}
-              library={capabilities!.designLibrary}
-              saving={sectionDesignSaving}
-              disabled={appearanceDirty}
-              error={sectionDesignError}
-              onChange={onSectionDesignChange}
-            />
+            {narrativeBlock && narrativeCapability && capabilities ? (
+              <NarrativeBlockAppearancePanel
+                block={narrativeBlock}
+                viewport={targetViewport}
+                capability={narrativeCapability}
+                library={capabilities.designLibrary}
+                onChange={(block) => {
+                  const next = structuredClone(workingContent);
+                  next.elements = (
+                    next.elements as import("../../features/websiteEditor/types").StoryBlock[]
+                  ).map((element) =>
+                    element.id === block.id ? block : element,
+                  );
+                  onContentChange(next);
+                }}
+              />
+            ) : (
+              <>
+                <AppearancePanel
+                  appearance={workingAppearance}
+                  sectionCapability={capability}
+                  targetViewport={targetViewport}
+                  error={appearanceError}
+                  onChange={onAppearanceChange}
+                />
+                <SectionDesignDefaultsPanel
+                  appearance={workingAppearance}
+                  capability={capability}
+                  defaults={selected.designDefaults}
+                  resolved={selected.resolvedDesignContext}
+                  library={capabilities!.designLibrary}
+                  saving={sectionDesignSaving}
+                  disabled={appearanceDirty}
+                  error={sectionDesignError}
+                  onChange={onSectionDesignChange}
+                />
+              </>
+            )}
           </div>
-          <BuilderSaveBar dirty={appearanceDirty} statusDirty={sectionDirty} resetDirty={sectionDirty} saving={appearanceSaving} onSave={onAppearanceSave} onReset={onSectionReset} />
+          <BuilderSaveBar
+            dirty={narrativeBlock ? contentDirty : appearanceDirty}
+            statusDirty={sectionDirty}
+            resetDirty={sectionDirty}
+            saving={appearanceSaving}
+            onSave={() =>
+              narrativeBlock
+                ? void onContentSave(workingContent).then(onContentSaved)
+                : onAppearanceSave()
+            }
+            onReset={onSectionReset}
+          />
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto px-1 xl:px-0">

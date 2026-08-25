@@ -1,7 +1,7 @@
 import { Check, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useInlineEdit } from './InlineEditContext'
-import { inlineTargetKey, type InlineFieldPath } from './types'
+import { inlineTargetKey, type InlineEditingTarget, type InlineFieldPath } from './types'
 
 type Props = {
   sectionId: string
@@ -13,11 +13,14 @@ type Props = {
   label: string
   multiline?: boolean
   className?: string
+  narrativeSlot?: { blockId: string; slot: 'eyebrow' | 'heading' | 'body' | 'quote' | 'caption' }
 }
 
 export function EditableText(props: Props) {
   const editor = useInlineEdit()
-  const target = { sectionId: props.sectionId, path: props.path, label: props.label, multiline: props.multiline }
+  const target: InlineEditingTarget = props.narrativeSlot
+    ? { sectionId: props.sectionId, narrativeBlockId: props.narrativeSlot.blockId, slot: props.narrativeSlot.slot, path: props.path, label: props.label, multiline: props.multiline }
+    : { sectionId: props.sectionId, path: props.path, label: props.label, multiline: props.multiline }
   const active = editor?.activeTarget && inlineTargetKey(editor.activeTarget) === inlineTargetKey(target)
   const [entryValue, setEntryValue] = useState(props.value)
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null)
@@ -32,11 +35,11 @@ export function EditableText(props: Props) {
   }
 
   function cancel() {
-    editor?.updateValue(props.sectionId, props.path, entryValue)
+    editor?.updateValue(target, entryValue)
     editor?.finishEdit()
   }
   function done() { editor?.finishEdit() }
-  function change(value: string) { editor?.updateValue(props.sectionId, props.path, value) }
+  function change(value: string) { editor?.updateValue(target, value) }
 
   if (active) {
     const controlClass = `w-full min-w-0 resize-y overflow-hidden border-0 border-b border-[var(--editor-chrome-focus)] bg-[var(--editor-chrome-surface)] px-1 py-0.5 text-[var(--editor-chrome-on-surface)] outline-none ring-2 ring-[color-mix(in_srgb,var(--editor-chrome-focus)_38%,transparent)] ${props.className ?? ''}`

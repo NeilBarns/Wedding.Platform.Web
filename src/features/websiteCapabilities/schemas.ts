@@ -245,6 +245,13 @@ export const elementCapabilitySchema = z.object({
     typography: z.array(elementTypographyCapabilitySchema),
     colors: z.array(elementColorCapabilitySchema),
   }).strict().nullable(),
+  narrativeBlockV1: z.object({
+    version: z.literal(1),
+    slots: z.tuple([z.literal('eyebrow'), z.literal('heading'), z.literal('divider'), z.literal('body'), z.literal('quote'), z.literal('media'), z.literal('caption'), z.literal('cta')]),
+    textAppearanceControls: z.tuple([z.literal('fontFamilyId'), z.literal('fontSize'), z.literal('lineSpacing'), z.literal('letterSpacing'), z.literal('colorId')]),
+    fontSizeOptions: z.tuple([z.literal('xs'), z.literal('s'), z.literal('m'), z.literal('l'), z.literal('xl')]),
+    responsiveFontSizeViewports: z.tuple([z.literal('desktop'), z.literal('tablet'), z.literal('mobile')]),
+  }).strict().nullable(),
 }).strict()
 
 const expectedElementAppearanceRoles = {
