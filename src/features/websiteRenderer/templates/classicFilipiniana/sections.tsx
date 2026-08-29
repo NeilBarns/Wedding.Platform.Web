@@ -29,6 +29,17 @@ import {
   type NarrativeTextSlotKey,
 } from "../../narrativeAppearance";
 import { classicNarrativeTokens } from "../narrativeTokens";
+import {
+  narrativeResponsiveOrderClasses,
+  type ResolvedNarrativeComposition,
+} from "../../narrativeComposition";
+import { resolveStoryHeaderParticipation, type StoryBlockChoreographyContext } from "../../storyEffectiveSequence";
+import { EditorSelectionFrame } from "../../EditorSelectionFrame";
+import { useSelectedStoryHeaderField } from "../../EditorSelectionContext";
+import {
+  narrativeAlignmentClasses,
+  type NarrativeAlignmentClasses,
+} from "../../narrativeAlignment";
 
 const emptyContext: ResolvedDesignContext = {
   headingFontId: "",
@@ -134,42 +145,42 @@ export function ClassicFilipinianaStoryHeader({
   sectionId,
   content,
   mode,
+  fields,
+  hasFollowingUnits,
+  library,
+  context = emptyContext,
+  viewport,
 }: {
   sectionId: string;
   content: StoryContent;
   mode: "editor" | "public";
+  fields: import("../../../websiteEditor/types").StoryHeaderField[];
+  hasFollowingUnits: boolean;
+  library: TemplateDesignLibrary;
+  context?: ResolvedDesignContext;
+  viewport: ResponsiveViewport;
 }) {
+  const selectedField = useSelectedStoryHeaderField();
+  const participation = resolveStoryHeaderParticipation(content);
+  const renderedFields = mode === "public" ? fields.filter((field) => participation[field]) : fields;
+  const storyStyle = (field: import("../../../websiteEditor/types").StoryHeaderField) => ({ ...narrativeSlotCss(resolveNarrativeSlotAppearance(field === "intro" ? "body" : field, content.singletonAppearance?.[field], context, classicNarrativeTokens.defaults[field === "intro" ? "body" : field], viewport), library, "classic-filipiniana-v1", classicNarrativeTokens), ...(content.singletonAppearance?.[field]?.alignment ? { textAlign: content.singletonAppearance[field]!.alignment === 'start' ? 'left' : content.singletonAppearance[field]!.alignment === 'end' ? 'right' : 'center' } : {}) } as React.CSSProperties);
+  const storyTextAlignmentClass = (field: import("../../../websiteEditor/types").StoryHeaderField) => content.singletonAppearance?.[field]?.alignment === "start" ? "text-left" : content.singletonAppearance?.[field]?.alignment === "end" ? "text-right" : content.singletonAppearance?.[field]?.alignment === "center" ? "text-center" : undefined;
+  if (renderedFields.length === 0) return null;
   return (
-    <ContentSection
-      botanical
-      eyebrow="Our journey"
-      heading={
-        <EditableText
-          sectionId={sectionId}
-          path={["heading"]}
-          value={content.heading}
-          fallback="Our Story"
-          placeholder="Add heading"
-          label="Story heading"
-        />
-      }
-    >
-      {content.intro?.trim() || mode === "editor" ? (
-        <p className="mx-auto max-w-2xl whitespace-pre-line leading-8 text-[var(--cf-section-body)]">
-          <EditableText
-            sectionId={sectionId}
-            path={["intro"]}
-            value={content.intro ?? ""}
-            placeholder="Add introduction"
-            label="Story introduction"
-            multiline
-          />
-        </p>
-      ) : null}
-      {content.elements.length === 0 && mode === "editor" ? (
-        <EmptyCopy>Add narrative blocks from the Content panel.</EmptyCopy>
-      ) : null}
-    </ContentSection>
+    <div data-section-content className={`relative overflow-hidden px-7 pt-20 text-center sm:px-12 sm:pt-24 ${hasFollowingUnits ? "pb-10 sm:pb-12" : "pb-20 sm:pb-24"}`}>
+      <ClassicBotanicalSprig className="absolute -left-16 bottom-0 h-32 w-64 -rotate-6" />
+      <ClassicBotanicalSprig className="absolute -right-16 top-0 h-32 w-64 rotate-[174deg]" />
+      <div className="relative mx-auto max-w-5xl">
+        <ClassicFoundationOrnament className="mx-auto mb-5 h-5 w-32 opacity-75" />
+        {renderedFields.map((field, index) => field === "eyebrow" ? (
+          <p style={storyStyle(field)} key={field} data-editor-story-field={field} className={`${index ? "mt-3" : ""} relative rounded-sm text-[10px] font-semibold uppercase tracking-[0.32em] text-[var(--cf-secondary)]`}><EditableText sectionId={sectionId} path={["eyebrow"]} value={content.eyebrow ?? ""} placeholder="Add eyebrow" label="Story eyebrow" className={storyTextAlignmentClass(field)} /><EditorSelectionFrame selected={mode === "editor" && selectedField === field} /></p>
+        ) : field === "heading" ? (
+          <h2 style={storyStyle(field)} key={field} data-editor-story-field={field} data-section-heading={content.singletonAppearance?.heading?.alignment ? undefined : ""} className={`${index ? "mt-3" : ""} relative mx-auto w-full max-w-2xl rounded-sm font-[family-name:var(--cf-heading-font)] text-3xl leading-tight text-[var(--cf-text)] sm:text-4xl`}><EditableText sectionId={sectionId} path={["heading"]} value={content.heading} placeholder="Add heading" label="Story heading" className={storyTextAlignmentClass(field)} /><EditorSelectionFrame selected={mode === "editor" && selectedField === field} /></h2>
+        ) : (
+          <p style={storyStyle(field)} key={field} data-editor-story-field={field} data-section-body={content.singletonAppearance?.intro?.alignment ? undefined : ""} className={`${index ? "mt-8" : ""} relative mx-auto max-w-2xl rounded-sm whitespace-pre-line text-sm leading-8 text-[var(--cf-section-body)]`}><EditableText sectionId={sectionId} path={["intro"]} value={content.intro ?? ""} placeholder="Add introduction" label="Story introduction" multiline className={storyTextAlignmentClass(field)} /><EditorSelectionFrame selected={mode === "editor" && selectedField === field} /></p>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -180,6 +191,10 @@ export function ClassicFilipinianaStoryBlock({
   library,
   viewport,
   context = emptyContext,
+  composition,
+  media,
+  mode = "public",
+  choreography,
 }: {
   sectionId: string;
   block: StoryBlock;
@@ -187,6 +202,10 @@ export function ClassicFilipinianaStoryBlock({
   library: TemplateDesignLibrary;
   viewport: ResponsiveViewport;
   context?: ResolvedDesignContext;
+  composition: ResolvedNarrativeComposition;
+  media?: React.ReactNode;
+  mode?: "editor" | "public";
+  choreography?: StoryBlockChoreographyContext;
 }) {
   const { slots } = block;
   const style = (key: NarrativeTextSlotKey) =>
@@ -202,18 +221,68 @@ export function ClassicFilipinianaStoryBlock({
       "classic-filipiniana-v1",
       classicNarrativeTokens,
     );
+  const alignment = narrativeAlignmentClasses(
+    composition.effective.textAlignment,
+  );
+  const surface =
+    composition.effective.surface === "feature"
+      ? "border-y border-[var(--cf-section-accent)] bg-[color-mix(in_srgb,var(--cf-section-accent)_12%,var(--cf-page))] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--cf-section-accent)_22%,transparent)]"
+      : composition.effective.surface === "soft"
+        ? "bg-[color-mix(in_srgb,var(--cf-section-body)_7%,transparent)]"
+        : "";
+  const split = ["splitStart", "splitEnd"].includes(
+    composition.effective.mediaPlacement ?? "",
+  );
+  const layout = split
+    ? "grid gap-x-10 sm:grid-cols-2 sm:items-center"
+    : "grid grid-cols-1";
+  const textColumn =
+    composition.effective.mediaPlacement === "splitStart"
+      ? "sm:col-start-2"
+      : "sm:col-start-1";
+  const rendered = composition.rendering.slots;
+  const hasTextGroup =
+    rendered.eyebrow || rendered.heading || rendered.divider || rendered.body || rendered.quote;
+  const beforeDivider = rendered.eyebrow || rendered.heading;
+  const afterDivider = rendered.body || rendered.quote;
+  const beforeBody = beforeDivider || rendered.divider;
+  const beforeQuote = beforeBody || rendered.body;
+  const rendersMedia = Boolean(media) && !composition.rendering.suppressMedia;
+  const responsiveOrder = narrativeResponsiveOrderClasses(composition);
+  const mediaClass = narrativeMediaClass(
+    composition,
+    viewport,
+    "classic",
+    hasTextGroup,
+  );
+  const hasVisibleSlot = Object.values(rendered).some(Boolean);
+  const slotTarget = (slot: string) => mode === "editor" ? { "data-editor-narrative-slot": slot, "data-editor-narrative-block": block.id } : {};
+  const hasAdjacentPredecessor = Boolean(choreography && choreography.effectiveIndex > 0);
+  const consecutiveMediaFirst = choreography?.previousPresentation === "mediaFirst"
+    && composition.effective.presentation === "mediaFirst";
+  const rootRhythm = composition.effective.presentation === "mediaFirst"
+    ? hasAdjacentPredecessor
+      ? consecutiveMediaFirst ? "pb-10 pt-6 sm:pb-14 sm:pt-8" : "pb-10 pt-8 sm:pb-14 sm:pt-10"
+      : "py-10 sm:py-14"
+    : hasAdjacentPredecessor
+      ? "pb-14 pt-10 sm:pb-20 sm:pt-14"
+      : "py-14 sm:py-20";
   return (
     <div
       data-section-content
-      className="relative px-7 py-14 text-center sm:px-12 sm:py-20"
+      data-narrative-presentation={composition.effective.presentation}
+      className={`relative overflow-hidden px-7 sm:px-12 ${rootRhythm} ${alignment.text} ${surface} ${layout}`}
     >
-      <p className="mb-5 text-[9px] font-semibold uppercase tracking-[0.3em] text-[var(--cf-secondary)]">
-        Chapter {String(index + 1).padStart(2, "0")}
-      </p>
-      {!slots.eyebrow.isHidden && (
+      {!hasVisibleSlot && mode === "editor" ? (
+        <p className="col-span-full text-center text-xs italic text-[var(--cf-muted)]">
+          Nothing currently visible.
+        </p>
+      ) : null}
+      {rendered.eyebrow && (
         <p
+          {...slotTarget("eyebrow")}
           style={style("eyebrow")}
-          className="mb-3 text-[10px] font-semibold uppercase tracking-[0.25em] text-[var(--cf-muted)]"
+          className={`text-[10px] font-semibold uppercase tracking-[0.25em] text-[var(--cf-muted)] ${textColumn}`}
         >
           <EditableText
             sectionId={sectionId}
@@ -225,31 +294,41 @@ export function ClassicFilipinianaStoryBlock({
           />
         </p>
       )}
-      <ClassicFilipinianaStoryBlockHeading
-        sectionId={sectionId}
-        block={block}
-        index={index}
-        style={style("heading")}
-      />
-      {!slots.divider.isHidden && (
-        <ClassicFoundationOrnament className="mx-auto my-5 h-4 w-28 opacity-55" />
-      )}
-      <div
-        className={
-          !slots.heading.isHidden && slots.heading.text.trim() ? "mt-6" : ""
-        }
-      >
-        <ClassicFilipinianaStoryBlockBody
+      {rendered.heading && (
+        <ClassicFilipinianaStoryBlockHeading
           sectionId={sectionId}
           block={block}
           index={index}
-          style={style("body")}
+          style={style("heading")}
+          editorSlotTarget={mode === "editor"}
+          className={`${rendered.eyebrow ? "mt-3" : ""} ${textColumn} ${alignment.constrainedGroup}`}
         />
-      </div>
-      {!slots.quote.isHidden && (
+      )}
+      {rendered.divider && (
+        <ClassicFoundationOrnament
+          editorNarrativeSlot={mode === "editor" ? "divider" : undefined}
+          editorNarrativeBlock={mode === "editor" ? block.id : undefined}
+          className={`${beforeDivider ? "mt-5" : ""} ${afterDivider ? "mb-5" : ""} h-4 w-28 opacity-55 ${textColumn} ${alignment.divider}`}
+        />
+      )}
+      {rendered.body && (
+        <div {...slotTarget("body")}
+          className={`${beforeBody && !rendered.divider ? "mt-6" : ""} ${textColumn}`}
+        >
+          <ClassicFilipinianaStoryBlockBody
+            sectionId={sectionId}
+            block={block}
+            index={index}
+            style={style("body")}
+            alignment={alignment}
+          />
+        </div>
+      )}
+      {rendered.quote && (
         <blockquote
+          {...slotTarget("quote")}
           style={style("quote")}
-          className="mx-auto mt-7 max-w-xl font-[family-name:var(--cf-heading-font)] text-xl italic"
+          className={`${composition.effective.presentation === "quoteLed" ? `${beforeQuote ? "mt-8" : ""} border-y border-[var(--cf-section-accent)] py-8 text-3xl sm:text-4xl` : `${beforeQuote && !rendered.divider ? "mt-7" : ""} text-xl`} max-w-xl font-[family-name:var(--cf-heading-font)] italic ${textColumn} ${alignment.constrainedGroup}`}
         >
           <EditableText
             sectionId={sectionId}
@@ -261,15 +340,19 @@ export function ClassicFilipinianaStoryBlock({
           />
           {slots.quote.attribution && (
             <footer className="mt-2 text-xs not-italic">
-              — {slots.quote.attribution}
+              - {slots.quote.attribution}
             </footer>
           )}
         </blockquote>
       )}
-      {!slots.caption.isHidden && (
+      {rendersMedia ? (
+        <div {...slotTarget("media")} className={`${mediaClass} ${responsiveOrder.media}`}>{media}</div>
+      ) : null}
+      {rendered.caption && (
         <p
+          {...slotTarget("caption")}
           style={style("caption")}
-          className="mx-auto mt-4 max-w-xl text-xs text-[var(--cf-muted)]"
+          className={`${rendersMedia ? "mt-4" : ""} max-w-xl text-xs text-[var(--cf-muted)] ${textColumn} ${alignment.constrainedGroup} ${responsiveOrder.caption}`}
         >
           <EditableText
             sectionId={sectionId}
@@ -281,18 +364,20 @@ export function ClassicFilipinianaStoryBlock({
           />
         </p>
       )}
-      {!slots.cta.isHidden && (
+      {rendered.cta && (
         <span
+          {...slotTarget("cta")}
           style={style("cta")}
-          className="mx-auto mt-7 inline-block border border-[var(--cf-theme-accent)] px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em]"
+          className={`${hasTextGroup || rendersMedia || rendered.caption ? "mt-7" : ""} block w-fit border border-[var(--cf-theme-accent)] px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] ${textColumn} ${alignment.action}`}
         >
           {slots.cta.label}
         </span>
       )}
-      {!slots.media.isHidden &&
+      {mode === "editor" && !composition.rendering.suppressMedia &&
+        !slots.media.isHidden &&
         slots.media.content &&
         slots.media.content.type !== "image" && (
-          <p className="mt-5 text-xs text-[var(--cf-muted)]">
+          <p className={`${hasTextGroup ? "mt-5" : ""} text-xs text-[var(--cf-muted)]`}>
             {slots.media.content.type === "video"
               ? "Video"
               : "Media collection"}{" "}
@@ -311,6 +396,8 @@ export function ClassicFilipinianaStoryBlockHeading({
   library,
   viewport = "desktop",
   context = emptyContext,
+  editorSlotTarget = false,
+  className = "",
 }: {
   sectionId: string;
   block: StoryBlock;
@@ -319,6 +406,8 @@ export function ClassicFilipinianaStoryBlockHeading({
   library?: TemplateDesignLibrary;
   viewport?: ResponsiveViewport;
   context?: ResolvedDesignContext;
+  editorSlotTarget?: boolean;
+  className?: string;
 }) {
   const slot = block.slots.heading;
   const effectiveStyle =
@@ -339,9 +428,10 @@ export function ClassicFilipinianaStoryBlockHeading({
       : undefined);
   return !slot.isHidden ? (
     <h3
-      data-section-heading
+      data-editor-narrative-slot={editorSlotTarget ? "heading" : undefined}
+      data-editor-narrative-block={editorSlotTarget ? block.id : undefined}
       style={effectiveStyle}
-      className="mx-auto max-w-2xl font-[family-name:var(--cf-heading-font)] text-3xl text-[var(--cf-text)]"
+      className={`max-w-2xl font-[family-name:var(--cf-heading-font)] text-3xl text-[var(--cf-text)] ${className}`}
     >
       <EditableText
         sectionId={sectionId}
@@ -355,6 +445,42 @@ export function ClassicFilipinianaStoryBlockHeading({
   ) : null;
 }
 
+function narrativeMediaClass(
+  composition: ResolvedNarrativeComposition,
+  viewport: ResponsiveViewport,
+  template: "classic",
+  hasTextGroup: boolean,
+) {
+  const placement = composition.effective.mediaPlacement;
+  const treatment = composition.effective.mediaTreatment;
+  const compact = viewport === "mobile";
+  const split = placement === "splitStart" || placement === "splitEnd";
+  const collapsedMediaFirstSplit =
+    compact && split && composition.effective.presentation === "mediaFirst";
+  const column =
+    placement === "splitStart" ? "sm:col-start-1" : "sm:col-start-2";
+  const position = collapsedMediaFirstSplit
+    ? ""
+    : split && !compact
+      ? `${column} sm:row-start-1 sm:row-span-8`
+      : placement === "above" || placement === "leading"
+        ? `${composition.effective.presentation === "mediaFirst" ? "" : "-order-1"} ${hasTextGroup ? "mb-8" : ""}`
+        : placement === "inset"
+          ? `mx-auto w-3/4 max-w-xl ${hasTextGroup ? "mt-8" : ""}`
+          : hasTextGroup
+            ? "mt-8"
+            : "";
+  const treatmentClass =
+    treatment === "cinematic"
+      ? "[&_img]:aspect-[16/7] [&_img]:object-cover"
+      : treatment === "wide"
+        ? "w-full sm:scale-[1.06]"
+        : treatment === "fullBleed"
+          ? "-mx-7 w-[calc(100%+3.5rem)] sm:-mx-12 sm:w-[calc(100%+6rem)]"
+          : "";
+  return `min-w-0 overflow-hidden ${position} ${treatmentClass} ${template === "classic" ? "[&_img]:grayscale-[12%]" : ""}`;
+}
+
 export function ClassicFilipinianaStoryBlockBody({
   sectionId,
   block,
@@ -363,6 +489,7 @@ export function ClassicFilipinianaStoryBlockBody({
   library,
   viewport = "desktop",
   context = emptyContext,
+  alignment = narrativeAlignmentClasses("start"),
 }: {
   sectionId: string;
   block: StoryBlock;
@@ -371,6 +498,7 @@ export function ClassicFilipinianaStoryBlockBody({
   library?: TemplateDesignLibrary;
   viewport?: ResponsiveViewport;
   context?: ResolvedDesignContext;
+  alignment?: NarrativeAlignmentClasses;
 }) {
   const slot = block.slots.body;
   const effectiveStyle =
@@ -391,9 +519,8 @@ export function ClassicFilipinianaStoryBlockBody({
       : undefined);
   return !slot.isHidden ? (
     <p
-      data-section-body
       style={effectiveStyle}
-      className="mx-auto max-w-2xl whitespace-pre-line text-sm leading-8 text-[var(--cf-section-body)]"
+      className={`max-w-2xl whitespace-pre-line text-sm leading-8 text-[var(--cf-section-body)] ${alignment.text} ${alignment.constrainedGroup}`}
     >
       <EditableText
         sectionId={sectionId}
@@ -403,6 +530,7 @@ export function ClassicFilipinianaStoryBlockBody({
         placeholder="Add story"
         label={`Story block ${index + 1} body`}
         multiline
+        className={alignment.text}
       />
     </p>
   ) : null;
@@ -809,16 +937,25 @@ function ContentSection({
   heading,
   children,
   botanical = false,
+  eyebrowParticipates,
+  headingParticipates = true,
+  bodyParticipates = true,
+  compactEnding = false,
 }: {
-  eyebrow: string;
+  eyebrow?: React.ReactNode;
   heading: React.ReactNode;
   children: React.ReactNode;
   botanical?: boolean;
+  eyebrowParticipates?: boolean;
+  headingParticipates?: boolean;
+  bodyParticipates?: boolean;
+  compactEnding?: boolean;
 }) {
+  const hasEyebrow = eyebrowParticipates ?? Boolean(eyebrow);
   return (
     <div
       data-section-content
-      className="relative overflow-hidden px-7 py-20 text-center sm:px-12 sm:py-24"
+      className={`relative overflow-hidden px-7 pt-20 text-center sm:px-12 sm:pt-24 ${compactEnding ? "pb-10 sm:pb-12" : "pb-20 sm:pb-24"}`}
     >
       {botanical && (
         <>
@@ -828,21 +965,19 @@ function ContentSection({
       )}
       <div className="relative mx-auto max-w-5xl">
         <ClassicFoundationOrnament className="mx-auto mb-5 h-5 w-32 opacity-75" />
-        <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[var(--cf-secondary)]">
-          {eyebrow}
-        </p>
-        <h2
+        {hasEyebrow && <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[var(--cf-secondary)]">{eyebrow}</p>}
+        {headingParticipates && <h2
           data-section-heading
-          className="mx-auto mt-3 w-full max-w-2xl font-[family-name:var(--cf-heading-font)] text-3xl leading-tight text-[var(--cf-text)] sm:text-4xl"
+          className={`mx-auto w-full max-w-2xl font-[family-name:var(--cf-heading-font)] text-3xl leading-tight text-[var(--cf-text)] sm:text-4xl ${hasEyebrow ? "mt-3" : ""}`}
         >
           {heading}
-        </h2>
-        <div
+        </h2>}
+        {bodyParticipates && <div
           data-section-body
-          className="mx-auto mt-8 text-sm leading-7 text-[var(--cf-muted)]"
+          className={`mx-auto text-sm leading-7 text-[var(--cf-muted)] ${hasEyebrow || headingParticipates ? "mt-8" : ""}`}
         >
           {children}
-        </div>
+        </div>}
       </div>
     </div>
   );

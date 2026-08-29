@@ -5,6 +5,7 @@ import { narrativeBlockElementSchema } from '../websiteElements/schemas'
 import { templateCapabilitiesSchema } from '../websiteCapabilities/schemas'
 import { matchesCurrentDesignCatalog } from '../websiteTemplates/design/catalogs'
 import { globalDesignCapability, supportsGlobalDesignValue, sectionCapability } from '../websiteCapabilities/lookup'
+import { isCanonicalStoryStructure } from './storyStructure'
 
 const text = z.string()
 const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Required')
@@ -43,11 +44,25 @@ const storyMediaFramingSchema = z.object({
   focalPoint: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().optional(),
   zoom: z.number().min(1).max(3).optional(),
 }).strict()
+const storyTextAppearanceSchema = z.object({
+  fontFamilyId: z.string().min(1).max(255).optional(),
+  fontSize: z.object({ desktop: z.enum(['xs', 's', 'm', 'l', 'xl']).optional(), tablet: z.enum(['xs', 's', 'm', 'l', 'xl']).optional(), mobile: z.enum(['xs', 's', 'm', 'l', 'xl']).optional() }).strict().optional(),
+  lineSpacing: z.enum(['tight', 'normal', 'relaxed']).optional(),
+  letterSpacing: z.enum(['tight', 'normal', 'wide']).optional(),
+  colorId: z.string().min(1).max(255).optional(),
+  alignment: z.enum(['start', 'center', 'end']).optional(),
+}).strict()
 export const storyContentSchema = z.object({
+  eyebrow: text.max(255).nullable().optional(),
+  eyebrowIsHidden: z.boolean().optional(),
   heading: text.max(255),
   intro: text.max(5000).nullable(),
+  headingIsHidden: z.boolean().optional(),
+  introIsHidden: z.boolean().optional(),
+  singletonAppearance: z.object({ eyebrow: storyTextAppearanceSchema.optional(), heading: storyTextAppearanceSchema.optional(), intro: storyTextAppearanceSchema.optional() }).strict().optional(),
   elements: z.array(narrativeBlockElementSchema).max(20),
   mediaFraming: z.record(z.string(), storyMediaFramingSchema),
+  structureOrder: z.array(z.string().min(1)).max(23).optional(),
 }).strict().superRefine((content, context) => {
   const ids = new Set<string>()
   const imageIds = new Set<string>()
@@ -59,6 +74,9 @@ export const storyContentSchema = z.object({
   Object.keys(content.mediaFraming).forEach((id) => {
     if (!imageIds.has(id)) context.addIssue({ code: 'custom', message: 'Framing must reference a Story element with image media', path: ['mediaFraming', id] })
   })
+  if (content.structureOrder && !isCanonicalStoryStructure(content, content.structureOrder)) {
+    context.addIssue({ code: 'custom', message: 'Story structure order must be a complete canonical permutation', path: ['structureOrder'] })
+  }
 })
 export const scheduleContentSchema = z.object({
   heading: text,

@@ -27,7 +27,7 @@ export function resolveClassicFilipinianaSectionAppearance(
   const heading = appearance.headingAlignment === 'inherit' ? 'center' : appearance.headingAlignment
   const body = appearance.bodyAlignment === 'inherit' ? defaultBodyAlignment : appearance.bodyAlignment
   const background = appearance.backgroundTreatment === 'inherit' ? (index % 2 ? 'soft' : 'plain') : appearance.backgroundTreatment
-  const emphasis = appearance.emphasis === 'inherit' ? 'standard' : appearance.emphasis
+  const emphasis = sectionType === 'story' || appearance.emphasis === 'inherit' ? 'standard' : appearance.emphasis
 
   const backgroundResult = resolveBackground(background)
   const emphasisClass = emphasis === 'featured'

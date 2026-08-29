@@ -4,6 +4,7 @@ import { designColor, fontFamily } from '../../websiteCapabilities/lookup'
 import type { ResolvedDesignContext, SectionCapability, TemplateDesignLibrary } from '../../websiteCapabilities/types'
 import { resetSectionDesignDefault, sectionDesignDefaultControls, setSectionDesignDefault } from '../sectionDesignDefaults'
 import type { SectionDesignDefaults, WebsiteSectionAppearance } from '../types'
+import { FontPicker } from './FontPicker'
 
 export function SectionDesignDefaultsPanel({
   appearance,
@@ -55,7 +56,7 @@ export function SectionDesignDefaultsPanel({
           </div>
           <div className="flex items-center gap-2">
             {color && <span className="size-6 shrink-0 rounded-full border border-border" style={{ backgroundColor: color.value }} aria-hidden="true" />}
-            <Select id={`section-design-${control.key}`} className="min-w-0 flex-1" value={value} options={options} disabled={saving || disabled} aria-label={control.label} onChange={(next) => onChange(setSectionDesignDefault(defaults, control.key, next))} />
+            {control.kind === 'font' ? <FontPicker id={`section-design-${control.key}`} value={value} role={control.key === 'headingFontId' ? 'heading' : 'body'} library={library} inheritedLabel="Project default" disabled={saving || disabled} onChange={(next) => onChange(setSectionDesignDefault(defaults, control.key, next))} /> : <Select id={`section-design-${control.key}`} className="min-w-0 flex-1" value={value} options={options} disabled={saving || disabled} aria-label={control.label} onChange={(next) => onChange(setSectionDesignDefault(defaults, control.key, next))} />}
             {overridden && <Button size="sm" variant="ghost" type="button" disabled={saving || disabled} onClick={() => onChange(resetSectionDesignDefault(defaults, control.key))}>Use Project Default</Button>}
           </div>
         </div>

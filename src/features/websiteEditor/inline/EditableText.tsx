@@ -31,6 +31,7 @@ export function EditableText(props: Props) {
 
   if (!editor) {
     const display = props.value.trim() || props.fallback || null
+    if (props.className) return <span className={`${props.multiline ? 'whitespace-pre-line ' : ''}${props.className}`}>{display}</span>
     return props.multiline ? <span className="whitespace-pre-line">{display}</span> : <>{display}</>
   }
 

@@ -6,29 +6,26 @@ import { Text } from "../../../components/ui/Text";
 import type { WebsiteDesignSettings } from "../types";
 import { globalDesignOptions } from "../../websiteCapabilities/lookup";
 import type { GlobalDesignCapability } from "../../websiteCapabilities/types";
+import type { TemplateDesignLibrary } from "../../websiteCapabilities/types";
 import { designPreviewFor } from "../../websiteTemplates/designPreviews";
-import { BuilderSaveBar } from "./BuilderSaveBar";
+import { FontPicker } from "./FontPicker";
 
 export function DesignPanel({
   settings,
   capability,
-  dirty,
-  saving,
+  library,
   error,
   eventName,
   templateKey,
   onChange,
-  onSave,
 }: {
   settings: WebsiteDesignSettings;
   capability: GlobalDesignCapability;
-  dirty: boolean;
-  saving: boolean;
+  library: TemplateDesignLibrary;
   error: string | null;
   eventName: string;
   templateKey: string;
   onChange: (settings: WebsiteDesignSettings) => void;
-  onSave: () => void;
 }) {
   const preview = designPreviewFor(templateKey);
   const colorThemes = globalDesignOptions(capability, 'colorTheme');
@@ -109,9 +106,24 @@ export function DesignPanel({
             );
           })}
         </div>
+        <div className="mt-4 space-y-3 border-t border-border pt-4">
+          <p className="text-xs font-medium">Advanced typography</p>
+          <ProjectFontControl label="Heading Font" role="heading" value={settings.projectDefaults.headingFontId ?? ""} library={library} onChange={(fontId) => onChange({ ...settings, projectDefaults: updateProjectFont(settings.projectDefaults, "headingFontId", fontId) })} />
+          <ProjectFontControl label="Body Font" role="body" value={settings.projectDefaults.bodyFontId ?? ""} library={library} onChange={(fontId) => onChange({ ...settings, projectDefaults: updateProjectFont(settings.projectDefaults, "bodyFontId", fontId) })} />
+        </div>
       </DesignGroup>
       </div>
-      <BuilderSaveBar dirty={dirty} saving={saving} onSave={onSave} />
     </section>
   );
+}
+
+function ProjectFontControl({ label, role, value, library, onChange }: { label: string; role: "heading" | "body"; value: string; library: TemplateDesignLibrary; onChange: (value: string) => void }) {
+  return <div><label className="mb-1.5 block text-xs font-medium">{label}</label><FontPicker value={value} role={role} library={library} inheritedLabel="Use typography preset" onChange={onChange} /></div>;
+}
+
+function updateProjectFont(defaults: WebsiteDesignSettings["projectDefaults"], key: "headingFontId" | "bodyFontId", fontId: string) {
+  const next = { ...defaults };
+  if (fontId) next[key] = fontId;
+  else delete next[key];
+  return next;
 }

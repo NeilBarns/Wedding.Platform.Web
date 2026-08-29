@@ -4,7 +4,7 @@ import type {
   TemplateDesignLibrary,
 } from "../websiteCapabilities/types";
 import type { ResponsiveViewport, StoryBlock } from "../websiteEditor/types";
-import { templateFontFamilyStacks } from "../websiteTemplates/design/catalogs";
+import { fontStackForTemplate } from "../websiteTemplates/design/catalogs";
 
 export type NarrativeTextSlotKey =
   "eyebrow" | "heading" | "body" | "quote" | "caption" | "cta";
@@ -54,12 +54,11 @@ export function resolveNarrativeSlotAppearance(
 export function narrativeSlotCss(
   appearance: ResolvedNarrativeSlotAppearance,
   library: TemplateDesignLibrary,
-  templateKey: keyof typeof templateFontFamilyStacks,
+  templateKey: string,
   tokens: NarrativeTemplateTokens,
 ): CSSProperties {
-  const fonts = templateFontFamilyStacks[templateKey] as Record<string, string>;
   return {
-    fontFamily: fonts[appearance.fontFamilyId],
+    fontFamily: fontStackForTemplate(templateKey, appearance.fontFamilyId),
     color: library.colors.find(({ id }) => id === appearance.colorId)?.value,
     fontSize: tokens.fontSize[appearance.fontSize],
     lineHeight: tokens.lineSpacing[appearance.lineSpacing],

@@ -1,4 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
+import { collectRequiredFontIds } from '../websiteFonts/platformFonts'
+import { ensureProjectFonts } from '../websiteFonts/fontLoader'
 import { resolveSectionAppearanceForViewport } from '../websiteEditor/responsiveAppearance'
 import { sectionCapability } from '../websiteCapabilities/lookup'
 import { ClassicFilipinianaRenderer } from './templates/ClassicFilipinianaRenderer'
@@ -13,6 +15,13 @@ const templateRenderers = {
 export function WebsiteRenderer(props: WebsiteRendererProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const Renderer = templateRenderers[props.website.templateKey as keyof typeof templateRenderers]
+  const requiredFontIds = useMemo(() => collectRequiredFontIds(props.website), [props.website])
+  const requiredFontSignature = requiredFontIds.sort().join('|')
+
+  useEffect(() => {
+    const documentTarget = rootRef.current?.ownerDocument
+    if (documentTarget) ensureProjectFonts(documentTarget, requiredFontIds)
+  }, [requiredFontSignature, requiredFontIds])
 
   useEffect(() => {
     if (props.mode !== 'editor' || props.scope?.kind === 'single-section' || !props.selectedSectionId) return

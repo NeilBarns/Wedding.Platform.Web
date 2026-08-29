@@ -1,79 +1,54 @@
 import { useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
 import { Textarea } from '../../../components/ui/Textarea'
 import { useEventWorkspace } from '../../events/workspace/EventWorkspaceContext'
 import type { StoryBlock, StoryContent, WebsiteDraft } from '../types'
-import { BuilderSaveBar } from './BuilderSaveBar'
 import { FocalPointEditor } from './FocalPointEditor'
+import { InspectorDisclosure, InspectorSection } from './InspectorPrimitives'
 import { MediaPickerDialog } from './MediaPickerDialog'
+import type { NarrativeSlotKey } from '../narrativeSlotFocus'
+import { SemanticTextContentField } from './SemanticTextContentField'
 
-const slotLabels = {
-  eyebrow: 'Eyebrow', heading: 'Heading', divider: 'Divider', body: 'Body', quote: 'Quote',
-  media: 'Media', caption: 'Caption', cta: 'CTA',
-} as const
-
+const slotLabels = { eyebrow: 'Eyebrow', heading: 'Heading', divider: 'Divider', body: 'Body', quote: 'Quote', media: 'Media', caption: 'Caption', cta: 'CTA' } as const
 type SlotKey = keyof typeof slotLabels
 
-export function NarrativeBlockContentPanel({ block, content, dirty, resetDirty, resolvedMedia, onMediaResolved, onChange, onSave, onSaved, onReset }: {
-  block: StoryBlock
-  content: StoryContent
-  dirty: boolean
-  resetDirty: boolean
-  resolvedMedia: WebsiteDraft['media']
-  onMediaResolved: (media: WebsiteDraft['media'][string]) => void
-  onChange: (content: StoryContent) => void
-  onSave: (content: Record<string, unknown>) => Promise<WebsiteDraft>
-  onSaved: (draft: WebsiteDraft) => void
-  onReset: () => void
-}) {
+export function NarrativeBlockContentPanel({ block, content, resolvedMedia, onMediaResolved, onChange, activeDisclosure, onDisclosureChange }: { block: StoryBlock; content: StoryContent; resolvedMedia: WebsiteDraft['media']; onMediaResolved: (media: WebsiteDraft['media'][string]) => void; onChange: (content: StoryContent) => void; activeDisclosure: NarrativeSlotKey | null; onDisclosureChange: (key: NarrativeSlotKey | null) => void }) {
   const event = useEventWorkspace()
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [saving, setSaving] = useState(false)
   const index = content.elements.findIndex(({ id }) => id === block.id)
   if (index < 0) return null
-
   const update = (nextBlock: StoryBlock) => onChange({ ...content, elements: content.elements.map((item) => item.id === block.id ? nextBlock : item) })
   const updateSlot = <K extends SlotKey>(key: K, slot: StoryBlock['slots'][K]) => update({ ...block, slots: { ...block.slots, [key]: slot } })
-  const visibility = (key: SlotKey) => {
+  const visibility = (key: SlotKey) => { const slot = block.slots[key]; const label = `${slot.isHidden ? 'Show' : 'Hide'} ${slotLabels[key]}`; const Icon = slot.isHidden ? EyeOff : Eye; return <Button type="button" size="sm" variant="ghost" className={`h-9 min-h-9 w-9 shrink-0 p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 ${slot.isHidden ? 'bg-surface-muted text-foreground-muted' : 'text-foreground-muted'}`} aria-label={label} title={label} aria-pressed={slot.isHidden} onClick={() => updateSlot(key, { ...slot, isHidden: !slot.isHidden })}><Icon size={16} aria-hidden="true" /></Button> }
+  const summary = (key: SlotKey) => {
     const slot = block.slots[key]
-    return <Button type="button" size="sm" variant="secondary" onClick={() => updateSlot(key, { ...slot, isHidden: !slot.isHidden })}>{slot.isHidden ? `Show ${slotLabels[key]}` : `Hide ${slotLabels[key]}`}</Button>
+    if (slot.isHidden) return 'Hidden'
+    if ('text' in slot) return preview(slot.text)
+    if (key === 'quote') return preview(block.slots.quote.text)
+    if (key === 'media') return block.slots.media.content ? (block.slots.media.content.type === 'image' ? resolvedMedia[block.slots.media.content.mediaId]?.originalFilename ?? 'Image' : block.slots.media.content.type) : 'No media'
+    if (key === 'cta') return preview(block.slots.cta.label)
+    return 'Visible'
   }
-  const textField = (key: 'eyebrow' | 'heading' | 'body' | 'caption', multiline = false) => {
-    const slot = block.slots[key]
-    const Control = multiline ? Textarea : Input
-    return <Slot label={slotLabels[key]} action={visibility(key)}><Control aria-label={slotLabels[key]} value={slot.text} onChange={(event) => updateSlot(key, { ...slot, text: event.target.value })} /></Slot>
-  }
+  const disclosure = (key: NarrativeSlotKey) => ({ open: activeDisclosure === key, onOpenChange: (open: boolean) => onDisclosureChange(open ? key : null) })
+  const textDisclosure = (key: 'eyebrow' | 'heading' | 'body' | 'caption', multiline = false) => { const slot = block.slots[key]; return <InspectorDisclosure {...disclosure(key)} title={slotLabels[key]} summary={summary(key)} actions={visibility(key)}><SemanticTextContentField id={`narrative-${block.id}-${key}`} label={slotLabels[key]} hideLabel value={slot.text} multiline={multiline} onChange={(text) => updateSlot(key, { ...slot, text })} /></InspectorDisclosure> }
   const image = block.slots.media.content?.type === 'image' ? block.slots.media.content : null
   const asset = image ? resolvedMedia[image.mediaId] : undefined
   const framing = content.mediaFraming[block.id]
-
-  return <div className="flex h-full min-h-0 flex-col">
-    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-1 pb-6">
-      <section className="rounded-md border border-border bg-surface-muted p-3">
-        <div className="flex items-center justify-between gap-3"><span className="text-sm font-semibold">Whole block</span><Button type="button" size="sm" variant={block.isHidden ? 'primary' : 'secondary'} onClick={() => update({ ...block, isHidden: !block.isHidden })}>{block.isHidden ? 'Show block' : 'Hide block'}</Button></div>
-        {block.isHidden && <p className="mt-2 text-xs text-foreground-muted">Content is preserved and omitted from Preview/Public.</p>}
-      </section>
-      {textField('eyebrow')}
-      {textField('heading')}
-      <Slot label="Divider" action={visibility('divider')} />
-      {textField('body', true)}
-      <Slot label="Quote" action={visibility('quote')}>
-        <Textarea aria-label="Quote" value={block.slots.quote.text} onChange={(event) => updateSlot('quote', { ...block.slots.quote, text: event.target.value })} />
-        <Input aria-label="Quote attribution" placeholder="Attribution (optional)" value={block.slots.quote.attribution ?? ''} onChange={(event) => updateSlot('quote', { ...block.slots.quote, attribution: event.target.value || undefined })} />
-      </Slot>
-      <Slot label="Media" action={visibility('media')}>
-        {asset && image ? <><FocalPointEditor url={asset.web.url} point={framing?.focalPoint ?? { x: 0.5, y: 0.5 }} zoom={framing?.zoom} onChange={({ point: focalPoint, zoom }) => onChange({ ...content, mediaFraming: { ...content.mediaFraming, [block.id]: { focalPoint, zoom } } })} /><p className="truncate text-xs text-foreground-muted">{asset.originalFilename}</p></> : <p className="text-xs text-foreground-muted">{block.slots.media.content ? 'This media type is preserved but not editable yet.' : 'No image selected.'}</p>}
-        <div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>{image ? 'Change image' : 'Choose image'}</Button>{image && <Button type="button" size="sm" variant="ghost" onClick={() => { const nextFraming = { ...content.mediaFraming }; delete nextFraming[block.id]; onChange({ ...content, elements: content.elements.map((item) => item.id === block.id ? { ...block, slots: { ...block.slots, media: { isHidden: true, content: null } } } : item), mediaFraming: nextFraming }) }}>Remove image</Button>}</div>
-      </Slot>
-      {textField('caption')}
-      <Slot label="CTA" action={visibility('cta')}><Input aria-label="CTA label" value={block.slots.cta.label} onChange={(event) => updateSlot('cta', { ...block.slots.cta, label: event.target.value })} /><p className="text-xs text-foreground-muted">The existing semantic action is preserved.</p></Slot>
-    </div>
-    <BuilderSaveBar dirty={dirty} statusDirty={resetDirty} resetDirty={resetDirty} saving={saving} onSave={() => { setSaving(true); void onSave(content).then(onSaved).finally(() => setSaving(false)) }} onReset={onReset} />
-    <MediaPickerDialog open={pickerOpen} eventId={event.id} selectedAssetId={image?.mediaId} onClose={() => setPickerOpen(false)} onSelect={(selected) => { onMediaResolved({ id: selected.id, originalFilename: selected.originalFilename, width: selected.width, height: selected.height, web: selected.variants.web }); updateSlot('media', { isHidden: false, content: { type: 'image', mediaId: selected.id } }); setPickerOpen(false) }} />
-  </div>
+  return <div className="flex h-full min-h-0 flex-col"><div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-1 pb-6">
+    <InspectorSection title="Text">
+      {textDisclosure('eyebrow')}{textDisclosure('heading')}{textDisclosure('body', true)}
+      <InspectorDisclosure {...disclosure('quote')} title="Quote" summary={summary('quote')} actions={visibility('quote')}><Textarea aria-label="Quote" value={block.slots.quote.text} onChange={(inputEvent) => updateSlot('quote', { ...block.slots.quote, text: inputEvent.target.value })} /><Input aria-label="Quote attribution" placeholder="Attribution (optional)" value={block.slots.quote.attribution ?? ''} onChange={(inputEvent) => updateSlot('quote', { ...block.slots.quote, attribution: inputEvent.target.value || undefined })} /></InspectorDisclosure>
+      {textDisclosure('caption')}
+      <InspectorDisclosure {...disclosure('divider')} title="Divider" summary={summary('divider')} actions={visibility('divider')}><p className="text-xs text-foreground-muted">Divider styling is owned by the template.</p></InspectorDisclosure>
+    </InspectorSection>
+    <InspectorSection title="Media"><InspectorDisclosure {...disclosure('media')} title="Media" summary={summary('media')} actions={visibility('media')}>
+      {asset && image ? <><FocalPointEditor url={asset.web.url} point={framing?.focalPoint ?? { x: 0.5, y: 0.5 }} zoom={framing?.zoom} onChange={({ point: focalPoint, zoom }) => onChange({ ...content, mediaFraming: { ...content.mediaFraming, [block.id]: { focalPoint, zoom } } })} /><p className="truncate text-xs text-foreground-muted">{asset.originalFilename}</p></> : <p className="text-xs text-foreground-muted">{block.slots.media.content ? 'This media type is preserved but not editable yet.' : 'No image selected.'}</p>}
+      <div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>{image ? 'Change image' : 'Choose image'}</Button>{image && <Button type="button" size="sm" variant="ghost" onClick={() => { const nextFraming = { ...content.mediaFraming }; delete nextFraming[block.id]; onChange({ ...content, elements: content.elements.map((item) => item.id === block.id ? { ...block, slots: { ...block.slots, media: { isHidden: true, content: null } } } : item), mediaFraming: nextFraming }) }}>Remove image</Button>}</div>
+    </InspectorDisclosure></InspectorSection>
+    <InspectorSection title="Action"><InspectorDisclosure {...disclosure('cta')} title="CTA" summary={summary('cta')} actions={visibility('cta')}><Input aria-label="CTA label" value={block.slots.cta.label} onChange={(inputEvent) => updateSlot('cta', { ...block.slots.cta, label: inputEvent.target.value })} /><p className="text-xs text-foreground-muted">The existing semantic action is preserved.</p></InspectorDisclosure></InspectorSection>
+  </div><MediaPickerDialog open={pickerOpen} eventId={event.id} selectedAssetId={image?.mediaId} onClose={() => setPickerOpen(false)} onSelect={(selected) => { onMediaResolved({ id: selected.id, originalFilename: selected.originalFilename, width: selected.width, height: selected.height, web: selected.variants.web }); updateSlot('media', { isHidden: false, content: { type: 'image', mediaId: selected.id } }); setPickerOpen(false) }} /></div>
 }
 
-function Slot({ label, action, children }: { label: string; action: React.ReactNode; children?: React.ReactNode }) {
-  return <section className="space-y-2 rounded-md border border-border p-3"><div className="flex items-center justify-between gap-3"><h3 className="text-sm font-semibold">{label}</h3>{action}</div>{children}</section>
-}
+function preview(value: string) { const compact = value.trim().replace(/\s+/g, ' '); return compact ? compact.slice(0, 72) : 'Empty' }

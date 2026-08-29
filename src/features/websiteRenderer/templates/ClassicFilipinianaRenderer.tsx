@@ -28,8 +28,6 @@ import {
   ClassicFilipinianaRsvp,
   ClassicFilipinianaSchedule,
   ClassicFilipinianaStoryBlock,
-  ClassicFilipinianaStoryBlockBody,
-  ClassicFilipinianaStoryBlockHeading,
   ClassicFilipinianaStoryHeader,
   ClassicFilipinianaVenue,
 } from "./classicFilipiniana/sections";
@@ -41,6 +39,10 @@ import {
 } from "./classicFilipiniana/decorations";
 import { resolveSectionDesignTokens } from "../../websiteTemplates/design/catalogs";
 import { NarrativeBlockFrame } from "../NarrativeBlockFrame";
+import { resolveNarrativeComposition } from "../narrativeComposition";
+import type { ElementCapability } from "../../websiteCapabilities/types";
+import { resolveEffectiveStorySequence } from "../storyEffectiveSequence";
+import { resolveStoryRenderItems } from "../storyRenderSequence";
 
 export function ClassicFilipinianaRenderer({
   event,
@@ -53,7 +55,8 @@ export function ClassicFilipinianaRenderer({
   selectedNarrativeBlockId,
   onNarrativeBlockSelect,
 }: WebsiteRendererProps) {
-  const sections =
+  const narrativeCapability = website.template!.capabilities.elementCapabilities.find(({ type }) => type === "narrativeBlock");
+  const candidates =
     scope.kind === "single-section"
       ? website.sections
           .map((section, index) => ({ section, index }))
@@ -61,13 +64,25 @@ export function ClassicFilipinianaRenderer({
       : website.sections
           .map((section, index) => ({ section, index }))
           .filter(({ section }) => section.isEnabled);
+  const sections = candidates.filter(({ section }) => {
+    if (mode === "editor" || section.type !== "story") return true;
+    const content = section.content as StoryContent;
+    return resolveEffectiveStorySequence({
+      content,
+      capability: narrativeCapability?.narrativeBlock?.composition,
+      isMediaRenderable: (block) => {
+        const reference = storyElementMedia(content, block);
+        return Boolean(reference && website.media[reference.assetId]);
+      },
+    }).length > 0;
+  });
 
   return (
     <article
       className="min-h-full bg-[var(--cf-page)] font-[family-name:var(--cf-body-font)] text-[var(--cf-text)]"
       style={resolveClassicFilipinianaDesign(website.designSettings)}
     >
-      {sections.length === 0 && (
+      {mode === "editor" && sections.length === 0 && (
         <div className="flex min-h-96 items-center justify-center px-8 text-center text-sm italic text-[var(--cf-muted)]">
           {scope.kind === "single-section"
             ? "Select a section to edit."
@@ -86,6 +101,7 @@ export function ClassicFilipinianaRenderer({
           media={website.media}
           targetViewport={targetViewport}
           library={website.template!.capabilities.designLibrary}
+          narrativeCapability={narrativeCapability}
           designSettings={website.designSettings}
           templateKey={website.templateKey}
           selected={mode === "editor" && selectedSectionId === section.id}
@@ -108,6 +124,7 @@ function ClassicSection({
   media,
   targetViewport,
   library,
+  narrativeCapability,
   designSettings,
   templateKey,
   selected,
@@ -126,6 +143,7 @@ function ClassicSection({
   library: NonNullable<
     WebsiteRendererProps["website"]["template"]
   >["capabilities"]["designLibrary"];
+  narrativeCapability?: ElementCapability;
   designSettings: WebsiteRendererProps["website"]["designSettings"];
   templateKey: string;
   selected: boolean;
@@ -182,11 +200,6 @@ function ClassicSection({
       tabIndex={mode === "editor" ? 0 : undefined}
     >
       {showLeadingDivider && <ClassicSectionDivider />}
-      {selected && (
-        <span className="absolute right-3 top-3 z-20 rounded-full bg-[var(--editor-chrome-strong)] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wider text-[var(--editor-chrome-on-strong)] shadow-[var(--editor-chrome-shadow)]">
-          Editing
-        </span>
-      )}
       <Section
         section={section}
         eventName={eventName}
@@ -195,6 +208,7 @@ function ClassicSection({
         media={media}
         targetViewport={targetViewport}
         library={library}
+        narrativeCapability={narrativeCapability}
         selectedNarrativeBlockId={selectedNarrativeBlockId}
         onNarrativeBlockSelect={onNarrativeBlockSelect}
       />
@@ -210,6 +224,7 @@ function Section({
   media,
   targetViewport,
   library,
+  narrativeCapability,
   selectedNarrativeBlockId,
   onNarrativeBlockSelect,
 }: {
@@ -222,6 +237,7 @@ function Section({
   library: NonNullable<
     WebsiteRendererProps["website"]["template"]
   >["capabilities"]["designLibrary"];
+  narrativeCapability?: ElementCapability;
   selectedNarrativeBlockId?: string | null;
   onNarrativeBlockSelect?: (blockId: string) => void;
 }) {
@@ -256,14 +272,19 @@ function Section({
       );
     case "story": {
       const content = section.content as StoryContent;
+      const contract = narrativeCapability?.narrativeBlock?.composition;
+      const isMediaRenderable = (block: StoryContent["elements"][number]) => {
+        const reference = storyElementMedia(content, block);
+        return Boolean(reference && media[reference.assetId]);
+      };
+      const effectiveSequence = resolveEffectiveStorySequence({ content, capability: contract, isMediaRenderable });
+      const renderItems = resolveStoryRenderItems(content, effectiveSequence, mode);
       return (
         <>
-          <ClassicFilipinianaStoryHeader
-            sectionId={section.id}
-            content={content}
-            mode={mode}
-          />
-          {content.elements.map((block, index) => {
+          {renderItems.map((item) => {
+            if (item.kind === "singletonRun") return <ClassicFilipinianaStoryHeader key={item.references.join("|")} sectionId={section.id} content={content} mode={mode} fields={item.fields} hasFollowingUnits={item.hasSuccessor} library={library} context={section.resolvedDesignContext ?? undefined} viewport={targetViewport} />;
+            const block = item.block;
+            const index = content.elements.findIndex(({ id }) => id === block.id);
             if (block.isHidden && mode === "public") return null;
             if (block.isHidden)
               return (
@@ -275,58 +296,53 @@ function Section({
                   onSelect={onNarrativeBlockSelect}
                 >
                   <div className="border-y border-dashed border-[var(--cf-border)] px-7 py-8 text-center text-xs text-[var(--cf-muted)]">
-                    Hidden Narrative Block — select to restore from Content.
+                    Hidden Narrative Block - select to restore from Content.
                   </div>
                 </NarrativeBlockFrame>
               );
+            if (!contract) return null;
+            const effective = item.effective;
+            const composition = effective?.composition ?? resolveNarrativeComposition({ block, capability: contract, mediaRenderable: isMediaRenderable(block) });
+            const hasRenderableSlot = Object.values(
+              composition.rendering.slots,
+            ).some(Boolean);
+            if (!hasRenderableSlot && mode === "public") return null;
+            const showBoundary = effective?.choreography.previousKind === "narrative";
+            const reference = storyElementMedia(content, block);
+            const asset = reference ? media[reference.assetId] : undefined;
+            const mediaNode =
+              reference && asset ? (
+                <ZoomedMediaImage
+                  className="block max-h-[42rem] w-full object-cover"
+                  height={asset.web.height}
+                  reference={reference}
+                  src={asset.web.url}
+                  width={asset.web.width}
+                />
+              ) : undefined;
             return (
               <NarrativeBlockFrame
-                className={index > 0 ? "pt-10 sm:pt-14" : ""}
                 key={block.id}
                 mode={mode}
                 blockId={block.id}
                 selected={selectedNarrativeBlockId === block.id}
                 onSelect={onNarrativeBlockSelect}
                 preservePublicWrapper
+                className="relative"
               >
-                {index > 0 && <ClassicSectionDivider />}
-                <ClassicMediaPresentation
-                  alternate={index % 2 === 1}
-                  section={section}
-                  media={media}
-                  mediaReference={storyElementMedia(content, block)}
-                  mobileStoryHeading={
-                    <ClassicFilipinianaStoryBlockHeading
-                      sectionId={section.id}
-                      block={block}
-                      index={index}
-                      library={library}
-                      viewport={targetViewport}
-                      context={section.resolvedDesignContext ?? undefined}
-                    />
-                  }
-                  mobileStoryBody={
-                    <ClassicFilipinianaStoryBlockBody
-                      sectionId={section.id}
-                      block={block}
-                      index={index}
-                      library={library}
-                      viewport={targetViewport}
-                      context={section.resolvedDesignContext ?? undefined}
-                    />
-                  }
-                  presentation={presentation}
-                  targetViewport={targetViewport}
-                >
-                  <ClassicFilipinianaStoryBlock
-                    sectionId={section.id}
-                    block={block}
-                    index={index}
-                    library={library}
-                    viewport={targetViewport}
-                    context={section.resolvedDesignContext ?? undefined}
-                  />
-                </ClassicMediaPresentation>
+                {showBoundary && <ClassicSectionDivider />}
+                <ClassicFilipinianaStoryBlock
+                  sectionId={section.id}
+                  block={block}
+                  index={index}
+                  library={library}
+                  viewport={targetViewport}
+                  context={section.resolvedDesignContext ?? undefined}
+                  composition={composition}
+                  media={mediaNode}
+                  mode={mode}
+                  choreography={effective?.choreography}
+                />
               </NarrativeBlockFrame>
             );
           })}

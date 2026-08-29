@@ -12,8 +12,7 @@ export function BuilderSaveBar({ dirty, statusDirty = dirty, saving, form, onSav
   onReset?: () => void;
 }) {
   return <footer
-    className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border bg-surface px-3 py-3 xl:bg-background"
-    style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+    className="z-30 flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-surface px-3 py-3 sm:px-4"
   >
     <Text className="min-w-0 flex-1" as="span" variant="helper">{statusDirty ? "Unsaved changes" : "All changes saved"}</Text>
     <div className="ml-auto flex shrink-0 items-center gap-2">

@@ -25,6 +25,17 @@ import {
   type NarrativeTextSlotKey,
 } from "../../narrativeAppearance";
 import { modernNarrativeTokens } from "../narrativeTokens";
+import {
+  narrativeResponsiveOrderClasses,
+  type ResolvedNarrativeComposition,
+} from "../../narrativeComposition";
+import { resolveStoryHeaderParticipation, type StoryBlockChoreographyContext } from "../../storyEffectiveSequence";
+import { EditorSelectionFrame } from "../../EditorSelectionFrame";
+import { useSelectedStoryHeaderField } from "../../EditorSelectionContext";
+import {
+  narrativeAlignmentClasses,
+  type NarrativeAlignmentClasses,
+} from "../../narrativeAlignment";
 
 const emptyContext = {
   headingFontId: "",
@@ -133,59 +144,64 @@ export function ModernEditorialStoryHeader({
   sectionId,
   content,
   mode,
+  fields,
+  hasFollowingUnits,
+  showNumber,
+  library, context = emptyContext, viewport,
 }: {
   sectionId: string;
   content: StoryContent;
   mode: "editor" | "public";
+  fields: import("../../../websiteEditor/types").StoryHeaderField[];
+  hasFollowingUnits: boolean;
+  showNumber: boolean;
+  library: TemplateDesignLibrary; context?: ResolvedDesignContext; viewport: ResponsiveViewport;
 }) {
+  const selectedField = useSelectedStoryHeaderField();
+  const participation = resolveStoryHeaderParticipation(content);
+  const renderedFields = mode === "public" ? fields.filter((field) => participation[field]) : fields;
+  const storyStyle = (field: import("../../../websiteEditor/types").StoryHeaderField) => ({ ...narrativeSlotCss(resolveNarrativeSlotAppearance(field === "intro" ? "body" : field, content.singletonAppearance?.[field], context, modernNarrativeTokens.defaults[field === "intro" ? "body" : field], viewport), library, "modern-editorial-v1", modernNarrativeTokens), ...(content.singletonAppearance?.[field]?.alignment ? { textAlign: content.singletonAppearance[field]!.alignment === 'start' ? 'left' : content.singletonAppearance[field]!.alignment === 'end' ? 'right' : 'center' } : {}) } as React.CSSProperties);
+  const storyTextAlignmentClass = (field: import("../../../websiteEditor/types").StoryHeaderField) => content.singletonAppearance?.[field]?.alignment === "start" ? "text-left" : content.singletonAppearance?.[field]?.alignment === "end" ? "text-right" : content.singletonAppearance?.[field]?.alignment === "center" ? "text-center" : undefined;
+  if (renderedFields.length === 0) return null;
   return (
-    <EditorialSection
-      number="03"
-      heading={
-        <EditableText
-          sectionId={sectionId}
-          path={["heading"]}
-          value={content.heading}
-          fallback="Our Story"
-          placeholder="Add heading"
-          label="Story heading"
-        />
-      }
-    >
-      {content.intro?.trim() || mode === "editor" ? (
-        <p className="max-w-2xl whitespace-pre-line font-[family-name:var(--me-body-font)] text-xl leading-9 text-[var(--me-section-body)]">
-          <EditableText
-            sectionId={sectionId}
-            path={["intro"]}
-            value={content.intro ?? ""}
-            placeholder="Add introduction"
-            label="Story introduction"
-            multiline
-          />
-        </p>
-      ) : null}
-      {content.elements.length === 0 && mode === "editor" ? (
-        <EmptyCopy>Add narrative blocks from the Content panel.</EmptyCopy>
-      ) : null}
-    </EditorialSection>
+    <div data-section-content className={`px-7 pt-20 sm:px-14 sm:pt-24 ${hasFollowingUnits ? "pb-10 sm:pb-12" : "pb-20 sm:pb-24"}`} style={{ boxShadow: "var(--me-frame)" }}>
+      <div className={showNumber ? "grid gap-9 sm:grid-cols-[5rem_1fr]" : "block"}>
+        {showNumber && <p className="text-[10px] font-bold tracking-[0.25em]" aria-hidden="true">03 / 10</p>}
+        <div>
+          {renderedFields.map((field, index) => field === "eyebrow" ? (
+            <p style={storyStyle(field)} key={field} data-editor-story-field={field} className={`${index ? "mt-4" : ""} relative rounded-sm text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--me-section-accent)]`}><EditableText sectionId={sectionId} path={["eyebrow"]} value={content.eyebrow ?? ""} placeholder="Add eyebrow" label="Story eyebrow" className={storyTextAlignmentClass(field)} /><EditorSelectionFrame selected={mode === "editor" && selectedField === field} /></p>
+          ) : field === "heading" ? (
+            <h2 style={storyStyle(field)} key={field} data-editor-story-field={field} data-section-heading={content.singletonAppearance?.heading?.alignment ? undefined : ""} className={`${index ? "mt-4" : ""} relative max-w-3xl rounded-sm font-[family-name:var(--me-heading-font)] text-4xl leading-none tracking-[-0.035em] sm:text-6xl`}><EditableText sectionId={sectionId} path={["heading"]} value={content.heading} placeholder="Add heading" label="Story heading" className={storyTextAlignmentClass(field)} /><EditorSelectionFrame selected={mode === "editor" && selectedField === field} /></h2>
+          ) : (
+            <p style={storyStyle(field)} key={field} data-editor-story-field={field} data-section-body={content.singletonAppearance?.intro?.alignment ? undefined : ""} className={`${index ? "mt-12" : ""} relative max-w-2xl rounded-sm whitespace-pre-line font-[family-name:var(--me-body-font)] text-xl leading-9 text-[var(--me-section-body)]`}><EditableText sectionId={sectionId} path={["intro"]} value={content.intro ?? ""} placeholder="Add introduction" label="Story introduction" multiline className={storyTextAlignmentClass(field)} /><EditorSelectionFrame selected={mode === "editor" && selectedField === field} /></p>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 export function ModernEditorialStoryBlock({
   sectionId,
   block,
   index,
-  tabletEditorial = false,
   library,
   viewport,
   context = emptyContext,
+  composition,
+  media,
+  mode = "public",
+  choreography,
 }: {
   sectionId: string;
   block: StoryBlock;
   index: number;
-  tabletEditorial?: boolean;
   library: TemplateDesignLibrary;
   viewport: ResponsiveViewport;
   context?: ResolvedDesignContext;
+  composition: ResolvedNarrativeComposition;
+  media?: React.ReactNode;
+  mode?: "editor" | "public";
+  choreography?: StoryBlockChoreographyContext;
 }) {
   const { slots } = block;
   const style = (key: NarrativeTextSlotKey) =>
@@ -201,24 +217,57 @@ export function ModernEditorialStoryBlock({
       "modern-editorial-v1",
       modernNarrativeTokens,
     );
+  const alignment = narrativeAlignmentClasses(
+    composition.effective.textAlignment,
+  );
+  const surface =
+    composition.effective.surface === "feature"
+      ? "border-l-4 border-[var(--me-section-accent)] bg-[color-mix(in_srgb,var(--me-section-accent)_11%,var(--me-page))]"
+      : composition.effective.surface === "soft"
+        ? "bg-[color-mix(in_srgb,var(--me-section-body)_6%,transparent)]"
+        : "";
+  const split = ["splitStart", "splitEnd"].includes(
+    composition.effective.mediaPlacement ?? "",
+  );
+  const textColumn =
+    composition.effective.mediaPlacement === "splitStart"
+      ? "sm:col-start-2"
+      : "sm:col-start-1";
+  const rendered = composition.rendering.slots;
+  const hasTextGroup =
+    rendered.eyebrow || rendered.heading || rendered.divider || rendered.body || rendered.quote;
+  const beforeDivider = rendered.eyebrow || rendered.heading;
+  const afterDivider = rendered.body || rendered.quote;
+  const beforeBody = beforeDivider || rendered.divider;
+  const beforeQuote = beforeBody || rendered.body;
+  const rendersMedia = Boolean(media) && !composition.rendering.suppressMedia;
+  const responsiveOrder = narrativeResponsiveOrderClasses(composition);
+  const hasVisibleSlot = Object.values(rendered).some(Boolean);
+  const slotTarget = (slot: string) => mode === "editor" ? { "data-editor-narrative-slot": slot, "data-editor-narrative-block": block.id } : {};
+  const hasAdjacentPredecessor = Boolean(choreography && choreography.effectiveIndex > 0);
+  const consecutiveMediaFirst = choreography?.previousPresentation === "mediaFirst"
+    && composition.effective.presentation === "mediaFirst";
+  const rootRhythm = hasAdjacentPredecessor
+    ? consecutiveMediaFirst
+      ? "pb-12 pt-5 sm:pb-16 sm:pt-7"
+      : "pb-12 pt-7 sm:pb-16 sm:pt-9"
+    : "py-12 sm:py-16";
   return (
-    <EditorialSection
-      number={String(index + 1).padStart(2, "0")}
-      tabletEditorial={tabletEditorial}
-      heading={
-        <ModernEditorialStoryBlockHeading
-          sectionId={sectionId}
-          block={block}
-          index={index}
-          fallback
-          style={style("heading")}
-        />
-      }
+    <div
+      data-section-content
+      data-narrative-presentation={composition.effective.presentation}
+      className={`relative grid overflow-hidden px-7 sm:px-12 ${rootRhythm} ${hasAdjacentPredecessor ? "border-t border-[var(--me-border)]" : ""} ${split ? "gap-x-12 sm:grid-cols-2 sm:items-center" : "grid-cols-1"} ${alignment.text} ${surface}`}
     >
-      {!slots.eyebrow.isHidden && (
+      {!hasVisibleSlot && mode === "editor" ? (
+        <p className="col-span-full text-center text-xs text-[var(--me-muted)]">
+          Nothing currently visible.
+        </p>
+      ) : null}
+      {rendered.eyebrow && (
         <p
+          {...slotTarget("eyebrow")}
           style={style("eyebrow")}
-          className="mb-4 text-xs font-bold uppercase tracking-[0.22em]"
+          className={`text-xs font-bold uppercase tracking-[0.22em] ${textColumn}`}
         >
           <EditableText
             sectionId={sectionId}
@@ -230,19 +279,40 @@ export function ModernEditorialStoryBlock({
           />
         </p>
       )}
-      {!slots.divider.isHidden && (
-        <hr className="my-6 border-[var(--me-border)]" />
+      {rendered.heading && (
+        <h3 {...slotTarget("heading")}
+          className={`${rendered.eyebrow ? "mt-4" : ""} max-w-3xl font-[family-name:var(--me-heading-font)] text-4xl font-semibold leading-tight sm:text-5xl ${textColumn} ${alignment.constrainedGroup}`}
+        >
+          <ModernEditorialStoryBlockHeading
+            sectionId={sectionId}
+            block={block}
+            index={index}
+            style={style("heading")}
+          />
+        </h3>
       )}
-      <ModernEditorialStoryBlockBody
-        sectionId={sectionId}
-        block={block}
-        index={index}
-        style={style("body")}
-      />
-      {!slots.quote.isHidden && (
+      {rendered.divider && (
+        <hr
+          {...slotTarget("divider")}
+          className={`${beforeDivider ? "mt-6" : ""} ${afterDivider ? "mb-6" : ""} w-20 border-2 border-[var(--me-section-accent)] ${textColumn} ${alignment.divider}`}
+        />
+      )}
+      {rendered.body && (
+        <div {...slotTarget("body")} className={`${beforeBody && !rendered.divider ? "mt-6" : ""} ${textColumn}`}>
+          <ModernEditorialStoryBlockBody
+            sectionId={sectionId}
+            block={block}
+            index={index}
+            style={style("body")}
+            alignment={alignment}
+          />
+        </div>
+      )}
+      {rendered.quote && (
         <blockquote
+          {...slotTarget("quote")}
           style={style("quote")}
-          className="mt-8 max-w-2xl font-[family-name:var(--me-heading-font)] text-2xl italic"
+          className={`${composition.effective.presentation === "quoteLed" ? `${beforeQuote ? "mt-10" : ""} border-l-4 border-[var(--me-section-accent)] pl-6 text-4xl font-semibold not-italic sm:text-5xl` : `${beforeQuote && !rendered.divider ? "mt-8" : ""} text-2xl italic`} max-w-2xl font-[family-name:var(--me-heading-font)] ${textColumn} ${alignment.constrainedGroup}`}
         >
           <EditableText
             sectionId={sectionId}
@@ -254,15 +324,24 @@ export function ModernEditorialStoryBlock({
           />
           {slots.quote.attribution && (
             <footer className="mt-2 text-xs not-italic">
-              — {slots.quote.attribution}
+              - {slots.quote.attribution}
             </footer>
           )}
         </blockquote>
       )}
-      {!slots.caption.isHidden && (
+      {rendersMedia ? (
+        <div
+          {...slotTarget("media")}
+          className={`${modernNarrativeMediaClass(composition, viewport, hasTextGroup)} ${responsiveOrder.media}`}
+        >
+          {media}
+        </div>
+      ) : null}
+      {rendered.caption && (
         <p
+          {...slotTarget("caption")}
           style={style("caption")}
-          className="mt-4 text-xs text-[var(--me-muted)]"
+          className={`${rendersMedia ? "mt-4" : ""} max-w-2xl text-xs text-[var(--me-muted)] ${textColumn} ${alignment.constrainedGroup} ${responsiveOrder.caption}`}
         >
           <EditableText
             sectionId={sectionId}
@@ -274,32 +353,72 @@ export function ModernEditorialStoryBlock({
           />
         </p>
       )}
-      {!slots.cta.isHidden && (
+      {rendered.cta && (
         <span
+          {...slotTarget("cta")}
           style={style("cta")}
-          className="mt-7 inline-block border-2 border-[var(--me-theme-text)] px-6 py-3 text-xs font-bold uppercase tracking-[0.22em]"
+          className={`${hasTextGroup || rendersMedia || rendered.caption ? "mt-7" : ""} block w-fit border-2 border-[var(--me-theme-text)] px-6 py-3 text-xs font-bold uppercase tracking-[0.22em] ${textColumn} ${alignment.action}`}
         >
           {slots.cta.label}
         </span>
       )}
-      {!slots.media.isHidden &&
+      {mode === "editor" && !composition.rendering.suppressMedia &&
+        !slots.media.isHidden &&
         slots.media.content &&
         slots.media.content.type !== "image" && (
-          <p className="mt-5 text-xs text-[var(--me-muted)]">
+          <p className={`${hasTextGroup ? "mt-5" : ""} text-xs text-[var(--me-muted)]`}>
             {slots.media.content.type === "video"
               ? "Video"
               : "Media collection"}{" "}
             is preserved but is not previewable yet.
           </p>
         )}
-    </EditorialSection>
+    </div>
   );
+}
+
+function modernNarrativeMediaClass(
+  composition: ResolvedNarrativeComposition,
+  viewport: ResponsiveViewport,
+  hasTextGroup: boolean,
+) {
+  const placement = composition.effective.mediaPlacement;
+  const treatment = composition.effective.mediaTreatment;
+  const compact = viewport === "mobile";
+  const split = placement === "splitStart" || placement === "splitEnd";
+  const collapsedMediaFirstSplit =
+    compact && split && composition.effective.presentation === "mediaFirst";
+  const column =
+    placement === "splitStart" ? "sm:col-start-1" : "sm:col-start-2";
+  const position = collapsedMediaFirstSplit
+    ? ""
+    : split && !compact
+      ? `${column} sm:row-start-1 sm:row-span-8`
+      : placement === "above" || placement === "leading"
+        ? `${composition.effective.presentation === "mediaFirst" ? "" : "-order-1"} ${hasTextGroup ? "mb-10" : ""}`
+        : placement === "inset"
+          ? `mx-auto w-2/3 max-w-lg ${hasTextGroup ? "mt-9" : ""}`
+          : hasTextGroup
+            ? "mt-10"
+            : "";
+  const treatmentClass =
+    treatment === "cinematic"
+      ? "[&_img]:aspect-[2/1] [&_img]:object-cover"
+      : treatment === "wide"
+        ? "w-full sm:scale-[1.08]"
+        : treatment === "fullBleed"
+          ? "-mx-7 w-[calc(100%+3.5rem)] sm:-mx-12 sm:w-[calc(100%+6rem)]"
+          : "";
+  const dominance =
+    composition.effective.presentation === "mediaFirst"
+      ? "sm:[&_img]:min-h-[28rem]"
+      : "";
+  return `min-w-0 overflow-hidden ${position} ${treatmentClass} ${dominance}`;
 }
 export function ModernEditorialStoryBlockHeading({
   sectionId,
   block,
   index,
-  fallback = false,
   style,
   library,
   viewport = "desktop",
@@ -308,7 +427,6 @@ export function ModernEditorialStoryBlockHeading({
   sectionId: string;
   block: StoryBlock;
   index: number;
-  fallback?: boolean;
   style?: React.CSSProperties;
   library?: TemplateDesignLibrary;
   viewport?: ResponsiveViewport;
@@ -342,8 +460,6 @@ export function ModernEditorialStoryBlockHeading({
         label={`Story block ${index + 1} heading`}
       />
     </span>
-  ) : fallback ? (
-    <span className="sr-only">Story entry {index + 1}</span>
   ) : null;
 }
 export function ModernEditorialStoryBlockBody({
@@ -354,6 +470,7 @@ export function ModernEditorialStoryBlockBody({
   library,
   viewport = "desktop",
   context = emptyContext,
+  alignment = narrativeAlignmentClasses("start"),
 }: {
   sectionId: string;
   block: StoryBlock;
@@ -362,6 +479,7 @@ export function ModernEditorialStoryBlockBody({
   library?: TemplateDesignLibrary;
   viewport?: ResponsiveViewport;
   context?: ResolvedDesignContext;
+  alignment?: NarrativeAlignmentClasses;
 }) {
   const slot = block.slots.body;
   const effectiveStyle =
@@ -383,7 +501,7 @@ export function ModernEditorialStoryBlockBody({
   return !slot.isHidden ? (
     <p
       style={effectiveStyle}
-      className="max-w-2xl whitespace-pre-line text-base leading-8 text-[var(--me-section-body)]"
+      className={`max-w-2xl whitespace-pre-line text-base leading-8 text-[var(--me-section-body)] ${alignment.text} ${alignment.constrainedGroup}`}
     >
       <EditableText
         sectionId={sectionId}
@@ -393,6 +511,7 @@ export function ModernEditorialStoryBlockBody({
         placeholder="Add story"
         label={`Story block ${index + 1} body`}
         multiline
+        className={alignment.text}
       />
     </p>
   ) : null;
@@ -794,44 +913,60 @@ export function ModernEditorialRsvp({
 
 function EditorialSection({
   number,
+  eyebrow,
   heading,
   children,
   tabletEditorial = false,
+  eyebrowParticipates,
+  headingParticipates = true,
+  bodyParticipates = true,
+  compactEnding = false,
 }: {
-  number: string;
+  number: string | null;
+  eyebrow?: React.ReactNode;
   heading: React.ReactNode;
   children: React.ReactNode;
   tabletEditorial?: boolean;
+  eyebrowParticipates?: boolean;
+  headingParticipates?: boolean;
+  bodyParticipates?: boolean;
+  compactEnding?: boolean;
 }) {
+  const hasEyebrow = eyebrowParticipates ?? Boolean(eyebrow);
   return (
     <div
       data-section-content
       className={
-        tabletEditorial ? "px-7 py-20" : "px-7 py-20 sm:px-14 sm:py-24"
+        tabletEditorial
+          ? `px-7 pt-20 ${compactEnding ? "pb-10" : "pb-20"}`
+          : `px-7 pt-20 sm:px-14 sm:pt-24 ${compactEnding ? "pb-10 sm:pb-12" : "pb-20 sm:pb-24"}`
       }
       style={{ boxShadow: "var(--me-frame)" }}
     >
       <div
         className={
-          tabletEditorial
+          !number
+            ? "block"
+            : tabletEditorial
             ? "grid grid-cols-[3rem_minmax(0,1fr)] gap-5"
             : "grid gap-9 sm:grid-cols-[5rem_1fr]"
         }
       >
-        <p className="text-[10px] font-bold tracking-[0.25em]">{number} / 10</p>
+        {number && <p className="text-[10px] font-bold tracking-[0.25em]" aria-hidden="true">{number} / 10</p>}
         <div className={tabletEditorial ? "min-w-0" : ""}>
-          <h2
+          {hasEyebrow && <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--me-section-accent)]">{eyebrow}</p>}
+          {headingParticipates && <h2
             data-section-heading
-            className="max-w-3xl font-[family-name:var(--me-heading-font)] text-4xl leading-none tracking-[-0.035em] sm:text-6xl"
+            className={`max-w-3xl font-[family-name:var(--me-heading-font)] text-4xl leading-none tracking-[-0.035em] sm:text-6xl ${hasEyebrow ? "mt-4" : ""}`}
           >
             {heading}
-          </h2>
-          <div
+          </h2>}
+          {bodyParticipates && <div
             data-section-body
-            className="mt-12 text-sm leading-7 text-[var(--me-muted)]"
+            className={`text-sm leading-7 text-[var(--me-muted)] ${hasEyebrow || headingParticipates ? "mt-12" : ""}`}
           >
             {children}
-          </div>
+          </div>}
         </div>
       </div>
     </div>

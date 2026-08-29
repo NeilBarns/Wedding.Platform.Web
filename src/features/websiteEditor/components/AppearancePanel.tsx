@@ -16,6 +16,8 @@ import { controlCapability, controlDefault, controlForViewport, optionValues, pr
 import type { AppearanceControlCapability, PresentationCapability, SectionCapability } from "../../websiteCapabilities/types";
 import { canonicalizeResponsiveAppearance, pruneResponsiveAppearance, resolveSectionAppearanceForViewport } from "../responsiveAppearance";
 import { PresentationPicker } from "./PresentationPicker";
+import { InspectorSection } from "./InspectorPrimitives";
+import { InspectorVisualChoiceGroup } from "./InspectorVisualChoice";
 
 export function AppearancePanel({
   appearance,
@@ -49,7 +51,12 @@ export function AppearancePanel({
     delete responsive[targetViewport]
     onChange(pruneResponsiveAppearance({ ...appearance, responsive }))
   }
-
+  if (sectionCapability.id === 'story') {
+    return <div className="space-y-5">
+      {error && <p className="rounded-xl bg-danger-muted p-3 text-sm text-danger" role="alert">{error}</p>}
+      <StorySectionAppearanceControls sectionCapability={sectionCapability} presentation={presentation} appearance={appearance} onChange={onChange} />
+    </div>
+  }
   return (
     <div className="space-y-5">
       {error && (
@@ -60,11 +67,11 @@ export function AppearancePanel({
           {error}
         </p>
       )}
-      {targetViewport !== 'desktop' && <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface-muted p-3">
+      {sectionCapability.id !== 'story' && targetViewport !== 'desktop' && <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface-muted p-3">
         <div><p className="text-sm font-semibold">Editing {targetViewport} layout</p><p className="text-xs text-foreground-muted">{activeOverride ? 'Custom overrides are active.' : 'Using Template defaults.'}</p></div>
         <Button size="sm" variant="secondary" type="button" disabled={!activeOverride} onClick={resetResponsive}>Restore {targetViewport} defaults</Button>
       </div>}
-      {supportsControl(sectionCapability, 'presentation', presentation) && <PresentationPicker
+      {sectionCapability.id !== 'story' && sectionCapability.defaultPresentation && <InspectorSection title="Layout">{supportsControl(sectionCapability, 'presentation', presentation) && <PresentationPicker
         capability={sectionCapability}
         value={appearance.presentation ?? sectionCapability.defaultPresentation ?? ''}
         onChange={(presentation) => {
@@ -75,7 +82,7 @@ export function AppearancePanel({
           onChange(canonicalizeResponsiveAppearance(next, sectionCapability))
         }}
       />}
-      {sectionCapability.defaultPresentation && <MediaStyleControls
+      <MediaStyleControls
         key={appearance.presentation ?? sectionCapability.defaultPresentation}
         sectionCapability={sectionCapability}
         presentation={activePresentation}
@@ -85,10 +92,12 @@ export function AppearancePanel({
         activeOverride={activeOverride}
         onResponsiveChange={setResponsiveValue}
         onChange={onChange}
-      />}
+      /></InspectorSection>}
+      <InspectorSection title="Alignment">
       {(() => {
         const control = controlForViewport(controlCapability(sectionCapability, 'headingAlignment', presentation), targetViewport)
-        return control?.type === 'option' && <fieldset>
+        if (control?.type !== 'option') return null
+        return <fieldset>
         <legend className="mb-2 flex items-center gap-2 text-sm font-semibold">
           Heading alignment {targetViewport !== 'desktop' && <span className="text-[10px] font-medium uppercase tracking-wide text-foreground-muted">{activeOverride?.headingAlignment === undefined ? 'Template default' : 'Override'}</span>}
         </legend>
@@ -104,7 +113,8 @@ export function AppearancePanel({
       })()}
       {(() => {
         const control = controlForViewport(controlCapability(sectionCapability, 'bodyAlignment', presentation), targetViewport)
-        return control?.type === 'option' && <fieldset>
+        if (control?.type !== 'option') return null
+        return <fieldset>
         <legend className="mb-2 flex items-center gap-2 text-sm font-semibold">
           Content alignment {targetViewport !== 'desktop' && <span className="text-[10px] font-medium uppercase tracking-wide text-foreground-muted">{activeOverride?.bodyAlignment === undefined ? 'Template default' : 'Override'}</span>}
         </legend>
@@ -118,41 +128,41 @@ export function AppearancePanel({
         />
       </fieldset>
       })()}
-      {(() => {
-        const control = controlCapability(sectionCapability, 'backgroundTreatment', presentation)
-        return control?.type === 'option' && <fieldset>
-        <legend className="mb-2 text-sm font-semibold">Background</legend>
-        <OptionGrid
-          options={control.options}
-          value={appearance.backgroundTreatment}
-          onSelect={(backgroundTreatment) =>
-            onChange({
-              ...appearance,
-              backgroundTreatment:
-                backgroundTreatment as WebsiteSectionAppearance["backgroundTreatment"],
-            })
-          }
-        />
-      </fieldset>
-      })()}
-      {(() => {
-        const control = controlCapability(sectionCapability, 'emphasis', presentation)
-        return control?.type === 'option' && <fieldset>
-        <legend className="mb-2 text-sm font-semibold">Emphasis</legend>
-        <OptionGrid
-          options={control.options}
-          value={appearance.emphasis}
-          onSelect={(emphasis) =>
-            onChange({
-              ...appearance,
-              emphasis: emphasis as WebsiteSectionAppearance["emphasis"],
-            })
-          }
-        />
-      </fieldset>
-      })()}
+      </InspectorSection>
+      <SectionAppearanceControls sectionCapability={sectionCapability} presentation={presentation} appearance={appearance} onChange={onChange} />
     </div>
   );
+}
+
+function StorySectionAppearanceControls({ sectionCapability, presentation, appearance, onChange }: { sectionCapability: SectionCapability; presentation: string | undefined; appearance: WebsiteSectionAppearance; onChange: (appearance: WebsiteSectionAppearance) => void }) {
+  const background = controlCapability(sectionCapability, 'backgroundTreatment', presentation)
+  if (background?.type !== 'option') return null
+  const helpers: Record<string, string> = {
+    inherit: 'Use the template background',
+    plain: 'Simple neutral background',
+    soft: 'Subtle background treatment',
+    accent: 'Stronger background emphasis',
+  }
+  return <InspectorSection title="Background">
+    <InspectorVisualChoiceGroup
+      label="Story background"
+      layout="stack"
+      showIllustration={false}
+      value={appearance.backgroundTreatment}
+      options={background.options.map((option) => ({ value: option.key, label: option.displayName, helper: helpers[option.key], illustration: null }))}
+      onChange={(backgroundTreatment) => onChange({ ...appearance, backgroundTreatment: backgroundTreatment as WebsiteSectionAppearance['backgroundTreatment'] })}
+    />
+  </InspectorSection>
+}
+
+function SectionAppearanceControls({ sectionCapability, presentation, appearance, onChange }: { sectionCapability: SectionCapability; presentation: string | undefined; appearance: WebsiteSectionAppearance; onChange: (appearance: WebsiteSectionAppearance) => void }) {
+  const background = controlCapability(sectionCapability, 'backgroundTreatment', presentation)
+  const emphasis = controlCapability(sectionCapability, 'emphasis', presentation)
+  if (background?.type !== 'option' && emphasis?.type !== 'option') return null
+  return <InspectorSection title="Section">
+    {background?.type === 'option' && <fieldset><legend className="mb-2 text-sm font-semibold">Background</legend><OptionGrid options={background.options} value={appearance.backgroundTreatment} onSelect={(backgroundTreatment) => onChange({ ...appearance, backgroundTreatment: backgroundTreatment as WebsiteSectionAppearance['backgroundTreatment'] })} /></fieldset>}
+    {emphasis?.type === 'option' && <fieldset><legend className="mb-2 text-sm font-semibold">Emphasis</legend><OptionGrid options={emphasis.options} value={appearance.emphasis} onSelect={(emphasisValue) => onChange({ ...appearance, emphasis: emphasisValue as WebsiteSectionAppearance['emphasis'] })} /></fieldset>}
+  </InspectorSection>
 }
 
 function MediaStyleControls({ sectionCapability, presentation, appearance, baseAppearance, targetViewport, activeOverride, onResponsiveChange, onChange }: { sectionCapability: SectionCapability; presentation: PresentationCapability | undefined; appearance: WebsiteSectionAppearance; baseAppearance: WebsiteSectionAppearance; targetViewport: ResponsiveViewport; activeOverride?: WebsiteSectionResponsiveAppearance; onResponsiveChange: (setting: keyof WebsiteSectionResponsiveAppearance, value: WebsiteSectionResponsiveAppearance[keyof WebsiteSectionResponsiveAppearance]) => void; onChange: (appearance: WebsiteSectionAppearance) => void }) {

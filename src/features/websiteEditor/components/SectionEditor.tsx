@@ -1,13 +1,11 @@
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "../../../components/ui/Button";
 import { Dialog, DialogFooter, DialogHeader } from "../../../components/ui/Dialog";
 import { IconButton } from "../../../components/ui/IconButton";
 import { Input } from "../../../components/ui/Input";
 import { Textarea } from "../../../components/ui/Textarea";
-import { ApiError } from "../../../lib/api";
-import { validateSectionContent } from "../schemas";
-import type { WebsiteDraft, WebsiteSection } from "../types";
+import type { StoryHeaderField as StoryHeaderFieldName, WebsiteSection } from "../types";
 import type { ResolvedWebsiteMedia, SectionMedia } from "../types";
 import type { MediaAsset } from "../../media/types";
 import { useEventWorkspace } from "../../events/workspace/EventWorkspaceContext";
@@ -15,21 +13,17 @@ import { MediaPickerDialog } from "./MediaPickerDialog";
 import { FocalPointEditor } from "./FocalPointEditor";
 import { ZoomedMediaImage } from "../../websiteRenderer/ZoomedMediaImage";
 import { createSemanticId } from "../createSemanticId";
-import type { PeopleContent, PeopleGroup, PeoplePerson, StoryBlock, StoryContent } from "../types";
+import type { PeopleContent, PeopleGroup, PeoplePerson, StoryContent } from "../types";
 import { useRevealNewItem } from "../useRevealNewItem";
-import { BuilderSaveBar } from "./BuilderSaveBar";
+import { SemanticTextContentField } from "./SemanticTextContentField";
 
 type EditorProps = {
   section: WebsiteSection;
   content: Record<string, unknown>;
-  dirty: boolean;
-  resetDirty: boolean;
   onChange: (content: Record<string, unknown>) => void;
-  onReset: () => void;
-  onSave: (content: Record<string, unknown>) => Promise<WebsiteDraft>;
-  onSaved: (draft: WebsiteDraft) => void;
   resolvedMedia: Record<string, ResolvedWebsiteMedia>;
   onMediaResolved: (media: ResolvedWebsiteMedia) => void;
+  storyHeaderFocus?: { field: StoryHeaderFieldName; requestId: number; focusInspector: boolean } | null;
 };
 type Field = {
   name: string;
@@ -38,42 +32,9 @@ type Field = {
   note?: string;
 };
 
-function errorText(error: unknown): string {
-  if (error instanceof ApiError)
-    return error.validationErrors.content?.[0] ?? error.message;
-  return "Unable to save this section. Please try again.";
-}
-
-function useSectionSave(props: EditorProps) {
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  async function save() {
-    const parsed = validateSectionContent(props.section.type, props.content);
-    if (!parsed.success) {
-      setError("Review this section and enter valid content before saving.");
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      props.onSaved(await props.onSave(parsed.data as Record<string, unknown>));
-    } catch (saveError) {
-      setError(errorText(saveError));
-    } finally {
-      setSaving(false);
-    }
-  }
-  function reset() {
-    setError(null);
-    props.onReset();
-  }
-  return { error, saving, save, reset };
-}
-
 function SimpleEditor(props: EditorProps & { fields: Field[] }) {
-  const { error, saving, save, reset } = useSectionSave(props);
   return (
-    <EditorForm error={error} dirty={props.dirty} resetDirty={props.resetDirty} saving={saving} onSave={save} onReset={reset}>
+    <EditorForm>
       {props.section.mediaCapability?.mode === "single" && <SectionMediaEditor {...props} />}
       {props.fields.map((field) => (
         <TextField
@@ -110,61 +71,29 @@ function SectionMediaEditor(props: EditorProps) {
 }
 
 function StoryEditor(props: EditorProps) {
-  const { error, saving, save, reset } = useSectionSave(props);
-  const event = useEventWorkspace();
-  const reveal = useRevealNewItem();
-  const [pickerBlockId, setPickerBlockId] = useState<string | null>(null);
   const content = props.content as StoryContent;
-  const blocks = Array.isArray(content.elements) ? content.elements : [];
-  const framing = content.mediaFraming ?? {};
-  const changeBlocks = (next: StoryBlock[], nextFraming = framing) => props.onChange({ ...props.content, elements: next, mediaFraming: nextFraming });
-  const updateBlock = (id: string, update: (block: StoryBlock) => StoryBlock) => changeBlocks(blocks.map((block) => block.id === id ? update(block) : block));
-  const updateFraming = (id: string, value: StoryContent['mediaFraming'][string]) => changeBlocks(blocks, { ...framing, [id]: value });
-  const removeFraming = (id: string) => { const next = { ...framing }; delete next[id]; return next; };
-  const pickerBlock = blocks.find((block) => block.id === pickerBlockId);
 
-  return <EditorForm error={error} dirty={props.dirty} resetDirty={props.resetDirty} saving={saving} onSave={save} onReset={reset}>
-    <TextField label="Heading" id={`${props.section.id}-heading`} value={String(content.heading ?? "")} onChange={(heading) => props.onChange({ ...props.content, heading })} />
-    <TextField label="Intro (optional)" id={`${props.section.id}-intro`} value={content.intro ?? ""} multiline onChange={(intro) => props.onChange({ ...props.content, intro: intro || null })} />
-    <ItemList title="Story blocks" onAdd={() => {
-      if (blocks.length >= 20) return;
-      const id = createSemanticId("story");
-      reveal.reveal(`story-${id}`);
-      changeBlocks([...blocks, { id, type: "narrativeBlock", isHidden: false, composition: { presentation: 'editorial' }, slots: { eyebrow: { isHidden: true, text: '' }, heading: { isHidden: false, text: '' }, divider: { isHidden: true }, body: { isHidden: false, text: '' }, quote: { isHidden: true, text: '' }, media: { isHidden: true, content: null }, caption: { isHidden: true, text: '' }, cta: { isHidden: true, label: '', action: null } } }]);
-    }}>
-      {blocks.map((block, index) => {
-        const image = block.slots.media.content?.type === 'image' ? block.slots.media.content : undefined;
-        const asset = image ? props.resolvedMedia[image.mediaId] : undefined;
-        const blockFraming = framing[block.id];
-        return <div className="rounded-xl border border-border bg-background p-3 xl:rounded-md" key={block.id} ref={reveal.register(`story-${block.id}`)}>
-          <TextField label="Block heading" id={`${props.section.id}-${block.id}-heading`} value={block.slots.heading.text} onChange={(text) => updateBlock(block.id, (current) => ({ ...current, slots: { ...current.slots, heading: { ...current.slots.heading, text } } }))} />
-          <div className="mt-3"><TextField label="Body" id={`${props.section.id}-${block.id}-body`} value={block.slots.body.text} multiline onChange={(text) => updateBlock(block.id, (current) => ({ ...current, slots: { ...current.slots, body: { ...current.slots.body, text } } }))} /></div>
-          <section className="mt-3 rounded-md border border-border bg-surface-muted p-3">
-            <h4 className="text-xs font-semibold">Image</h4>
-            {asset && image ? <div className="mt-2">
-              <FocalPointEditor url={asset.web.url} point={blockFraming?.focalPoint ?? { x: 0.5, y: 0.5 }} zoom={blockFraming?.zoom} onChange={({ point: focalPoint, zoom }) => updateFraming(block.id, { focalPoint, zoom })} />
-              <p className="mt-1 truncate text-xs text-foreground-muted">{asset.originalFilename}</p>
-              <div className="mt-2 flex flex-wrap gap-2"><Button size="sm" type="button" variant="secondary" onClick={() => setPickerBlockId(block.id)}>Change image</Button><Button size="sm" type="button" variant="ghost" onClick={() => updateBlock(block.id, (current) => ({ ...current, slots: { ...current.slots, media: { isHidden: true, content: null } } }))}>Remove image</Button></div>
-            </div> : <div className="mt-2"><p className="text-xs text-foreground-muted">No image selected</p><Button className="mt-2" size="sm" type="button" variant="secondary" onClick={() => setPickerBlockId(block.id)}>Choose from Media</Button></div>}
-          </section>
-          <ItemActions label={block.slots.heading.text.trim() || `story block ${index + 1}`} index={index} length={blocks.length} onRemove={() => changeBlocks(blocks.filter((item) => item.id !== block.id), removeFraming(block.id))} onMove={(target) => { const next = [...blocks]; [next[index], next[target]] = [next[target], next[index]]; changeBlocks(next); }} />
-        </div>;
-      })}
-    </ItemList>
-    {blocks.length >= 20 && <p className="text-xs text-foreground-muted">Story sections support up to 20 blocks.</p>}
-    <MediaPickerDialog open={pickerBlockId !== null} eventId={event.id} selectedAssetId={pickerBlock?.slots.media.content?.type === 'image' ? pickerBlock.slots.media.content.mediaId : undefined} onClose={() => setPickerBlockId(null)} onSelect={(asset) => {
-      const blockId = pickerBlockId;
-      if (!blockId) return;
-      props.onMediaResolved({ id: asset.id, originalFilename: asset.originalFilename, width: asset.width, height: asset.height, web: asset.variants.web });
-      changeBlocks(blocks.map((block) => block.id === blockId ? { ...block, slots: { ...block.slots, media: { isHidden: false, content: { type: 'image' as const, mediaId: asset.id } } } } : block), removeFraming(blockId));
-      setPickerBlockId(null);
-    }} />
-  </EditorForm>;
+  useEffect(() => {
+    if (!props.storyHeaderFocus) return;
+    if (!props.storyHeaderFocus.focusInspector) return;
+    const frame = window.requestAnimationFrame(() => {
+      const control = document.getElementById(`${props.section.id}-${props.storyHeaderFocus!.field}`);
+      control?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" });
+      control?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [props.section.id, props.storyHeaderFocus]);
+
+  if (!props.storyHeaderFocus) return <div className="rounded-md border border-border bg-surface-muted px-3 py-3 text-xs text-foreground-muted">Select a Story item to edit its content.</div>;
+  const field = props.storyHeaderFocus.field;
+  const value = field === "eyebrow" ? content.eyebrow ?? "" : field === "heading" ? content.heading : content.intro ?? "";
+  const hidden = field === "eyebrow" ? content.eyebrowIsHidden === true : field === "heading" ? content.headingIsHidden === true : content.introIsHidden === true;
+  const label = field === "eyebrow" ? "Eyebrow" : field === "heading" ? "Heading" : "Intro";
+  return <EditorForm><SemanticTextContentField label={label} id={`${props.section.id}-${field}`} value={value} hidden={hidden} multiline={field === "intro"} onChange={(next) => props.onChange({ ...props.content, [field]: field === "heading" ? next : next || null })} /></EditorForm>;
 }
 
 function ScheduleEditor(props: EditorProps) {
   const reveal = useRevealNewItem();
-  const { error, saving, save, reset } = useSectionSave(props);
   const items = Array.isArray(props.content.items)
     ? (props.content.items as Array<Record<string, string>>)
     : [];
@@ -182,7 +111,7 @@ function ScheduleEditor(props: EditorProps) {
     props.onChange({ ...props.content, items: next });
   }
   return (
-    <EditorForm error={error} dirty={props.dirty} resetDirty={props.resetDirty} saving={saving} onSave={save} onReset={reset}>
+    <EditorForm>
       <TextField
         label="Heading"
         id={`${props.section.id}-heading`}
@@ -249,7 +178,6 @@ function ScheduleEditor(props: EditorProps) {
 
 function FaqEditor(props: EditorProps) {
   const reveal = useRevealNewItem();
-  const { error, saving, save, reset } = useSectionSave(props);
   const items = Array.isArray(props.content.items)
     ? (props.content.items as Array<Record<string, string>>)
     : [];
@@ -267,7 +195,7 @@ function FaqEditor(props: EditorProps) {
     props.onChange({ ...props.content, items: next });
   }
   return (
-    <EditorForm error={error} dirty={props.dirty} resetDirty={props.resetDirty} saving={saving} onSave={save} onReset={reset}>
+    <EditorForm>
       <TextField
         label="Heading"
         id={`${props.section.id}-heading`}
@@ -325,7 +253,6 @@ function FaqEditor(props: EditorProps) {
 }
 
 function PeopleEditor(props: EditorProps) {
-  const { error, saving, save, reset } = useSectionSave(props);
   const event = useEventWorkspace();
   const reveal = useRevealNewItem();
   const [pickerPersonId, setPickerPersonId] = useState<string | null>(null);
@@ -342,7 +269,7 @@ function PeopleEditor(props: EditorProps) {
     changeGroups(next);
   };
 
-  return <EditorForm error={error} dirty={props.dirty} resetDirty={props.resetDirty} saving={saving} onSave={save} onReset={reset}>
+  return <EditorForm>
     <TextField label="Heading" id={`${props.section.id}-heading`} value={String(content.heading ?? "")} onChange={(heading) => props.onChange({ ...props.content, heading })} />
     <ItemList title="Groups" onAdd={() => { const id = createSemanticId("group"); reveal.reveal(`group-${id}`); changeGroups([...groups, { id, name: "New group", people: [] }]); }}>
       {groups.map((group, groupIndex) => <div className="rounded-xl border border-border bg-background p-3 xl:rounded-md" key={group.id} ref={reveal.register(`group-${group.id}`)}>
@@ -387,45 +314,13 @@ function PersonFocalDialog({ person, media, onClose, onChange }: { person?: Peop
   </Dialog>;
 }
 
-function EditorForm({
-  error,
-  dirty,
-  resetDirty,
-  saving,
-  onSave,
-  onReset,
-  children,
-}: {
-  error: string | null;
-  dirty: boolean;
-  resetDirty: boolean;
-  saving: boolean;
-  onSave: () => void;
-  onReset: () => void;
-  children: React.ReactNode;
-}) {
+function EditorForm({ children }: { children: React.ReactNode }) {
   return (
-    <form
-      className="flex h-full min-h-0 flex-col"
-      onSubmit={(event) => {
-        event.preventDefault();
-        void onSave();
-      }}
-      noValidate
-    >
+    <div className="flex h-full min-h-0 flex-col">
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0 xl:pb-6">
-        {error && (
-          <p
-            className="rounded-xl bg-danger-muted p-3 text-xs! text-danger"
-            role="alert"
-          >
-            {error}
-          </p>
-        )}
         {children}
       </div>
-      <BuilderSaveBar dirty={dirty} statusDirty={resetDirty} resetDirty={resetDirty} saving={saving} onSave={onSave} onReset={onReset} />
-    </form>
+    </div>
   );
 }
 

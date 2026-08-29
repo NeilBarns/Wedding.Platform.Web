@@ -16,7 +16,7 @@ export function resolveModernEditorialSectionAppearance(sectionType: string, app
   const heading = appearance.headingAlignment === 'inherit' ? (sectionType === 'hero' ? 'left' : index % 2 ? 'right' : 'left') : appearance.headingAlignment
   const body = appearance.bodyAlignment === 'inherit' ? 'left' : appearance.bodyAlignment
   const background = appearance.backgroundTreatment === 'inherit' ? (index % 3 === 1 ? 'soft' : 'plain') : appearance.backgroundTreatment
-  const emphasis = appearance.emphasis === 'inherit' ? 'standard' : appearance.emphasis
+  const emphasis = sectionType === 'story' || appearance.emphasis === 'inherit' ? 'standard' : appearance.emphasis
   const backgroundResult = resolveBackground(background)
 
   return {

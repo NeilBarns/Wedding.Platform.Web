@@ -30,13 +30,15 @@ import {
   ModernEditorialRsvp,
   ModernEditorialSchedule,
   ModernEditorialStoryBlock,
-  ModernEditorialStoryBlockBody,
-  ModernEditorialStoryBlockHeading,
   ModernEditorialStoryHeader,
   ModernEditorialVenue,
 } from "./modernEditorial/sections";
 import { resolveSectionDesignTokens } from "../../websiteTemplates/design/catalogs";
 import { NarrativeBlockFrame } from "../NarrativeBlockFrame";
+import { resolveNarrativeComposition } from "../narrativeComposition";
+import type { ElementCapability } from "../../websiteCapabilities/types";
+import { resolveEffectiveStorySequence } from "../storyEffectiveSequence";
+import { resolveStoryRenderItems } from "../storyRenderSequence";
 
 export function ModernEditorialRenderer({
   event,
@@ -49,7 +51,8 @@ export function ModernEditorialRenderer({
   selectedNarrativeBlockId,
   onNarrativeBlockSelect,
 }: WebsiteRendererProps) {
-  const sections =
+  const narrativeCapability = website.template!.capabilities.elementCapabilities.find(({ type }) => type === "narrativeBlock");
+  const candidates =
     scope.kind === "single-section"
       ? website.sections
           .map((section, index) => ({ section, index }))
@@ -57,12 +60,24 @@ export function ModernEditorialRenderer({
       : website.sections
           .map((section, index) => ({ section, index }))
           .filter(({ section }) => section.isEnabled);
+  const sections = candidates.filter(({ section }) => {
+    if (mode === "editor" || section.type !== "story") return true;
+    const content = section.content as StoryContent;
+    return resolveEffectiveStorySequence({
+      content,
+      capability: narrativeCapability?.narrativeBlock?.composition,
+      isMediaRenderable: (block) => {
+        const reference = storyElementMedia(content, block);
+        return Boolean(reference && website.media[reference.assetId]);
+      },
+    }).length > 0;
+  });
   return (
     <article
       className="min-h-full bg-[var(--me-page)] font-[family-name:var(--me-body-font)] text-[var(--me-text)]"
       style={resolveModernEditorialDesign(website.designSettings)}
     >
-      {sections.length === 0 && (
+      {mode === "editor" && sections.length === 0 && (
         <div className="flex min-h-96 items-center justify-center px-8 text-center text-sm text-[var(--me-muted)]">
           {scope.kind === "single-section"
             ? "Select a section to edit."
@@ -80,6 +95,7 @@ export function ModernEditorialRenderer({
           media={website.media}
           targetViewport={targetViewport}
           library={website.template!.capabilities.designLibrary}
+          narrativeCapability={narrativeCapability}
           templateKey={website.templateKey}
           selected={mode === "editor" && selectedSectionId === section.id}
           onSelect={onSectionSelect}
@@ -100,6 +116,7 @@ function ModernSection({
   media,
   targetViewport,
   library,
+  narrativeCapability,
   templateKey,
   selected,
   onSelect,
@@ -116,6 +133,7 @@ function ModernSection({
   library: NonNullable<
     WebsiteRendererProps["website"]["template"]
   >["capabilities"]["designLibrary"];
+  narrativeCapability?: ElementCapability;
   templateKey: string;
   selected: boolean;
   onSelect?: (sectionId: string) => void;
@@ -169,11 +187,6 @@ function ModernSection({
       }
       tabIndex={mode === "editor" ? 0 : undefined}
     >
-      {selected && (
-        <span className="absolute right-3 top-3 z-20 rounded-full bg-[var(--editor-chrome-strong)] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wider text-[var(--editor-chrome-on-strong)] shadow-[var(--editor-chrome-shadow)]">
-          Editing
-        </span>
-      )}
       <Section
         section={section}
         eventName={eventName}
@@ -182,6 +195,7 @@ function ModernSection({
         media={media}
         targetViewport={targetViewport}
         library={library}
+        narrativeCapability={narrativeCapability}
         selectedNarrativeBlockId={selectedNarrativeBlockId}
         onNarrativeBlockSelect={onNarrativeBlockSelect}
       />
@@ -197,6 +211,7 @@ function Section({
   media,
   targetViewport,
   library,
+  narrativeCapability,
   selectedNarrativeBlockId,
   onNarrativeBlockSelect,
 }: {
@@ -209,6 +224,7 @@ function Section({
   library: NonNullable<
     WebsiteRendererProps["website"]["template"]
   >["capabilities"]["designLibrary"];
+  narrativeCapability?: ElementCapability;
   selectedNarrativeBlockId?: string | null;
   onNarrativeBlockSelect?: (blockId: string) => void;
 }) {
@@ -245,14 +261,20 @@ function Section({
       );
     case "story": {
       const content = section.content as StoryContent;
+      const contract = narrativeCapability?.narrativeBlock?.composition;
+      const isMediaRenderable = (block: StoryContent["elements"][number]) => {
+        const reference = storyElementMedia(content, block);
+        return Boolean(reference && media[reference.assetId]);
+      };
+      const effectiveSequence = resolveEffectiveStorySequence({ content, capability: contract, isMediaRenderable });
+      const renderItems = resolveStoryRenderItems(content, effectiveSequence, mode);
+      const firstSingleton = effectiveSequence.find((unit) => unit.kind === "singleton")?.reference;
       return (
         <>
-          <ModernEditorialStoryHeader
-            sectionId={section.id}
-            content={content}
-            mode={mode}
-          />
-          {content.elements.map((block, index) => {
+          {renderItems.map((item) => {
+            if (item.kind === "singletonRun") return <ModernEditorialStoryHeader key={item.references.join("|")} sectionId={section.id} content={content} mode={mode} fields={item.fields} hasFollowingUnits={item.hasSuccessor} showNumber={Boolean(firstSingleton && item.references.includes(firstSingleton))} library={library} context={section.resolvedDesignContext ?? undefined} viewport={targetViewport} />;
+            const block = item.block;
+            const index = content.elements.findIndex(({ id }) => id === block.id);
             if (block.isHidden && mode === "public") return null;
             if (block.isHidden)
               return (
@@ -264,10 +286,27 @@ function Section({
                   onSelect={onNarrativeBlockSelect}
                 >
                   <div className="border-y border-dashed border-[var(--me-border)] px-7 py-8 text-center text-xs text-[var(--me-muted)]">
-                    Hidden Narrative Block — select to restore from Content.
+                    Hidden Narrative Block - select to restore from Content.
                   </div>
                 </NarrativeBlockFrame>
               );
+            if (!contract) return null;
+            const effective = item.effective;
+            const composition = effective?.composition ?? resolveNarrativeComposition({ block, capability: contract, mediaRenderable: isMediaRenderable(block) });
+            const hasRenderableSlot = Object.values(composition.rendering.slots).some(Boolean);
+            if (!hasRenderableSlot && mode === "public") return null;
+            const reference = storyElementMedia(content, block);
+            const asset = reference ? media[reference.assetId] : undefined;
+            const mediaNode =
+              reference && asset ? (
+                <ZoomedMediaImage
+                  className="block max-h-[46rem] w-full object-cover"
+                  height={asset.web.height}
+                  reference={reference}
+                  src={asset.web.url}
+                  width={asset.web.width}
+                />
+              ) : undefined;
             return (
               <NarrativeBlockFrame
                 key={block.id}
@@ -276,47 +315,18 @@ function Section({
                 selected={selectedNarrativeBlockId === block.id}
                 onSelect={onNarrativeBlockSelect}
               >
-                <ModernMediaPresentation
-                  alternate={index % 2 === 1}
-                  section={section}
-                  media={media}
-                  mediaReference={storyElementMedia(content, block)}
-                  mobileStoryHeading={
-                    <ModernEditorialStoryBlockHeading
-                      sectionId={section.id}
-                      block={block}
-                      index={index}
-                      library={library}
-                      viewport={targetViewport}
-                      context={section.resolvedDesignContext ?? undefined}
-                    />
-                  }
-                  mobileStoryBody={
-                    <ModernEditorialStoryBlockBody
-                      sectionId={section.id}
-                      block={block}
-                      index={index}
-                      library={library}
-                      viewport={targetViewport}
-                      context={section.resolvedDesignContext ?? undefined}
-                    />
-                  }
-                  presentation={presentation}
-                  targetViewport={targetViewport}
-                >
-                  <ModernEditorialStoryBlock
-                    sectionId={section.id}
-                    block={block}
-                    index={index}
-                    tabletEditorial={
-                      targetViewport === "tablet" &&
-                      presentation === "editorial"
-                    }
-                    library={library}
-                    viewport={targetViewport}
-                    context={section.resolvedDesignContext ?? undefined}
-                  />
-                </ModernMediaPresentation>
+                <ModernEditorialStoryBlock
+                  sectionId={section.id}
+                  block={block}
+                  index={index}
+                  library={library}
+                  viewport={targetViewport}
+                  context={section.resolvedDesignContext ?? undefined}
+                  composition={composition}
+                  media={mediaNode}
+                  mode={mode}
+                  choreography={effective?.choreography}
+                />
               </NarrativeBlockFrame>
             );
           })}

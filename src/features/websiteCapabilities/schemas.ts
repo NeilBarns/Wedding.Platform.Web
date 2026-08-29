@@ -80,6 +80,18 @@ const fontFamilySchema = z.object({
   id: z.string().min(1),
   displayName: z.string().min(1),
   allowedRoles: z.array(typographyRoleSchema).min(1),
+  family: z.string().min(1),
+  category: z.enum(['serif', 'sans', 'script', 'display', 'mono', 'legacy']),
+  source: z.discriminatedUnion('type', [
+    z.object({ type: z.literal('googleFonts'), apiFamily: z.string().min(1), upstreamUrl: z.string().url(), version: z.string().min(1) }).strict(),
+    z.object({ type: z.literal('system') }).strict(),
+    z.object({ type: z.literal('legacyAlias') }).strict(),
+  ]),
+  fallback: z.string(),
+  weights: z.array(z.number().int().min(100).max(900)).min(1),
+  styles: z.array(z.enum(['normal', 'italic'])).min(1),
+  recommendedRoles: z.array(z.enum(['heading', 'body', 'accent'])),
+  license: z.object({ id: z.string().min(1), url: z.string().url().optional() }).strict(),
 }).strict()
 const paletteRolesSchema = z.object({
   canvas: z.string().min(1),
@@ -106,6 +118,11 @@ const typographyPresetSchema = z.object({
 export const templateDesignLibrarySchema = z.object({
   colors: z.array(designColorSchema).min(1),
   fontFamilies: z.array(fontFamilySchema).min(1),
+  fontRecommendations: z.object({
+    heading: z.array(z.string().min(1)),
+    body: z.array(z.string().min(1)),
+    accent: z.array(z.string().min(1)),
+  }).strict(),
   palettePresets: z.array(palettePresetSchema).min(1),
   typographyPresets: z.array(typographyPresetSchema).min(1),
 }).strict().superRefine((library, context) => {
@@ -124,6 +141,12 @@ export const templateDesignLibrarySchema = z.object({
   })
 
   const families = new Map(library.fontFamilies.map((family) => [family.id, family]))
+  Object.entries(library.fontRecommendations).forEach(([role, ids]) => {
+    ids.forEach((id, index) => {
+      if (!families.has(id)) context.addIssue({ code: 'custom', message: 'Unknown font recommendation', path: ['fontRecommendations', role, index] })
+    })
+    if (new Set(ids).size !== ids.length) context.addIssue({ code: 'custom', message: 'Font recommendations must be unique', path: ['fontRecommendations', role] })
+  })
   library.typographyPresets.forEach((preset, index) => {
     if (!families.get(preset.headingFontId)?.allowedRoles.includes('heading')) {
       context.addIssue({ code: 'custom', message: 'Invalid heading font reference', path: ['typographyPresets', index, 'headingFontId'] })

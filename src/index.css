@@ -87,4 +87,93 @@ button, input, select { font: inherit; }
   color: color-mix(in srgb, var(--editor-chrome-on-surface) 62%, transparent);
   font-style: italic;
 }
+
+.editor-selection-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events: none;
+  background: linear-gradient(115deg, #a85f47, #c98a78, #d8ac67, #9e5547, #d8ac67);
+  background-size: 320% 100%;
+  box-shadow: 0 0 0 1px rgb(255 248 239 / 42%), 0 4px 18px rgb(137 76 56 / 18%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: editor-selection-drift 12s linear infinite;
+}
+
+.editor-selection-target {
+  transition: box-shadow 180ms ease;
+}
+
+.editor-selection-target:hover:not([data-editor-selected="true"]) {
+  box-shadow: inset 0 0 0 1px rgb(166 85 63 / 24%);
+}
+
+.editor-selection-target[data-editor-active-slot="eyebrow"]:has([data-editor-narrative-slot="eyebrow"]) .editor-selection-frame,
+.editor-selection-target[data-editor-active-slot="heading"]:has([data-editor-narrative-slot="heading"]) .editor-selection-frame,
+.editor-selection-target[data-editor-active-slot="divider"]:has([data-editor-narrative-slot="divider"]) .editor-selection-frame,
+.editor-selection-target[data-editor-active-slot="body"]:has([data-editor-narrative-slot="body"]) .editor-selection-frame,
+.editor-selection-target[data-editor-active-slot="quote"]:has([data-editor-narrative-slot="quote"]) .editor-selection-frame,
+.editor-selection-target[data-editor-active-slot="media"]:has([data-editor-narrative-slot="media"]) .editor-selection-frame,
+.editor-selection-target[data-editor-active-slot="caption"]:has([data-editor-narrative-slot="caption"]) .editor-selection-frame,
+.editor-selection-target[data-editor-active-slot="cta"]:has([data-editor-narrative-slot="cta"]) .editor-selection-frame {
+  opacity: .32;
+}
+
+.editor-selection-target[data-editor-active-slot="eyebrow"] [data-editor-narrative-slot="eyebrow"],
+.editor-selection-target[data-editor-active-slot="heading"] [data-editor-narrative-slot="heading"],
+.editor-selection-target[data-editor-active-slot="divider"] [data-editor-narrative-slot="divider"],
+.editor-selection-target[data-editor-active-slot="body"] [data-editor-narrative-slot="body"],
+.editor-selection-target[data-editor-active-slot="quote"] [data-editor-narrative-slot="quote"],
+.editor-selection-target[data-editor-active-slot="media"] [data-editor-narrative-slot="media"],
+.editor-selection-target[data-editor-active-slot="caption"] [data-editor-narrative-slot="caption"],
+.editor-selection-target[data-editor-active-slot="cta"] [data-editor-narrative-slot="cta"] {
+  position: relative;
+  border-radius: 2px;
+  outline: none;
+}
+
+.editor-selection-target[data-editor-active-slot="eyebrow"] [data-editor-narrative-slot="eyebrow"]::after,
+.editor-selection-target[data-editor-active-slot="heading"] [data-editor-narrative-slot="heading"]::after,
+.editor-selection-target[data-editor-active-slot="divider"] [data-editor-narrative-slot="divider"]::after,
+.editor-selection-target[data-editor-active-slot="body"] [data-editor-narrative-slot="body"]::after,
+.editor-selection-target[data-editor-active-slot="quote"] [data-editor-narrative-slot="quote"]::after,
+.editor-selection-target[data-editor-active-slot="media"] [data-editor-narrative-slot="media"]::after,
+.editor-selection-target[data-editor-active-slot="caption"] [data-editor-narrative-slot="caption"]::after,
+.editor-selection-target[data-editor-active-slot="cta"] [data-editor-narrative-slot="cta"]::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  z-index: 41;
+  border-radius: 4px;
+  padding: 2px;
+  pointer-events: none;
+  background: linear-gradient(115deg, #a85f47, #c98a78, #d8ac67, #9e5547, #d8ac67);
+  background-size: 320% 100%;
+  box-shadow: 0 2px 12px rgb(137 76 56 / 16%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: editor-selection-drift 12s linear infinite;
+}
+
+.editor-selection-target [data-editor-narrative-slot]:has(input, textarea)::after {
+  display: none;
+}
+
+[data-editor-story-field]:has(input, textarea) > .editor-selection-frame {
+  display: none;
+}
+
+@keyframes editor-selection-drift {
+  to { background-position: 320% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-selection-frame,
+  [data-editor-narrative-slot]::after { animation: none; }
+}
 dialog::backdrop { background: rgb(31 25 21 / 58%); backdrop-filter: blur(3px); }

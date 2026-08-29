@@ -1,3 +1,5 @@
+import { platformFontStack } from "../../websiteFonts/platformFonts";
+
 export type SemanticPalette = {
   canvas: string
   surface: string
@@ -35,6 +37,11 @@ export const templateFontFamilyStacks = {
   },
 } as const
 
+export function fontStackForTemplate(templateKey: string, fontId: string): string | undefined {
+  const legacy = templateFontFamilyStacks[templateKey as keyof typeof templateFontFamilyStacks] as Record<string, string> | undefined;
+  return legacy?.[fontId] ?? platformFontStack(fontId);
+}
+
 export type GlobalDesignTokens = {
   color: SemanticPalette
   typography: Pick<TypographyPairing, 'heading' | 'body'>
@@ -53,14 +60,13 @@ type SectionDesignContext = {
 }
 
 export function resolveSectionDesignTokens(templateKey: string, library: DesignLibraryValues, context: SectionDesignContext | null) {
-  const fontStacks: Record<string, string> | undefined = templateFontFamilyStacks[templateKey as keyof typeof templateFontFamilyStacks]
-  if (!context || !fontStacks) return null
+  if (!context) return null
   const colors = new Map(library.colors.map(({ id, value }) => [id, value]))
   const headingColor = colors.get(context.headingColorId)
   const bodyColor = colors.get(context.bodyColorId)
   const accentColor = colors.get(context.accentColorId)
-  const headingFont = fontStacks[context.headingFontId]
-  const bodyFont = fontStacks[context.bodyFontId]
+  const headingFont = fontStackForTemplate(templateKey, context.headingFontId)
+  const bodyFont = fontStackForTemplate(templateKey, context.bodyFontId)
   if (!headingColor || !bodyColor || !accentColor || !headingFont || !bodyFont) return null
 
   return { headingFont, bodyFont, headingColor, bodyColor, accentColor }
