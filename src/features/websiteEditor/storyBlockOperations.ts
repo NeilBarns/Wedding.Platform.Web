@@ -16,7 +16,7 @@ export function createEmptyStoryBlock(): StoryBlock {
     id: createSemanticId('story'),
     type: 'narrativeBlock',
     isHidden: false,
-    composition: { presentation: 'editorial' },
+    composition: {},
     slots: {
       eyebrow: { isHidden: true, text: '' },
       heading: { isHidden: true, text: '' },

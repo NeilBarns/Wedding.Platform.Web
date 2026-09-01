@@ -193,6 +193,15 @@ export const legacySlotNarrativeBlockElementSchema = z
           .object({
             isHidden: z.boolean(),
             content: narrativeMediaSchema.nullable(),
+            appearance: z
+              .object({
+                cornerStyle: z.enum(["square", "soft", "rounded"]).optional(),
+                frameStyle: z.string().min(1).max(64).optional(),
+                frameColorId: z.string().min(1).max(255).optional(),
+                frameSize: z.enum(["small", "medium", "large"]).optional(),
+              })
+              .strict()
+              .optional(),
           })
           .strict(),
         caption: narrativeTextSlotSchema,
@@ -210,15 +219,28 @@ export const legacySlotNarrativeBlockElementSchema = z
   .strict();
 
 export const narrativeCompositionSchema = z.object({
-  presentation: z.enum(["editorial", "mediaFirst", "quoteLed", "textOnly"]),
+  presentation: z.enum(["editorial", "mediaFirst", "quoteLed", "textOnly"]).optional(),
   mediaPlacement: z.enum(["leading", "trailing", "above", "below", "splitStart", "splitEnd", "inset"]).optional(),
   mediaTreatment: z.enum(["standard", "wide", "cinematic", "fullBleed"]).optional(),
   textAlignment: z.enum(["start", "center", "end"]).optional(),
   surface: z.enum(["none", "soft", "feature"]).optional(),
 }).strict();
 
+const narrativeBlockAppearanceSchema = z.object({
+  backgroundColorId: z.string().min(1).optional(),
+  decorativeAppearance: z.object({
+    background: z.object({
+      texture: z.enum(["none", "paper", "fabric", "grain"]).optional(),
+      textureStrength: z.number().int().min(10).max(100).optional(),
+      pattern: z.enum(["none", "botanical", "geometric", "heritage"]).optional(),
+      patternStrength: z.number().int().min(10).max(100).optional(),
+    }).strict().optional(),
+  }).strict().optional(),
+}).strict();
+
 export const narrativeBlockElementSchema = legacySlotNarrativeBlockElementSchema.extend({
   composition: narrativeCompositionSchema,
+  appearance: narrativeBlockAppearanceSchema.optional(),
 }).strict();
 
 export const eventDateElementSchema = z

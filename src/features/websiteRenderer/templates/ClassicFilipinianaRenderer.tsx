@@ -40,9 +40,11 @@ import {
 import { resolveSectionDesignTokens } from "../../websiteTemplates/design/catalogs";
 import { NarrativeBlockFrame } from "../NarrativeBlockFrame";
 import { resolveNarrativeComposition } from "../narrativeComposition";
+import { resolveNarrativeMediaCornerStyle } from "../narrativeMediaAppearance";
 import type { ElementCapability } from "../../websiteCapabilities/types";
 import { resolveEffectiveStorySequence } from "../storyEffectiveSequence";
 import { resolveStoryRenderItems } from "../storyRenderSequence";
+import { StoryDecorativeLayers } from "../StoryDecorativeLayers";
 
 export function ClassicFilipinianaRenderer({
   event,
@@ -156,6 +158,8 @@ function ClassicSection({
     designSettings,
     section.appearance,
     sectionIndex,
+    library,
+    designSettings.customColors,
   );
   const design = resolveSectionDesignTokens(
     templateKey,
@@ -164,7 +168,7 @@ function ClassicSection({
   );
   return (
     <section
-      className={`${appearance.sectionClass} relative cursor-default font-[family-name:var(--cf-body-font)] transition-shadow ${selected ? "z-10" : ""}`}
+      className={`${appearance.sectionClass} relative cursor-default font-[family-name:var(--cf-body-font)] transition-shadow ${section.type === "story" ? "isolate" : ""} ${selected ? "z-10" : ""}`}
       style={
         {
           ...appearance.sectionStyle,
@@ -199,8 +203,7 @@ function ClassicSection({
       }
       tabIndex={mode === "editor" ? 0 : undefined}
     >
-      {showLeadingDivider && <ClassicSectionDivider />}
-      <Section
+      {section.type === "story" ? <><StoryDecorativeLayers templateKey={templateKey} appearance={section.appearance.decorativeAppearance} viewport={targetViewport} /><div className="relative z-10">{showLeadingDivider && <ClassicSectionDivider />}<Section
         section={section}
         eventName={eventName}
         eventDate={eventDate}
@@ -208,10 +211,11 @@ function ClassicSection({
         media={media}
         targetViewport={targetViewport}
         library={library}
+        projectColors={designSettings.customColors}
         narrativeCapability={narrativeCapability}
         selectedNarrativeBlockId={selectedNarrativeBlockId}
         onNarrativeBlockSelect={onNarrativeBlockSelect}
-      />
+      /></div></> : <>{showLeadingDivider && <ClassicSectionDivider />}<Section section={section} eventName={eventName} eventDate={eventDate} mode={mode} media={media} targetViewport={targetViewport} library={library} projectColors={designSettings.customColors} narrativeCapability={narrativeCapability} selectedNarrativeBlockId={selectedNarrativeBlockId} onNarrativeBlockSelect={onNarrativeBlockSelect} /></>}
     </section>
   );
 }
@@ -224,6 +228,7 @@ function Section({
   media,
   targetViewport,
   library,
+  projectColors,
   narrativeCapability,
   selectedNarrativeBlockId,
   onNarrativeBlockSelect,
@@ -237,6 +242,7 @@ function Section({
   library: NonNullable<
     WebsiteRendererProps["website"]["template"]
   >["capabilities"]["designLibrary"];
+  projectColors: WebsiteRendererProps["website"]["designSettings"]["customColors"];
   narrativeCapability?: ElementCapability;
   selectedNarrativeBlockId?: string | null;
   onNarrativeBlockSelect?: (blockId: string) => void;
@@ -282,7 +288,7 @@ function Section({
       return (
         <>
           {renderItems.map((item) => {
-            if (item.kind === "singletonRun") return <ClassicFilipinianaStoryHeader key={item.references.join("|")} sectionId={section.id} content={content} mode={mode} fields={item.fields} hasFollowingUnits={item.hasSuccessor} library={library} context={section.resolvedDesignContext ?? undefined} viewport={targetViewport} />;
+            if (item.kind === "singletonRun") return <ClassicFilipinianaStoryHeader key={item.references.join("|")} sectionId={section.id} content={content} mode={mode} fields={item.fields} hasFollowingUnits={item.hasSuccessor} library={library} projectColors={projectColors} context={section.resolvedDesignContext ?? undefined} viewport={targetViewport} />;
             const block = item.block;
             const index = content.elements.findIndex(({ id }) => id === block.id);
             if (block.isHidden && mode === "public") return null;
@@ -336,9 +342,14 @@ function Section({
                   block={block}
                   index={index}
                   library={library}
+                  projectColors={projectColors}
                   viewport={targetViewport}
                   context={section.resolvedDesignContext ?? undefined}
                   composition={composition}
+                  mediaCornerStyle={resolveNarrativeMediaCornerStyle(block, narrativeCapability!.narrativeBlock!)}
+                  mediaFrameStyles={narrativeCapability!.narrativeBlock!.appearance.media.frameStyles}
+                  mediaFrameColorIds={narrativeCapability!.narrativeBlock!.appearance.media.frameColorIds}
+                  defaultMediaFrameStyle={narrativeCapability!.narrativeBlock!.appearance.media.defaultFrameStyle}
                   media={mediaNode}
                   mode={mode}
                   choreography={effective?.choreography}

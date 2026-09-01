@@ -18,6 +18,7 @@ import { SegmentedControl } from "../../components/ui/SegmentedControl";
 import { Text } from "../../components/ui/Text";
 import { useEventWorkspace } from "../../features/events/workspace/EventWorkspaceContext";
 import {
+  addWebsiteProjectColor,
   reorderWebsiteSections,
   setWebsiteSectionEnabled,
   updateWebsiteDesignSettings,
@@ -50,6 +51,7 @@ import type {
   WebsiteSection,
   WebsiteSectionAppearance,
 } from "../../features/websiteEditor/types";
+import type { ProjectColor } from "../../features/websiteColors/projectColors";
 import {
   appearanceEquals,
   pruneResponsiveAppearance,
@@ -650,6 +652,26 @@ export function WebsitePage() {
     }
   }
 
+  async function addProjectColor(value: string): Promise<ProjectColor> {
+    try {
+      const updated = await addWebsiteProjectColor(event.id, projectId, value);
+      const customColors = updated.designSettings.customColors;
+      setDraft({
+        ...draft!,
+        designSettings: { ...draft!.designSettings, customColors },
+      });
+      setDesignOverride((current) => current ? { ...current, customColors } : null);
+      const added = customColors.at(-1);
+      if (!added) throw new Error("The color was saved but could not be loaded.");
+      return added;
+    } catch (addError) {
+      if (addError instanceof ApiError) {
+        throw new Error(addError.validationErrors.value?.[0] ?? addError.message, { cause: addError });
+      }
+      throw addError;
+    }
+  }
+
   if (isLoading) return <EditorLoading eventId={event.id} />;
   if (isUninitialized)
     return (
@@ -714,6 +736,7 @@ export function WebsitePage() {
       />
     ) : (
       <SectionInspector
+        templateKey={draft.templateKey}
         capabilities={draft.template?.capabilities}
         resolvedMedia={previewDraft.media}
         onMediaResolved={(media) =>
@@ -736,6 +759,8 @@ export function WebsitePage() {
         onPanelModeChange={(next) => applyDrawerMode(next)}
         onNarrativeContentDisclosureChange={(slot) => openNarrativeSlotFromInspector(slot)}
         onNarrativeAppearanceDisclosureChange={(slot) => openNarrativeSlotFromInspector(slot, true)}
+        projectColors={designSettings.customColors}
+        onAddColor={addProjectColor}
         onContentChange={updateWorkingContent}
         onAppearanceChange={(appearance) =>
           selected &&
@@ -763,6 +788,7 @@ export function WebsitePage() {
       />
     ) : (
       <SectionInspector
+        templateKey={draft.templateKey}
         capabilities={draft.template?.capabilities}
         resolvedMedia={previewDraft.media}
         onMediaResolved={(media) =>
@@ -785,6 +811,8 @@ export function WebsitePage() {
         onPanelModeChange={(next) => applyDrawerMode(next)}
         onNarrativeContentDisclosureChange={(slot) => openNarrativeSlotFromInspector(slot)}
         onNarrativeAppearanceDisclosureChange={(slot) => openNarrativeSlotFromInspector(slot, true)}
+        projectColors={designSettings.customColors}
+        onAddColor={addProjectColor}
         onContentChange={updateWorkingContent}
         onAppearanceChange={(appearance) =>
           selected &&
@@ -911,7 +939,7 @@ export function WebsitePage() {
       {workingSections.length === 0 ? (
         <EmptyEditor />
       ) : (
-        <div className="flex min-h-0 flex-1 overflow-hidden xl:grid xl:grid-cols-[240px_minmax(0,1fr)_390px]">
+        <div className="flex h-0 min-h-0 flex-1 overflow-hidden xl:grid xl:grid-cols-[240px_minmax(0,1fr)_390px] xl:grid-rows-[minmax(0,1fr)]">
           <aside
             className="hidden min-h-0 overflow-y-auto border-r border-border bg-background p-3 xl:block"
             aria-label="Builder Section rail"
@@ -945,7 +973,7 @@ export function WebsitePage() {
             onSectionSelect={selectSection}
           />
           <aside
-            className="hidden min-h-0 overflow-hidden border-l border-border bg-background p-3 xl:block"
+            className="hidden h-full min-h-0 overflow-hidden border-l border-border bg-background p-3 xl:block"
             aria-label="Builder inspector"
           >
             {desktopInspector}
@@ -1223,7 +1251,7 @@ function MobileBuilderDrawer({
               : undefined
           }
         >
-          <div className="mx-auto h-full max-w-2xl">{children}</div>
+          <div className="mx-auto h-full min-h-0 max-w-2xl overflow-hidden">{children}</div>
         </div>
       )}
     </aside>
@@ -1439,6 +1467,7 @@ function PreviewViewport({
 }
 
 function SectionInspector({
+  templateKey,
   capabilities,
   resolvedMedia,
   onMediaResolved,
@@ -1459,10 +1488,13 @@ function SectionInspector({
   onPanelModeChange,
   onNarrativeContentDisclosureChange,
   onNarrativeAppearanceDisclosureChange,
+  projectColors,
+  onAddColor,
   onContentChange,
   onAppearanceChange,
   onSectionDesignChange,
 }: {
+  templateKey: string;
   capabilities?: TemplateCapabilities;
   resolvedMedia: WebsiteDraft["media"];
   onMediaResolved: (media: WebsiteDraft["media"][string]) => void;
@@ -1483,6 +1515,8 @@ function SectionInspector({
   onPanelModeChange: (mode: SectionPanelMode) => void;
   onNarrativeContentDisclosureChange: (slot: NarrativeSlotKey | null) => void;
   onNarrativeAppearanceDisclosureChange: (slot: NarrativeTypographySlotKey | null) => void;
+  projectColors: ProjectColor[];
+  onAddColor: (value: string) => Promise<ProjectColor>;
   onContentChange: (content: Record<string, unknown>) => void;
   onAppearanceChange: (appearance: WebsiteSectionAppearance) => void;
   onSectionDesignChange: (defaults: SectionDesignDefaults) => void;
@@ -1570,12 +1604,15 @@ function SectionInspector({
             {narrativeBlock && narrativeCapability && capabilities ? (
               <NarrativeBlockAppearancePanel
                 block={narrativeBlock}
+                templateKey={templateKey}
                 viewport={targetViewport}
                 capability={narrativeCapability}
                 library={capabilities.designLibrary}
+                projectColors={projectColors}
                 context={selected.resolvedDesignContext}
                 activeDisclosure={narrativeAppearanceDisclosure}
                 onDisclosureChange={onNarrativeAppearanceDisclosureChange}
+                onAddColor={onAddColor}
                 onChange={(block) => {
                   const next = structuredClone(workingContent);
                   next.elements = (
@@ -1587,15 +1624,19 @@ function SectionInspector({
                 }}
               />
             ) : selected.type === "story" && storyHeaderFocus && narrativeCapability && capabilities ? (
-              <StorySingletonAppearancePanel field={storyHeaderFocus.field} content={workingContent as import("../../features/websiteEditor/types").StoryContent} sectionAppearance={resolveSectionAppearanceForViewport(workingAppearance, targetViewport, capability)} viewport={targetViewport} capability={narrativeCapability} library={capabilities.designLibrary} context={selected.resolvedDesignContext} onChange={onContentChange} />
+              <StorySingletonAppearancePanel field={storyHeaderFocus.field} content={workingContent as import("../../features/websiteEditor/types").StoryContent} sectionAppearance={resolveSectionAppearanceForViewport(workingAppearance, targetViewport, capability)} viewport={targetViewport} capability={narrativeCapability} library={capabilities.designLibrary} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onChange={onContentChange} />
             ) : (
               <>
                 <AppearancePanel
                   key={`${selected.id}:${storyHeaderFocus?.requestId ?? 0}`}
                   appearance={workingAppearance}
+                  templateKey={templateKey}
                   sectionCapability={capability}
                   targetViewport={targetViewport}
                   error={appearanceError}
+                  library={capabilities!.designLibrary}
+                  projectColors={projectColors}
+                  onAddColor={onAddColor}
                   onChange={onAppearanceChange}
                 />
                 {selected.type !== "story" && <SectionDesignDefaultsPanel

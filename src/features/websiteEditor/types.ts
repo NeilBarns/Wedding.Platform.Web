@@ -1,5 +1,6 @@
 import type { NarrativeBlockElement } from '../websiteElements/types'
 import type { ContextDefaultsIntent, ResolvedDesignContext, TemplateCapabilities } from '../websiteCapabilities/types'
+import type { ProjectColor } from '../websiteColors/projectColors'
 
 export type SectionDesignDefaults = ContextDefaultsIntent
 
@@ -42,7 +43,19 @@ type SectionBase<TType extends string, TContent> = {
 }
 
 export type SectionAlignment = 'inherit' | 'left' | 'center' | 'right'
-export type BackgroundTreatment = 'inherit' | 'plain' | 'soft' | 'accent'
+export type BackgroundTreatment = 'inherit' | 'plain' | 'soft' | 'accent' | 'custom'
+export type StoryDecorativeAppearance = {
+  background?: {
+    texture?: 'none' | 'paper' | 'fabric' | 'grain'
+    textureStrength?: number
+    pattern?: 'none' | 'botanical' | 'geometric' | 'heritage'
+    patternStrength?: number
+    overlay?: 'none' | 'soft' | 'warm' | 'deep'
+    colorId?: string
+    customColor?: string
+  }
+  frame?: { style?: 'none' | 'fine' | 'ornamental' | 'corners' }
+}
 export type SectionEmphasis = 'inherit' | 'standard' | 'featured' | 'subtle'
 export type MediaSpacingValue = 'none' | 'small' | 'medium' | 'large'
 export type MediaSpacing = { top: MediaSpacingValue; right: MediaSpacingValue; bottom: MediaSpacingValue; left: MediaSpacingValue }
@@ -60,6 +73,7 @@ export type WebsiteSectionAppearance = {
   headingAlignment: SectionAlignment
   bodyAlignment: SectionAlignment
   backgroundTreatment: BackgroundTreatment
+  decorativeAppearance?: StoryDecorativeAppearance
   emphasis: SectionEmphasis
   presentation?: string
   mediaPlacement?: string
@@ -140,6 +154,7 @@ export type WebsiteDesignSettings = {
   fontSet: FontSet
   artStyle: ArtStyle
   projectDefaults: ProjectDesignDefaultOverrides
+  customColors: ProjectColor[]
 }
 export type ProjectDesignDefaults = {
   headingFontId: string

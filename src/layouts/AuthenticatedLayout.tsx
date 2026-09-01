@@ -50,7 +50,7 @@ export function AuthenticatedLayout() {
   }
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-background text-foreground">
       <header
         className={`relative z-20 shrink-0 backdrop-blur-lg transition-[margin] duration-200 ${inWorkspace ? `border-b border-border/60 bg-header-surface shadow-[var(--shadow-header)] ${showWorkspaceSidebar ? (sidebarCollapsed ? "lg:ml-16" : "lg:ml-60") : ""}` : "border-b border-border bg-background/92"}`}
       >
@@ -107,7 +107,7 @@ export function AuthenticatedLayout() {
         )}
       </header>
       <div
-        className={`min-h-0 flex-1 transition-[padding] duration-200 ${inWebsiteBuilder ? "overflow-hidden" : "overflow-y-auto"} ${showWorkspaceSidebar ? (sidebarCollapsed ? "lg:pl-16" : "lg:pl-60") : ""}`}
+        className={`h-0 min-h-0 flex-1 transition-[padding] duration-200 ${inWebsiteBuilder ? "overflow-hidden" : "overflow-y-auto"} ${showWorkspaceSidebar ? (sidebarCollapsed ? "lg:pl-16" : "lg:pl-60") : ""}`}
       >
         <WorkspaceSidebarContext value={sidebarValue}>
           <Outlet />

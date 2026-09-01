@@ -1,5 +1,8 @@
 import type { CSSProperties } from 'react'
 import type { WebsiteDesignSettings, WebsiteSectionAppearance } from '../../../websiteEditor/types'
+import { resolveStoryCustomBackground } from '../../storyCustomBackground'
+import type { TemplateDesignLibrary } from '../../../websiteCapabilities/types'
+import type { ProjectColor } from '../../../websiteColors/projectColors'
 
 export type ResolvedSectionAppearance = {
   sectionClass: string
@@ -22,11 +25,14 @@ export function resolveClassicFilipinianaSectionAppearance(
   _design: WebsiteDesignSettings,
   appearance: WebsiteSectionAppearance,
   index: number,
+  library: TemplateDesignLibrary,
+  projectColors: readonly ProjectColor[],
 ): ResolvedSectionAppearance {
   const defaultBodyAlignment = sectionType === 'schedule' || sectionType === 'faq' ? 'left' : 'center'
   const heading = appearance.headingAlignment === 'inherit' ? 'center' : appearance.headingAlignment
   const body = appearance.bodyAlignment === 'inherit' ? defaultBodyAlignment : appearance.bodyAlignment
-  const background = appearance.backgroundTreatment === 'inherit' ? (index % 2 ? 'soft' : 'plain') : appearance.backgroundTreatment
+  const customBackground = resolveStoryCustomBackground(sectionType, appearance, library, projectColors)
+  const background = appearance.backgroundTreatment === 'inherit' || appearance.backgroundTreatment === 'custom' ? (index % 2 ? 'soft' : 'plain') : appearance.backgroundTreatment
   const emphasis = sectionType === 'story' || appearance.emphasis === 'inherit' ? 'standard' : appearance.emphasis
 
   const backgroundResult = resolveBackground(background)
@@ -35,7 +41,7 @@ export function resolveClassicFilipinianaSectionAppearance(
     : emphasis === 'subtle' ? 'opacity-[0.92] [&_[data-section-content]]:py-14' : ''
   return {
     sectionClass: `${backgroundResult.className} ${headingAlignmentClasses[heading]} ${bodyAlignmentClasses[body]} ${emphasisClass}`,
-    sectionStyle: backgroundResult.style,
+    sectionStyle: customBackground ? { ...backgroundResult.style, ...customBackground } : backgroundResult.style,
   }
 }
 

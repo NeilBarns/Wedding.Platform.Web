@@ -15,7 +15,11 @@ import type {
 } from "../../../websiteEditor/types";
 import { ZoomedMediaImage } from "../../ZoomedMediaImage";
 import type { ResponsiveViewport } from "../../../websiteEditor/types";
+import type { ProjectColor } from "../../../websiteColors/projectColors";
+import { resolveNarrativeBackgroundColor } from "../../narrativeBackground";
+import { DecorativeBackgroundLayers } from "../../DecorativeBackgroundLayers";
 import type {
+  ElementCapability,
   ResolvedDesignContext,
   TemplateDesignLibrary,
 } from "../../../websiteCapabilities/types";
@@ -29,6 +33,9 @@ import {
   narrativeResponsiveOrderClasses,
   type ResolvedNarrativeComposition,
 } from "../../narrativeComposition";
+import { narrativeMediaCornerClass } from "../../narrativeMediaAppearance";
+import type { NarrativeMediaCornerStyle } from "../../../websiteEditor/narrativeMediaAppearance";
+import { NarrativeMediaFrameLayer } from "../../NarrativeMediaFrameLayer";
 import { resolveStoryHeaderParticipation, type StoryBlockChoreographyContext } from "../../storyEffectiveSequence";
 import { EditorSelectionFrame } from "../../EditorSelectionFrame";
 import { useSelectedStoryHeaderField } from "../../EditorSelectionContext";
@@ -147,7 +154,7 @@ export function ModernEditorialStoryHeader({
   fields,
   hasFollowingUnits,
   showNumber,
-  library, context = emptyContext, viewport,
+  library, projectColors, context = emptyContext, viewport,
 }: {
   sectionId: string;
   content: StoryContent;
@@ -155,12 +162,12 @@ export function ModernEditorialStoryHeader({
   fields: import("../../../websiteEditor/types").StoryHeaderField[];
   hasFollowingUnits: boolean;
   showNumber: boolean;
-  library: TemplateDesignLibrary; context?: ResolvedDesignContext; viewport: ResponsiveViewport;
+  library: TemplateDesignLibrary; projectColors: ProjectColor[]; context?: ResolvedDesignContext; viewport: ResponsiveViewport;
 }) {
   const selectedField = useSelectedStoryHeaderField();
   const participation = resolveStoryHeaderParticipation(content);
   const renderedFields = mode === "public" ? fields.filter((field) => participation[field]) : fields;
-  const storyStyle = (field: import("../../../websiteEditor/types").StoryHeaderField) => ({ ...narrativeSlotCss(resolveNarrativeSlotAppearance(field === "intro" ? "body" : field, content.singletonAppearance?.[field], context, modernNarrativeTokens.defaults[field === "intro" ? "body" : field], viewport), library, "modern-editorial-v1", modernNarrativeTokens), ...(content.singletonAppearance?.[field]?.alignment ? { textAlign: content.singletonAppearance[field]!.alignment === 'start' ? 'left' : content.singletonAppearance[field]!.alignment === 'end' ? 'right' : 'center' } : {}) } as React.CSSProperties);
+  const storyStyle = (field: import("../../../websiteEditor/types").StoryHeaderField) => ({ ...narrativeSlotCss(resolveNarrativeSlotAppearance(field === "intro" ? "body" : field, content.singletonAppearance?.[field], context, modernNarrativeTokens.defaults[field === "intro" ? "body" : field], viewport), library, "modern-editorial-v1", modernNarrativeTokens, projectColors), ...(content.singletonAppearance?.[field]?.alignment ? { textAlign: content.singletonAppearance[field]!.alignment === 'start' ? 'left' : content.singletonAppearance[field]!.alignment === 'end' ? 'right' : 'center' } : {}) } as React.CSSProperties);
   const storyTextAlignmentClass = (field: import("../../../websiteEditor/types").StoryHeaderField) => content.singletonAppearance?.[field]?.alignment === "start" ? "text-left" : content.singletonAppearance?.[field]?.alignment === "end" ? "text-right" : content.singletonAppearance?.[field]?.alignment === "center" ? "text-center" : undefined;
   if (renderedFields.length === 0) return null;
   return (
@@ -185,9 +192,14 @@ export function ModernEditorialStoryBlock({
   block,
   index,
   library,
+  projectColors,
   viewport,
   context = emptyContext,
   composition,
+  mediaCornerStyle,
+  mediaFrameStyles = [],
+  mediaFrameColorIds = [],
+  defaultMediaFrameStyle,
   media,
   mode = "public",
   choreography,
@@ -196,9 +208,14 @@ export function ModernEditorialStoryBlock({
   block: StoryBlock;
   index: number;
   library: TemplateDesignLibrary;
+  projectColors: ProjectColor[];
   viewport: ResponsiveViewport;
   context?: ResolvedDesignContext;
   composition: ResolvedNarrativeComposition;
+  mediaCornerStyle?: NarrativeMediaCornerStyle;
+  mediaFrameStyles?: NonNullable<ElementCapability["narrativeBlock"]>["appearance"]["media"]["frameStyles"];
+  mediaFrameColorIds?: readonly string[];
+  defaultMediaFrameStyle?: string;
   media?: React.ReactNode;
   mode?: "editor" | "public";
   choreography?: StoryBlockChoreographyContext;
@@ -216,12 +233,13 @@ export function ModernEditorialStoryBlock({
       library,
       "modern-editorial-v1",
       modernNarrativeTokens,
+      projectColors,
     );
   const alignment = narrativeAlignmentClasses(
     composition.effective.textAlignment,
   );
-  const surface =
-    composition.effective.surface === "feature"
+  const backgroundColor = resolveNarrativeBackgroundColor(block.appearance?.backgroundColorId, library, projectColors);
+  const surface = backgroundColor ? "" : composition.effective.surface === "feature"
       ? "border-l-4 border-[var(--me-section-accent)] bg-[color-mix(in_srgb,var(--me-section-accent)_11%,var(--me-page))]"
       : composition.effective.surface === "soft"
         ? "bg-[color-mix(in_srgb,var(--me-section-body)_6%,transparent)]"
@@ -246,7 +264,7 @@ export function ModernEditorialStoryBlock({
   const slotTarget = (slot: string) => mode === "editor" ? { "data-editor-narrative-slot": slot, "data-editor-narrative-block": block.id } : {};
   const hasAdjacentPredecessor = Boolean(choreography && choreography.effectiveIndex > 0);
   const consecutiveMediaFirst = choreography?.previousPresentation === "mediaFirst"
-    && composition.effective.presentation === "mediaFirst";
+    && composition.effective.legacyPresentation === "mediaFirst";
   const rootRhythm = hasAdjacentPredecessor
     ? consecutiveMediaFirst
       ? "pb-12 pt-5 sm:pb-16 sm:pt-7"
@@ -255,9 +273,11 @@ export function ModernEditorialStoryBlock({
   return (
     <div
       data-section-content
-      data-narrative-presentation={composition.effective.presentation}
-      className={`relative grid overflow-hidden px-7 sm:px-12 ${rootRhythm} ${hasAdjacentPredecessor ? "border-t border-[var(--me-border)]" : ""} ${split ? "gap-x-12 sm:grid-cols-2 sm:items-center" : "grid-cols-1"} ${alignment.text} ${surface}`}
+      data-narrative-presentation={composition.effective.legacyPresentation}
+      style={backgroundColor ? { backgroundColor } : undefined}
+      className={`relative isolate grid overflow-hidden px-7 sm:px-12 [&>:not([data-background-decoration])]:relative [&>:not([data-background-decoration])]:z-10 ${rootRhythm} ${hasAdjacentPredecessor ? "border-t border-[var(--me-border)]" : ""} ${split ? "gap-x-12 sm:grid-cols-2 sm:items-center" : "grid-cols-1"} ${alignment.text} ${surface}`}
     >
+      <DecorativeBackgroundLayers templateKey="modern-editorial-v1" appearance={block.appearance?.decorativeAppearance?.background} viewport={viewport} />
       {!hasVisibleSlot && mode === "editor" ? (
         <p className="col-span-full text-center text-xs text-[var(--me-muted)]">
           Nothing currently visible.
@@ -312,7 +332,7 @@ export function ModernEditorialStoryBlock({
         <blockquote
           {...slotTarget("quote")}
           style={style("quote")}
-          className={`${composition.effective.presentation === "quoteLed" ? `${beforeQuote ? "mt-10" : ""} border-l-4 border-[var(--me-section-accent)] pl-6 text-4xl font-semibold not-italic sm:text-5xl` : `${beforeQuote && !rendered.divider ? "mt-8" : ""} text-2xl italic`} max-w-2xl font-[family-name:var(--me-heading-font)] ${textColumn} ${alignment.constrainedGroup}`}
+          className={`${composition.effective.legacyPresentation === "quoteLed" ? `${beforeQuote ? "mt-10" : ""} border-l-4 border-[var(--me-section-accent)] pl-6 text-4xl font-semibold not-italic sm:text-5xl` : `${beforeQuote && !rendered.divider ? "mt-8" : ""} text-2xl italic`} max-w-2xl font-[family-name:var(--me-heading-font)] ${textColumn} ${alignment.constrainedGroup}`}
         >
           <EditableText
             sectionId={sectionId}
@@ -334,7 +354,7 @@ export function ModernEditorialStoryBlock({
           {...slotTarget("media")}
           className={`${modernNarrativeMediaClass(composition, viewport, hasTextGroup)} ${responsiveOrder.media}`}
         >
-          {media}
+          <div className="relative isolate"><div className={`overflow-hidden ${narrativeMediaCornerClass(mediaCornerStyle)}`}>{media}</div><NarrativeMediaFrameLayer templateKey="modern-editorial-v1" viewport={viewport} appearance={block.slots.media.appearance} frameStyles={mediaFrameStyles} frameColorIds={mediaFrameColorIds} library={library} projectColors={projectColors} defaultStyle={defaultMediaFrameStyle} /></div>
         </div>
       ) : null}
       {rendered.caption && (
@@ -387,7 +407,7 @@ function modernNarrativeMediaClass(
   const compact = viewport === "mobile";
   const split = placement === "splitStart" || placement === "splitEnd";
   const collapsedMediaFirstSplit =
-    compact && split && composition.effective.presentation === "mediaFirst";
+    compact && split && composition.effective.legacyPresentation === "mediaFirst";
   const column =
     placement === "splitStart" ? "sm:col-start-1" : "sm:col-start-2";
   const position = collapsedMediaFirstSplit
@@ -395,7 +415,7 @@ function modernNarrativeMediaClass(
     : split && !compact
       ? `${column} sm:row-start-1 sm:row-span-8`
       : placement === "above" || placement === "leading"
-        ? `${composition.effective.presentation === "mediaFirst" ? "" : "-order-1"} ${hasTextGroup ? "mb-10" : ""}`
+        ? `${composition.effective.legacyPresentation === "mediaFirst" ? "" : "-order-1"} ${hasTextGroup ? "mb-10" : ""}`
         : placement === "inset"
           ? `mx-auto w-2/3 max-w-lg ${hasTextGroup ? "mt-9" : ""}`
           : hasTextGroup
@@ -410,10 +430,10 @@ function modernNarrativeMediaClass(
           ? "-mx-7 w-[calc(100%+3.5rem)] sm:-mx-12 sm:w-[calc(100%+6rem)]"
           : "";
   const dominance =
-    composition.effective.presentation === "mediaFirst"
+    composition.effective.legacyPresentation === "mediaFirst"
       ? "sm:[&_img]:min-h-[28rem]"
       : "";
-  return `min-w-0 overflow-hidden ${position} ${treatmentClass} ${dominance}`;
+  return `min-w-0 ${position} ${treatmentClass} ${dominance}`;
 }
 export function ModernEditorialStoryBlockHeading({
   sectionId,

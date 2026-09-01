@@ -21,7 +21,18 @@ export async function getWebsiteDraft(eventId: string, projectId: string, signal
 }
 
 export function updateWebsiteDesignSettings(eventId: string, projectId: string, designSettings: WebsiteDesignSettings) {
-  return mutation(eventId, projectId, '/design', { designSettings })
+  const { customColors: _customColors, ...authorableDesignSettings } = designSettings
+  void _customColors
+  return mutation(eventId, projectId, '/design', { designSettings: authorableDesignSettings })
+}
+
+export function addWebsiteProjectColor(eventId: string, projectId: string, value: string) {
+  return ensureCsrfCookie().then(async () => {
+    const response = await apiRequest<ApiResource<unknown>>(`${projectPath(eventId, projectId)}/colors`, {
+      method: 'POST', body: { value },
+    })
+    return normalizeWebsiteDraftFromApi(response.data)
+  })
 }
 
 export function updateWebsiteSectionContent(eventId: string, projectId: string, sectionId: string, content: Record<string, unknown>) {

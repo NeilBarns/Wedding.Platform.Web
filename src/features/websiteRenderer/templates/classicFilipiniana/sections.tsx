@@ -15,11 +15,14 @@ import type {
 } from "../../../websiteEditor/types";
 import { ZoomedMediaImage } from "../../ZoomedMediaImage";
 import {
-  ClassicBotanicalSprig,
   ClassicFoundationOrnament,
 } from "./decorations";
 import type { ResponsiveViewport } from "../../../websiteEditor/types";
+import type { ProjectColor } from "../../../websiteColors/projectColors";
+import { resolveNarrativeBackgroundColor } from "../../narrativeBackground";
+import { DecorativeBackgroundLayers } from "../../DecorativeBackgroundLayers";
 import type {
+  ElementCapability,
   ResolvedDesignContext,
   TemplateDesignLibrary,
 } from "../../../websiteCapabilities/types";
@@ -33,6 +36,9 @@ import {
   narrativeResponsiveOrderClasses,
   type ResolvedNarrativeComposition,
 } from "../../narrativeComposition";
+import { narrativeMediaCornerClass } from "../../narrativeMediaAppearance";
+import type { NarrativeMediaCornerStyle } from "../../../websiteEditor/narrativeMediaAppearance";
+import { NarrativeMediaFrameLayer } from "../../NarrativeMediaFrameLayer";
 import { resolveStoryHeaderParticipation, type StoryBlockChoreographyContext } from "../../storyEffectiveSequence";
 import { EditorSelectionFrame } from "../../EditorSelectionFrame";
 import { useSelectedStoryHeaderField } from "../../EditorSelectionContext";
@@ -63,8 +69,6 @@ export function ClassicFilipinianaHero({
       data-section-content
       className="relative flex min-h-[34rem] flex-col items-center justify-center overflow-hidden px-8 py-20 text-center sm:py-24"
     >
-      <ClassicBotanicalSprig className="absolute -bottom-4 -left-8 h-36 w-72 -rotate-6 sm:h-44 sm:w-80" />
-      <ClassicBotanicalSprig className="absolute -right-8 -top-4 h-36 w-72 rotate-[174deg] sm:h-44 sm:w-80" />
       <ClassicFoundationOrnament className="relative mb-8" />
       <p className="relative text-[10px] font-semibold uppercase tracking-[0.38em] text-[var(--cf-secondary)]">
         Together with their families
@@ -148,6 +152,7 @@ export function ClassicFilipinianaStoryHeader({
   fields,
   hasFollowingUnits,
   library,
+  projectColors,
   context = emptyContext,
   viewport,
 }: {
@@ -157,19 +162,18 @@ export function ClassicFilipinianaStoryHeader({
   fields: import("../../../websiteEditor/types").StoryHeaderField[];
   hasFollowingUnits: boolean;
   library: TemplateDesignLibrary;
+  projectColors: ProjectColor[];
   context?: ResolvedDesignContext;
   viewport: ResponsiveViewport;
 }) {
   const selectedField = useSelectedStoryHeaderField();
   const participation = resolveStoryHeaderParticipation(content);
   const renderedFields = mode === "public" ? fields.filter((field) => participation[field]) : fields;
-  const storyStyle = (field: import("../../../websiteEditor/types").StoryHeaderField) => ({ ...narrativeSlotCss(resolveNarrativeSlotAppearance(field === "intro" ? "body" : field, content.singletonAppearance?.[field], context, classicNarrativeTokens.defaults[field === "intro" ? "body" : field], viewport), library, "classic-filipiniana-v1", classicNarrativeTokens), ...(content.singletonAppearance?.[field]?.alignment ? { textAlign: content.singletonAppearance[field]!.alignment === 'start' ? 'left' : content.singletonAppearance[field]!.alignment === 'end' ? 'right' : 'center' } : {}) } as React.CSSProperties);
+  const storyStyle = (field: import("../../../websiteEditor/types").StoryHeaderField) => ({ ...narrativeSlotCss(resolveNarrativeSlotAppearance(field === "intro" ? "body" : field, content.singletonAppearance?.[field], context, classicNarrativeTokens.defaults[field === "intro" ? "body" : field], viewport), library, "classic-filipiniana-v1", classicNarrativeTokens, projectColors), ...(content.singletonAppearance?.[field]?.alignment ? { textAlign: content.singletonAppearance[field]!.alignment === 'start' ? 'left' : content.singletonAppearance[field]!.alignment === 'end' ? 'right' : 'center' } : {}) } as React.CSSProperties);
   const storyTextAlignmentClass = (field: import("../../../websiteEditor/types").StoryHeaderField) => content.singletonAppearance?.[field]?.alignment === "start" ? "text-left" : content.singletonAppearance?.[field]?.alignment === "end" ? "text-right" : content.singletonAppearance?.[field]?.alignment === "center" ? "text-center" : undefined;
   if (renderedFields.length === 0) return null;
   return (
     <div data-section-content className={`relative overflow-hidden px-7 pt-20 text-center sm:px-12 sm:pt-24 ${hasFollowingUnits ? "pb-10 sm:pb-12" : "pb-20 sm:pb-24"}`}>
-      <ClassicBotanicalSprig className="absolute -left-16 bottom-0 h-32 w-64 -rotate-6" />
-      <ClassicBotanicalSprig className="absolute -right-16 top-0 h-32 w-64 rotate-[174deg]" />
       <div className="relative mx-auto max-w-5xl">
         <ClassicFoundationOrnament className="mx-auto mb-5 h-5 w-32 opacity-75" />
         {renderedFields.map((field, index) => field === "eyebrow" ? (
@@ -189,9 +193,14 @@ export function ClassicFilipinianaStoryBlock({
   block,
   index,
   library,
+  projectColors,
   viewport,
   context = emptyContext,
   composition,
+  mediaCornerStyle,
+  mediaFrameStyles = [],
+  mediaFrameColorIds = [],
+  defaultMediaFrameStyle,
   media,
   mode = "public",
   choreography,
@@ -200,9 +209,14 @@ export function ClassicFilipinianaStoryBlock({
   block: StoryBlock;
   index: number;
   library: TemplateDesignLibrary;
+  projectColors: ProjectColor[];
   viewport: ResponsiveViewport;
   context?: ResolvedDesignContext;
   composition: ResolvedNarrativeComposition;
+  mediaCornerStyle?: NarrativeMediaCornerStyle;
+  mediaFrameStyles?: NonNullable<ElementCapability["narrativeBlock"]>["appearance"]["media"]["frameStyles"];
+  mediaFrameColorIds?: readonly string[];
+  defaultMediaFrameStyle?: string;
   media?: React.ReactNode;
   mode?: "editor" | "public";
   choreography?: StoryBlockChoreographyContext;
@@ -220,12 +234,13 @@ export function ClassicFilipinianaStoryBlock({
       library,
       "classic-filipiniana-v1",
       classicNarrativeTokens,
+      projectColors,
     );
   const alignment = narrativeAlignmentClasses(
     composition.effective.textAlignment,
   );
-  const surface =
-    composition.effective.surface === "feature"
+  const backgroundColor = resolveNarrativeBackgroundColor(block.appearance?.backgroundColorId, library, projectColors);
+  const surface = backgroundColor ? "" : composition.effective.surface === "feature"
       ? "border-y border-[var(--cf-section-accent)] bg-[color-mix(in_srgb,var(--cf-section-accent)_12%,var(--cf-page))] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--cf-section-accent)_22%,transparent)]"
       : composition.effective.surface === "soft"
         ? "bg-[color-mix(in_srgb,var(--cf-section-body)_7%,transparent)]"
@@ -259,8 +274,8 @@ export function ClassicFilipinianaStoryBlock({
   const slotTarget = (slot: string) => mode === "editor" ? { "data-editor-narrative-slot": slot, "data-editor-narrative-block": block.id } : {};
   const hasAdjacentPredecessor = Boolean(choreography && choreography.effectiveIndex > 0);
   const consecutiveMediaFirst = choreography?.previousPresentation === "mediaFirst"
-    && composition.effective.presentation === "mediaFirst";
-  const rootRhythm = composition.effective.presentation === "mediaFirst"
+    && composition.effective.legacyPresentation === "mediaFirst";
+  const rootRhythm = composition.effective.legacyPresentation === "mediaFirst"
     ? hasAdjacentPredecessor
       ? consecutiveMediaFirst ? "pb-10 pt-6 sm:pb-14 sm:pt-8" : "pb-10 pt-8 sm:pb-14 sm:pt-10"
       : "py-10 sm:py-14"
@@ -270,9 +285,11 @@ export function ClassicFilipinianaStoryBlock({
   return (
     <div
       data-section-content
-      data-narrative-presentation={composition.effective.presentation}
-      className={`relative overflow-hidden px-7 sm:px-12 ${rootRhythm} ${alignment.text} ${surface} ${layout}`}
+      data-narrative-presentation={composition.effective.legacyPresentation}
+      style={backgroundColor ? { backgroundColor } : undefined}
+      className={`relative isolate overflow-hidden px-7 sm:px-12 [&>:not([data-background-decoration])]:relative [&>:not([data-background-decoration])]:z-10 ${rootRhythm} ${alignment.text} ${surface} ${layout}`}
     >
+      <DecorativeBackgroundLayers templateKey="classic-filipiniana-v1" appearance={block.appearance?.decorativeAppearance?.background} viewport={viewport} />
       {!hasVisibleSlot && mode === "editor" ? (
         <p className="col-span-full text-center text-xs italic text-[var(--cf-muted)]">
           Nothing currently visible.
@@ -328,7 +345,7 @@ export function ClassicFilipinianaStoryBlock({
         <blockquote
           {...slotTarget("quote")}
           style={style("quote")}
-          className={`${composition.effective.presentation === "quoteLed" ? `${beforeQuote ? "mt-8" : ""} border-y border-[var(--cf-section-accent)] py-8 text-3xl sm:text-4xl` : `${beforeQuote && !rendered.divider ? "mt-7" : ""} text-xl`} max-w-xl font-[family-name:var(--cf-heading-font)] italic ${textColumn} ${alignment.constrainedGroup}`}
+          className={`${composition.effective.legacyPresentation === "quoteLed" ? `${beforeQuote ? "mt-8" : ""} border-y border-[var(--cf-section-accent)] py-8 text-3xl sm:text-4xl` : `${beforeQuote && !rendered.divider ? "mt-7" : ""} text-xl`} max-w-xl font-[family-name:var(--cf-heading-font)] italic ${textColumn} ${alignment.constrainedGroup}`}
         >
           <EditableText
             sectionId={sectionId}
@@ -346,7 +363,7 @@ export function ClassicFilipinianaStoryBlock({
         </blockquote>
       )}
       {rendersMedia ? (
-        <div {...slotTarget("media")} className={`${mediaClass} ${responsiveOrder.media}`}>{media}</div>
+        <div {...slotTarget("media")} className={`${mediaClass} ${responsiveOrder.media}`}><div className="relative isolate"><div className={`overflow-hidden ${narrativeMediaCornerClass(mediaCornerStyle)}`}>{media}</div><NarrativeMediaFrameLayer templateKey="classic-filipiniana-v1" viewport={viewport} appearance={block.slots.media.appearance} frameStyles={mediaFrameStyles} frameColorIds={mediaFrameColorIds} library={library} projectColors={projectColors} defaultStyle={defaultMediaFrameStyle} /></div></div>
       ) : null}
       {rendered.caption && (
         <p
@@ -456,7 +473,7 @@ function narrativeMediaClass(
   const compact = viewport === "mobile";
   const split = placement === "splitStart" || placement === "splitEnd";
   const collapsedMediaFirstSplit =
-    compact && split && composition.effective.presentation === "mediaFirst";
+    compact && split && composition.effective.legacyPresentation === "mediaFirst";
   const column =
     placement === "splitStart" ? "sm:col-start-1" : "sm:col-start-2";
   const position = collapsedMediaFirstSplit
@@ -464,7 +481,7 @@ function narrativeMediaClass(
     : split && !compact
       ? `${column} sm:row-start-1 sm:row-span-8`
       : placement === "above" || placement === "leading"
-        ? `${composition.effective.presentation === "mediaFirst" ? "" : "-order-1"} ${hasTextGroup ? "mb-8" : ""}`
+        ? `${composition.effective.legacyPresentation === "mediaFirst" ? "" : "-order-1"} ${hasTextGroup ? "mb-8" : ""}`
         : placement === "inset"
           ? `mx-auto w-3/4 max-w-xl ${hasTextGroup ? "mt-8" : ""}`
           : hasTextGroup
@@ -478,7 +495,7 @@ function narrativeMediaClass(
         : treatment === "fullBleed"
           ? "-mx-7 w-[calc(100%+3.5rem)] sm:-mx-12 sm:w-[calc(100%+6rem)]"
           : "";
-  return `min-w-0 overflow-hidden ${position} ${treatmentClass} ${template === "classic" ? "[&_img]:grayscale-[12%]" : ""}`;
+  return `min-w-0 ${position} ${treatmentClass} ${template === "classic" ? "[&_img]:grayscale-[12%]" : ""}`;
 }
 
 export function ClassicFilipinianaStoryBlockBody({
@@ -795,7 +812,6 @@ export function ClassicFilipinianaGallery({
 }) {
   return (
     <ContentSection
-      botanical
       eyebrow="Memories"
       heading={
         <EditableText
@@ -891,7 +907,6 @@ export function ClassicFilipinianaRsvp({
 }) {
   return (
     <ContentSection
-      botanical
       eyebrow="Celebrate with us"
       heading={
         <EditableText
@@ -936,7 +951,6 @@ function ContentSection({
   eyebrow,
   heading,
   children,
-  botanical = false,
   eyebrowParticipates,
   headingParticipates = true,
   bodyParticipates = true,
@@ -945,7 +959,6 @@ function ContentSection({
   eyebrow?: React.ReactNode;
   heading: React.ReactNode;
   children: React.ReactNode;
-  botanical?: boolean;
   eyebrowParticipates?: boolean;
   headingParticipates?: boolean;
   bodyParticipates?: boolean;
@@ -957,12 +970,6 @@ function ContentSection({
       data-section-content
       className={`relative overflow-hidden px-7 pt-20 text-center sm:px-12 sm:pt-24 ${compactEnding ? "pb-10 sm:pb-12" : "pb-20 sm:pb-24"}`}
     >
-      {botanical && (
-        <>
-          <ClassicBotanicalSprig className="absolute -left-16 bottom-0 h-32 w-64 -rotate-6" />
-          <ClassicBotanicalSprig className="absolute -right-16 top-0 h-32 w-64 rotate-[174deg]" />
-        </>
-      )}
       <div className="relative mx-auto max-w-5xl">
         <ClassicFoundationOrnament className="mx-auto mb-5 h-5 w-32 opacity-75" />
         {hasEyebrow && <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[var(--cf-secondary)]">{eyebrow}</p>}

@@ -76,8 +76,8 @@ export function resolveEffectiveStorySequence({
         hasSuccessor: Boolean(next),
         ...(previous ? { previousKind: previous.kind } : {}),
         ...(next ? { nextKind: next.kind } : {}),
-        ...(previous?.kind === 'narrative' ? { previousPresentation: previous.composition.effective.presentation } : {}),
-        ...(next?.kind === 'narrative' ? { nextPresentation: next.composition.effective.presentation } : {}),
+        ...(previous?.kind === 'narrative' && previous.composition.effective.legacyPresentation ? { previousPresentation: previous.composition.effective.legacyPresentation } : {}),
+        ...(next?.kind === 'narrative' && next.composition.effective.legacyPresentation ? { nextPresentation: next.composition.effective.legacyPresentation } : {}),
       },
     } as EffectiveStoryUnit
   })

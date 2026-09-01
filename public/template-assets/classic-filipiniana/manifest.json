@@ -1,0 +1,126 @@
+{
+  "templateKey": "classic-filipiniana-v1",
+  "assets": [
+    {
+      "id": "classic-fabric-01",
+      "template": "classic-filipiniana-v1",
+      "semanticIntent": "fabric",
+      "kind": "texture",
+      "repositoryPath": "/template-assets/classic-filipiniana/textures/fabric-01.png",
+      "behavior": "repeating image texture",
+      "responsiveRelationship": "base source used for desktop, tablet, and mobile",
+      "source": {
+        "provider": null,
+        "url": null,
+        "author": null,
+        "license": null,
+        "licenseUrl": null
+      },
+      "intakeDate": "2026-08-29",
+      "originalFilename": null,
+      "repositoryFilename": "fabric-01.png",
+      "modifications": null,
+      "scalable": false,
+      "repeatable": true,
+      "tintable": false,
+      "sha256": "8cfe25bdafbbe974ebdf57902deadc98457bf25b65f7aecc5645877cd0bd347a"
+    },
+    {
+      "id": "classic-paper-01",
+      "template": "classic-filipiniana-v1",
+      "semanticIntent": "paper",
+      "kind": "texture",
+      "repositoryPath": "/template-assets/classic-filipiniana/textures/paper-01.png",
+      "behavior": "repeating image texture",
+      "responsiveRelationship": "base source used for desktop, tablet, and mobile",
+      "source": {
+        "provider": null,
+        "url": null,
+        "author": null,
+        "license": null,
+        "licenseUrl": null
+      },
+      "intakeDate": "2026-08-29",
+      "originalFilename": null,
+      "repositoryFilename": "paper-01.png",
+      "modifications": null,
+      "scalable": false,
+      "repeatable": true,
+      "tintable": false,
+      "sha256": "8c77cff029669bec67990ec32c8a56744281cf3409b96aae78419c49e6b3ba6d"
+    },
+    {
+      "id": "classic-botanical-01",
+      "template": "classic-filipiniana-v1",
+      "semanticIntent": "botanical",
+      "kind": "pattern",
+      "repositoryPath": "/template-assets/classic-filipiniana/patterns/botanical-01.png",
+      "behavior": "repeating tinted mask pattern",
+      "responsiveRelationship": "base source used for desktop, tablet, and mobile",
+      "source": {
+        "provider": null,
+        "url": null,
+        "author": null,
+        "license": null,
+        "licenseUrl": null
+      },
+      "intakeDate": "2026-08-30",
+      "originalFilename": null,
+      "repositoryFilename": "botanical-01.png",
+      "modifications": null,
+      "scalable": false,
+      "repeatable": true,
+      "tintable": true,
+      "sha256": "7238f2b97af20553906be190efb2cf5fb16c234e62b1095df8993a5f1ccb9539"
+    },
+    {
+      "id": "classic-corners-01",
+      "template": "classic-filipiniana-v1",
+      "semanticIntent": "corners",
+      "kind": "frame",
+      "repositoryPath": "/template-assets/classic-filipiniana/frames/corners-01.png",
+      "behavior": "single contained full-frame image",
+      "responsiveRelationship": "base source used for desktop, tablet, and mobile",
+      "source": {
+        "provider": null,
+        "url": null,
+        "author": null,
+        "license": null,
+        "licenseUrl": null
+      },
+      "intakeDate": "2026-08-31",
+      "originalFilename": null,
+      "repositoryFilename": "corners-01.png",
+      "modifications": null,
+      "scalable": false,
+      "repeatable": false,
+      "tintable": false,
+      "sha256": "32add499e31fe8adcfa918d9169d642605653a020178bc58d474c18b039fd022"
+    },
+    {
+      "id": "classic-media-frame-ornamental-corner-01",
+      "template": "classic-filipiniana-v1",
+      "semanticIntent": "ornamentalCorners",
+      "kind": "frame",
+      "repositoryPath": "/template-assets/classic-filipiniana/frames/classic-media-frame-ornamental-corner-01.png",
+      "behavior": "single tinted mask asset rotated into four media-frame corners",
+      "responsiveRelationship": "base source used for desktop, tablet, and mobile",
+      "source": {
+        "provider": null,
+        "url": null,
+        "author": null,
+        "license": null,
+        "licenseUrl": null
+      },
+      "intakeDate": "2026-09-01",
+      "originalFilename": "classic-media-frame-ornamental-corner-01.png",
+      "repositoryFilename": "classic-media-frame-ornamental-corner-01.png",
+      "modifications": null,
+      "scalable": false,
+      "repeatable": false,
+      "tintable": true,
+      "sha256": "74df51ade4b75d92bbd0dcd71ad3f82442f21320051970b17063574f64d01bda"
+    }
+  ],
+  "metadataFields": ["id", "template", "semanticIntent", "kind", "repositoryPath", "behavior", "responsiveRelationship", "source.provider", "source.url", "source.author", "source.license", "source.licenseUrl", "intakeDate", "originalFilename", "repositoryFilename", "modifications", "scalable", "repeatable", "tintable", "sha256"]
+}

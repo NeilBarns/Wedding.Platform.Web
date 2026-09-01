@@ -5,7 +5,7 @@ export type NarrativeCompositionCapability = NonNullable<
   ElementCapability["narrativeBlock"]
 >["composition"];
 export type NarrativeComposition = StoryBlock["composition"];
-export type NarrativePresentation = NarrativeComposition["presentation"];
+export type NarrativePresentation = NonNullable<NarrativeComposition["presentation"]>;
 export type NarrativeMediaPlacement = NonNullable<
   NarrativeComposition["mediaPlacement"]
 >;
@@ -27,21 +27,26 @@ export function resolveNarrativeComposition({
   mediaRenderable?: boolean;
 }) {
   const authored = block.composition;
-  const presentation = capability.presentations.includes(authored.presentation)
-    ? authored.presentation
-    : capability.presentations.includes(capability.defaults.presentation)
-      ? capability.defaults.presentation
-      : "editorial";
+  const legacyPresentation = authored.presentation === undefined
+    ? undefined
+    : capability.presentations.includes(authored.presentation)
+      ? authored.presentation
+      : capability.presentations.includes(capability.defaults.presentation)
+        ? capability.defaults.presentation
+        : "editorial";
   const hasActiveVisibleMedia =
     !block.slots.media.isHidden && block.slots.media.content !== null && mediaRenderable;
   const hasEffectiveQuote =
     !block.slots.quote.isHidden && block.slots.quote.text.trim().length > 0;
-  const mediaParticipates = presentation !== "textOnly" && hasActiveVisibleMedia;
-  const placementOptions = capability.mediaPlacementsByPresentation[presentation];
-  const defaultPlacement =
-    presentation === "textOnly"
-      ? undefined
-      : capability.defaults.mediaPlacementByPresentation[presentation];
+  const mediaParticipates = legacyPresentation !== "textOnly" && hasActiveVisibleMedia;
+  const placementOptions = legacyPresentation
+    ? capability.mediaPlacementsByPresentation[legacyPresentation]
+    : capability.mediaPlacements;
+  const defaultPlacement = legacyPresentation === "textOnly"
+    ? undefined
+    : legacyPresentation
+      ? capability.defaults.mediaPlacementByPresentation[legacyPresentation]
+      : capability.defaults.mediaPlacement;
   const authoredPlacementIsActive = Boolean(
     mediaParticipates &&
       authored.mediaPlacement &&
@@ -53,9 +58,9 @@ export function resolveNarrativeComposition({
       : defaultPlacement
     : undefined;
   const treatmentOptions = mediaPlacement
-    ? (capability.mediaTreatmentsByPresentationAndPlacement[presentation][
-        mediaPlacement
-      ] ?? [])
+    ? (legacyPresentation
+      ? capability.mediaTreatmentsByPresentationAndPlacement[legacyPresentation][mediaPlacement] ?? []
+      : capability.mediaTreatmentsByPlacement[mediaPlacement] ?? [])
     : [];
   const authoredTreatmentIsActive = Boolean(
     mediaParticipates &&
@@ -69,24 +74,24 @@ export function resolveNarrativeComposition({
         ? capability.defaults.mediaTreatment
         : treatmentOptions[0]
     : undefined;
-  const textAlignment = capability.textAlignments.includes(
-    authored.textAlignment ?? capability.defaults.textAlignmentByPresentation[presentation],
-  )
-    ? (authored.textAlignment ??
-      capability.defaults.textAlignmentByPresentation[presentation])
-    : capability.defaults.textAlignmentByPresentation[presentation];
+  const defaultTextAlignment = legacyPresentation
+    ? capability.defaults.textAlignmentByPresentation[legacyPresentation]
+    : capability.defaults.textAlignment;
+  const textAlignment = capability.textAlignments.includes(authored.textAlignment ?? defaultTextAlignment)
+    ? authored.textAlignment ?? defaultTextAlignment
+    : defaultTextAlignment;
   const surface = capability.surfaces.includes(
     authored.surface ?? capability.defaults.surface,
   )
     ? (authored.surface ?? capability.defaults.surface)
     : capability.defaults.surface;
   const warning: NarrativeCompositionWarning | undefined =
-    presentation === "mediaFirst" && !hasActiveVisibleMedia
+    legacyPresentation === "mediaFirst" && !hasActiveVisibleMedia
       ? { type: "mediaUnavailable", message: "Media First works best with Media visible." }
-      : presentation === "quoteLed" && !hasEffectiveQuote
+      : legacyPresentation === "quoteLed" && !hasEffectiveQuote
         ? { type: "quoteUnavailable", message: "Quote Led works best with Quote visible." }
         : undefined;
-  const suppressMedia = presentation === "textOnly";
+  const suppressMedia = legacyPresentation === "textOnly";
   const suppressCaption = suppressMedia || !hasActiveVisibleMedia;
   const renderedSlots = {
     eyebrow: !block.slots.eyebrow.isHidden,
@@ -102,7 +107,7 @@ export function resolveNarrativeComposition({
   return {
     authored,
     effective: {
-      presentation,
+      legacyPresentation,
       mediaPlacement,
       mediaTreatment,
       textAlignment,
@@ -141,8 +146,18 @@ export type ResolvedNarrativeComposition = ReturnType<
 export function narrativeResponsiveOrderClasses(
   composition: ResolvedNarrativeComposition,
 ) {
+  if (!composition.effective.legacyPresentation) {
+    const placement = composition.effective.mediaPlacement;
+    if (placement === "splitStart") {
+      return { media: "order-[-2] sm:order-0", caption: "-order-1 sm:order-0" } as const;
+    }
+    if (placement === "above" || placement === "leading") {
+      return { media: "order-[-2]", caption: "-order-1" } as const;
+    }
+    return { media: "", caption: "" } as const;
+  }
   const collapsedMediaFirstSplit =
-    composition.effective.presentation === "mediaFirst" &&
+    composition.effective.legacyPresentation === "mediaFirst" &&
     (composition.effective.mediaPlacement === "splitStart" ||
       composition.effective.mediaPlacement === "splitEnd");
   if (collapsedMediaFirstSplit) {
@@ -152,7 +167,7 @@ export function narrativeResponsiveOrderClasses(
       } as const;
   }
   const mediaLeadingFlow =
-    composition.effective.presentation === "mediaFirst" &&
+    composition.effective.legacyPresentation === "mediaFirst" &&
     (composition.effective.mediaPlacement === "above" ||
       composition.effective.mediaPlacement === "leading");
   return mediaLeadingFlow
@@ -169,4 +184,14 @@ export function resetNarrativeComposition(
   const next = { ...composition };
   delete next[control];
   return next;
+}
+
+export type NarrativeAuthoringControl = Exclude<keyof NarrativeComposition, "presentation">;
+
+export function authorNarrativeComposition<K extends NarrativeAuthoringControl>(
+  composition: NarrativeComposition,
+  control: K,
+  value: NarrativeComposition[K],
+): NarrativeComposition {
+  return { ...composition, [control]: value };
 }

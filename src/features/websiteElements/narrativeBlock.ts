@@ -11,14 +11,14 @@ export function normalizeNarrativeBlock(element: unknown): NarrativeBlockElement
   if (canonical.success) return canonical.data
 
   const legacySlots = legacySlotNarrativeBlockElementSchema.safeParse(element)
-  if (legacySlots.success) return { ...legacySlots.data, composition: { presentation: 'editorial' } }
+  if (legacySlots.success) return { ...legacySlots.data, composition: {} }
 
   const legacy = legacyNarrativeBlockElementSchema.parse(element)
   return {
     id: legacy.id,
     type: 'narrativeBlock',
     isHidden: false,
-    composition: { presentation: 'editorial' },
+    composition: {},
     slots: {
       eyebrow: { isHidden: true, text: '' },
       heading: { isHidden: false, text: legacy.heading ?? '' },

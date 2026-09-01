@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { WebsiteProjectSummary } from './types'
+import { projectColorsSchema } from '../websiteColors/projectColors'
 
 const nonEmpty = z.string().refine((value) => value.trim().length > 0, 'Required')
 const legacyDesignSettingsSchema = z.object({
@@ -15,6 +16,7 @@ const currentDesignSettingsSchema = legacyDesignSettingsSchema.extend({
     bodyColorId: nonEmpty.optional(),
     accentColorId: nonEmpty.optional(),
   }).strict(),
+  customColors: projectColorsSchema.default([]),
 }).strict()
 const designSettingsSchema = z.union([
   currentDesignSettingsSchema,
@@ -22,6 +24,7 @@ const designSettingsSchema = z.union([
 ]).transform((settings) => ({
   ...settings,
   projectDefaults: 'projectDefaults' in settings ? settings.projectDefaults : {},
+  customColors: 'customColors' in settings ? settings.customColors : [],
 }))
 
 export const websiteProjectSummarySchema = z.object({

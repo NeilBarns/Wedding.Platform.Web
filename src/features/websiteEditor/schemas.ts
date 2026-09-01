@@ -6,9 +6,12 @@ import { templateCapabilitiesSchema } from '../websiteCapabilities/schemas'
 import { matchesCurrentDesignCatalog } from '../websiteTemplates/design/catalogs'
 import { globalDesignCapability, supportsGlobalDesignValue, sectionCapability } from '../websiteCapabilities/lookup'
 import { isCanonicalStoryStructure } from './storyStructure'
+import { projectColorsSchema } from '../websiteColors/projectColors'
 
 const text = z.string()
 const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Required')
+export const backgroundTreatmentSchema = z.enum(['inherit', 'plain', 'soft', 'accent', 'custom'])
+export const opaqueHexColorSchema = z.string().regex(/^#[0-9A-Fa-f]{6}$/).transform((value) => value.toUpperCase())
 const semanticId = z.string().max(255).refine((value) => value.trim().length > 0, 'Required')
 const requiredLabel = z.string().max(255).refine((value) => value.trim().length > 0, 'Required')
 const designOptionSchema = z.object({ key: nonEmptyString, displayName: nonEmptyString }).strict()
@@ -132,7 +135,19 @@ const sectionSchema = z.object({
   appearance: z.object({
     headingAlignment: z.enum(['inherit', 'left', 'center', 'right']),
     bodyAlignment: z.enum(['inherit', 'left', 'center', 'right']),
-    backgroundTreatment: z.enum(['inherit', 'plain', 'soft', 'accent']),
+    backgroundTreatment: backgroundTreatmentSchema,
+    decorativeAppearance: z.object({
+      background: z.object({
+        texture: z.enum(['none', 'paper', 'fabric', 'grain']).optional(),
+        textureStrength: z.number().int().min(10).max(100).optional(),
+        pattern: z.enum(['none', 'botanical', 'geometric', 'heritage']).optional(),
+        patternStrength: z.number().int().min(10).max(100).optional(),
+        overlay: z.enum(['none', 'soft', 'warm', 'deep']).optional(),
+        colorId: nonEmptyString.optional(),
+        customColor: opaqueHexColorSchema.optional(),
+      }).strict().optional(),
+      frame: z.object({ style: z.enum(['none', 'fine', 'ornamental', 'corners']).optional() }).strict().optional(),
+    }).strict().optional(),
     emphasis: z.enum(['inherit', 'standard', 'featured', 'subtle']),
     presentation: nonEmptyString.optional(),
     mediaPlacement: nonEmptyString.optional(),
@@ -221,6 +236,7 @@ const legacyDesignSettingsSchema = z.object({
 }).strict()
 const currentDesignSettingsSchema = legacyDesignSettingsSchema.extend({
   projectDefaults: projectDesignDefaultOverridesSchema,
+  customColors: projectColorsSchema.default([]),
 }).strict()
 
 const draftCommonSchema = z.object({
@@ -260,6 +276,7 @@ const draftSchema = draftCommonSchema.extend({
   designSettings: {
     ...draft.designSettings,
     projectDefaults: 'projectDefaults' in draft.designSettings ? draft.designSettings.projectDefaults : {},
+    customColors: draft.designSettings.customColors ?? [],
   },
 })).superRefine((draft, context) => {
   if (!draft.template) return

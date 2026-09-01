@@ -16,20 +16,36 @@ import { controlCapability, controlDefault, controlForViewport, optionValues, pr
 import type { AppearanceControlCapability, PresentationCapability, SectionCapability } from "../../websiteCapabilities/types";
 import { canonicalizeResponsiveAppearance, pruneResponsiveAppearance, resolveSectionAppearanceForViewport } from "../responsiveAppearance";
 import { PresentationPicker } from "./PresentationPicker";
-import { InspectorSection } from "./InspectorPrimitives";
+import { InspectorResetAction, InspectorSection } from "./InspectorPrimitives";
 import { InspectorVisualChoiceGroup } from "./InspectorVisualChoice";
+import { resolveDecorativeDefaultStrength } from "../../websiteRenderer/templateDecorativeAssets";
+import type { ProjectColor } from "../../websiteColors/projectColors";
+import type { TemplateDesignLibrary } from "../../websiteCapabilities/types";
+import { WebsiteColorSwatchControl } from "./WebsiteColorSwatchControl";
+import { DecorativeStrengthControl } from "./DecorativeStrengthControl";
+import { decorativeHelpers, decorativeLabel } from "./decorativeAppearanceOptions";
+import { applyStoryBackgroundColor } from "../storyBackgroundAuthoring";
+import { storyLegacyBackgroundState } from "../storyLegacyBackground";
 
 export function AppearancePanel({
   appearance,
+  templateKey,
   sectionCapability,
   targetViewport,
   error,
+  library,
+  projectColors,
+  onAddColor,
   onChange,
 }: {
   appearance: WebsiteSectionAppearance;
+  templateKey: string;
   sectionCapability: SectionCapability;
   targetViewport: ResponsiveViewport;
   error: string | null;
+  library: TemplateDesignLibrary;
+  projectColors: ProjectColor[];
+  onAddColor: (value: string) => Promise<ProjectColor>;
   onChange: (appearance: WebsiteSectionAppearance) => void;
 }) {
   const presentation = appearance.presentation ?? sectionCapability.defaultPresentation ?? undefined
@@ -54,7 +70,7 @@ export function AppearancePanel({
   if (sectionCapability.id === 'story') {
     return <div className="space-y-5">
       {error && <p className="rounded-xl bg-danger-muted p-3 text-sm text-danger" role="alert">{error}</p>}
-      <StorySectionAppearanceControls sectionCapability={sectionCapability} presentation={presentation} appearance={appearance} onChange={onChange} />
+      <StorySectionAppearanceControls templateKey={templateKey} sectionCapability={sectionCapability} appearance={appearance} library={library} projectColors={projectColors} onAddColor={onAddColor} onChange={onChange} />
     </div>
   }
   return (
@@ -134,25 +150,60 @@ export function AppearancePanel({
   );
 }
 
-function StorySectionAppearanceControls({ sectionCapability, presentation, appearance, onChange }: { sectionCapability: SectionCapability; presentation: string | undefined; appearance: WebsiteSectionAppearance; onChange: (appearance: WebsiteSectionAppearance) => void }) {
-  const background = controlCapability(sectionCapability, 'backgroundTreatment', presentation)
-  if (background?.type !== 'option') return null
-  const helpers: Record<string, string> = {
-    inherit: 'Use the template background',
-    plain: 'Simple neutral background',
-    soft: 'Subtle background treatment',
-    accent: 'Stronger background emphasis',
+function StorySectionAppearanceControls({ templateKey, sectionCapability, appearance, library, projectColors, onAddColor, onChange }: { templateKey: string; sectionCapability: SectionCapability; appearance: WebsiteSectionAppearance; library: TemplateDesignLibrary; projectColors: ProjectColor[]; onAddColor: (value: string) => Promise<ProjectColor>; onChange: (appearance: WebsiteSectionAppearance) => void }) {
+  const decorative = sectionCapability.decorativeAppearance
+  if (!decorative) return null
+  const helpers: Record<string, Record<string, string>> = {
+    texture: decorativeHelpers.texture,
+    pattern: decorativeHelpers.pattern,
+    overlay: { none: 'No tonal overlay', soft: 'Gentle tonal treatment', warm: 'Warmer tonal treatment', deep: 'Stronger tonal depth' },
+    frame: { none: 'No decorative frame', fine: 'Subtle border treatment', ornamental: 'Decorative framed treatment', corners: 'Corner-focused decoration' },
   }
-  return <InspectorSection title="Background">
-    <InspectorVisualChoiceGroup
-      label="Story background"
-      layout="stack"
-      showIllustration={false}
-      value={appearance.backgroundTreatment}
-      options={background.options.map((option) => ({ value: option.key, label: option.displayName, helper: helpers[option.key], illustration: null }))}
-      onChange={(backgroundTreatment) => onChange({ ...appearance, backgroundTreatment: backgroundTreatment as WebsiteSectionAppearance['backgroundTreatment'] })}
-    />
-  </InspectorSection>
+  const label = decorativeLabel
+  const updateDecoration = (group: 'background' | 'frame', field: 'texture' | 'pattern' | 'overlay' | 'style', value?: string) => {
+    const next = structuredClone(appearance)
+    const decorativeAppearance = { ...next.decorativeAppearance }
+    const current = { ...(decorativeAppearance[group] ?? {}) }
+    if (value === undefined) delete current[field as keyof typeof current]
+    else Object.assign(current, { [field]: value })
+    if (Object.keys(current).length) Object.assign(decorativeAppearance, { [group]: current })
+    else delete decorativeAppearance[group]
+    if (Object.keys(decorativeAppearance).length) next.decorativeAppearance = decorativeAppearance
+    else delete next.decorativeAppearance
+    onChange(next)
+  }
+  const choice = (title: string, group: 'background' | 'frame', field: 'texture' | 'pattern' | 'overlay' | 'style', values: readonly string[], helperKey: string) => {
+    if (values.length === 0) return null
+    const value = group === 'background' ? appearance.decorativeAppearance?.background?.[field as 'texture' | 'pattern' | 'overlay'] : appearance.decorativeAppearance?.frame?.style
+    return <div><div className="mb-1.5 flex items-center justify-between gap-2"><p className="text-xs font-medium">{title}</p>{value !== undefined && <InspectorResetAction onClick={() => updateDecoration(group, field)} />}</div><InspectorVisualChoiceGroup label={`Story ${title.toLowerCase()}`} layout="stack" showIllustration={false} value={value ?? ''} options={values.map((option) => ({ value: option, label: label(option), helper: helpers[helperKey][option], illustration: null }))} onChange={(next) => updateDecoration(group, field, next)} /></div>
+  }
+  const updateStrength = (field: 'textureStrength' | 'patternStrength', value?: number) => {
+    const next = structuredClone(appearance)
+    const decorativeAppearance = { ...next.decorativeAppearance }
+    const background = { ...(decorativeAppearance.background ?? {}) }
+    if (value === undefined) delete background[field]
+    else background[field] = Math.min(100, Math.max(10, Math.round(value / 5) * 5))
+    if (Object.keys(background).length) decorativeAppearance.background = background
+    else delete decorativeAppearance.background
+    if (Object.keys(decorativeAppearance).length) next.decorativeAppearance = decorativeAppearance
+    else delete next.decorativeAppearance
+    onChange(next)
+  }
+  const texture = appearance.decorativeAppearance?.background?.texture ?? 'none'
+  const pattern = appearance.decorativeAppearance?.background?.pattern ?? 'none'
+  const backgroundColorId = appearance.decorativeAppearance?.background?.colorId
+  const legacyBackground = storyLegacyBackgroundState(appearance)
+  const updateBackgroundColor = (colorId?: string) => {
+    onChange(applyStoryBackgroundColor(appearance, colorId))
+  }
+  return <div className="space-y-5"><InspectorSection title="Background">
+    <div><p className="mb-1.5 text-xs font-medium">Background Color</p><WebsiteColorSwatchControl label="Story background color" colorId={backgroundColorId} inheritSelected={appearance.backgroundTreatment === 'inherit'} showUnresolvedWarning={!legacyBackground} allowedTemplateColorIds={decorative.backgroundColorIds} templateColors={library.colors} projectColors={projectColors} onChange={updateBackgroundColor} onAddColor={onAddColor} />{legacyBackground && <div className="mt-2 flex items-center gap-2 rounded-md border border-border bg-surface-muted px-2.5 py-2 text-xs text-foreground-muted" role="status"><span className="size-5 shrink-0 rounded-full border border-border bg-surface" style={legacyBackground.color ? { backgroundColor: legacyBackground.color } : undefined} aria-hidden="true" /><span><span className="font-medium text-foreground">Current saved background</span><span className="ml-1.5">{legacyBackground.label}</span></span></div>}</div>
+    {decorative && choice('Texture', 'background', 'texture', decorative.textures, 'texture')}
+    {decorative && texture !== 'none' && <DecorativeStrengthControl label="Texture Strength" value={appearance.decorativeAppearance?.background?.textureStrength} defaultValue={resolveDecorativeDefaultStrength(templateKey, 'texture', texture)} onChange={(value) => updateStrength('textureStrength', value)} />}
+    {decorative && choice('Pattern', 'background', 'pattern', decorative.patterns, 'pattern')}
+    {decorative && pattern !== 'none' && <DecorativeStrengthControl label="Pattern Strength" value={appearance.decorativeAppearance?.background?.patternStrength} defaultValue={resolveDecorativeDefaultStrength(templateKey, 'pattern', pattern)} onChange={(value) => updateStrength('patternStrength', value)} />}
+    {decorative && choice('Overlay', 'background', 'overlay', decorative.overlays, 'overlay')}
+  </InspectorSection>{decorative && decorative.frames.length > 0 && <InspectorSection title="Decoration">{choice('Frame', 'frame', 'style', decorative.frames, 'frame')}</InspectorSection>}</div>
 }
 
 function SectionAppearanceControls({ sectionCapability, presentation, appearance, onChange }: { sectionCapability: SectionCapability; presentation: string | undefined; appearance: WebsiteSectionAppearance; onChange: (appearance: WebsiteSectionAppearance) => void }) {

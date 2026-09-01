@@ -28,7 +28,7 @@ export function EventWorkspaceLayout() {
             onOpen={() => setMobileNavOpen(true)}
             onClose={() => setMobileNavOpen(false)}
           />}
-          <main className={`min-h-0 flex-1 ${focusedBuilder ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+          <main className={`h-0 min-h-0 flex-1 ${focusedBuilder ? 'overflow-hidden' : 'overflow-y-auto'}`}>
             <Outlet />
           </main>
         </div>
