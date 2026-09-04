@@ -1,6 +1,7 @@
 export const WEBSITE_ELEMENT_TYPES = [
   'heading',
   'text',
+  'richText',
   'image',
   'divider',
   'quote',
@@ -34,6 +35,7 @@ export const WEBSITE_ELEMENT_LIMITS = {
   id: 255,
   shortText: 255,
   text: 5000,
+  richText: 20000,
   narrativeBody: 10000,
   externalUrl: 2048,
 } as const

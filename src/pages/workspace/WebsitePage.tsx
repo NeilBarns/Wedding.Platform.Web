@@ -34,6 +34,10 @@ import { SectionEditor } from "../../features/websiteEditor/components/SectionEd
 import { NarrativeBlockContentPanel } from "../../features/websiteEditor/components/NarrativeBlockContentPanel";
 import { NarrativeBlockAppearancePanel } from "../../features/websiteEditor/components/NarrativeBlockAppearancePanel";
 import { StorySingletonAppearancePanel } from "../../features/websiteEditor/components/StorySingletonAppearancePanel";
+import { TextElementEditor } from "../../features/websiteEditor/components/TextElementEditor";
+import { RichTextElementEditor } from "../../features/websiteEditor/components/RichTextElementEditor";
+import { GroupElementEditor } from "../../features/websiteEditor/components/GroupElementEditor";
+import { DividerElementEditor } from "../../features/websiteEditor/components/DividerElementEditor";
 import { SectionDesignDefaultsPanel } from "../../features/websiteEditor/components/SectionDesignDefaultsPanel";
 import { SectionNavigator } from "../../features/websiteEditor/components/SectionNavigator";
 import { validateSectionContent } from "../../features/websiteEditor/schemas";
@@ -74,6 +78,8 @@ import {
 } from "../../features/websiteCapabilities/lookup";
 import type { TemplateCapabilities } from "../../features/websiteCapabilities/types";
 import { ApiError } from "../../lib/api";
+import { findSectionElement, ungroupSectionElement, updateSectionElement, updateSectionTextElement, type SectionChildFlow, type SectionChildReference } from "../../features/websiteEditor/sectionChildFlow";
+import type { WebsiteElement } from "../../features/websiteElements/types";
 
 type BuilderMode = "content" | "design";
 type SectionPanelMode = "content" | "appearance";
@@ -131,6 +137,7 @@ export function WebsitePage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pendingSelection, setPendingSelection] = useState<string | null>(null);
   const [pendingStoryHeaderSelection, setPendingStoryHeaderSelection] = useState<{ sectionId: string; field: StoryHeaderField; requestId: number; focusInspector: boolean } | null>(null);
+  const [pendingChildSelection, setPendingChildSelection] = useState<{ sectionId: string; reference: SectionChildReference } | null>(null);
   const [pendingMode, setPendingMode] = useState<BuilderMode | null>(null);
   const [mode, setMode] = useState<BuilderMode>("content");
   const [editorMode, setEditorMode] = useState<EditorMode>("edit");
@@ -179,6 +186,7 @@ export function WebsitePage() {
     useState<InlineEditingTarget | null>(null);
   const [selectedNarrativeBlockId, setSelectedNarrativeBlockId] =
     useState<string | null>(null);
+  const [selectedChild, setSelectedChild] = useState<{ sectionId: string; reference: SectionChildReference } | null>(null);
   const [activeNarrativeSlot, setActiveNarrativeSlot] = useState<{ blockId: string; slot: NarrativeSlotKey } | null>(null);
   const [narrativeContentDisclosure, setNarrativeContentDisclosure] = useState<NarrativeSlotKey | null>(null);
   const [narrativeAppearanceDisclosure, setNarrativeAppearanceDisclosure] = useState<NarrativeTypographySlotKey | null>(null);
@@ -255,6 +263,7 @@ export function WebsitePage() {
     if (id === effectiveSelectedId) {
       setInlineEditingTarget(null);
       setSelectedNarrativeBlockId(null);
+      setSelectedChild(null);
       return;
     }
     if (sectionDirty) {
@@ -263,6 +272,7 @@ export function WebsitePage() {
     }
     else {
       setSelectedId(id);
+      setSelectedChild(null);
       setContentOverride(null);
       setAppearanceOverride(null);
       setInlineEditingTarget(null);
@@ -383,6 +393,7 @@ export function WebsitePage() {
     }
     setInlineEditingTarget(null);
     setStoryHeaderSelection(null);
+    setSelectedChild(null);
     setSelectedNarrativeBlockId(blockId);
     if (!blockId || activeNarrativeSlot?.blockId !== blockId) setActiveNarrativeSlot(null);
   }
@@ -433,7 +444,63 @@ export function WebsitePage() {
     applyDrawerMode(sectionPanelMode);
     setInlineEditingTarget(null);
     setSelectedNarrativeBlockId(null);
+    setSelectedChild(null);
     setStoryHeaderSelection(target);
+  }
+
+  function selectChild(sectionId: string, reference: SectionChildReference) {
+    const target = { sectionId, reference };
+    const section = workingSections.find(({ id }) => id === sectionId);
+    const flow = (section?.content as { childFlow?: SectionChildFlow } | undefined)?.childFlow;
+    const selectedElement = reference.kind === "element" ? findSectionElement(flow, reference.id) : undefined;
+    const canvasEditedTextSelected = selectedElement?.type === "text" || selectedElement?.type === "richText" || selectedElement?.type === "divider" || selectedElement?.type === "compositionGroup";
+    if (sectionId !== effectiveSelectedId && sectionDirty) {
+      setPendingSelection(sectionId);
+      setPendingChildSelection(target);
+      return;
+    }
+    if (sectionId !== effectiveSelectedId) {
+      setSelectedId(sectionId);
+      setContentOverride(null);
+      setAppearanceOverride(null);
+    }
+    setInlineEditingTarget(null);
+    setSelectedNarrativeBlockId(null);
+    setStoryHeaderSelection(null);
+    setSelectedChild(target);
+    setMode("content");
+    setSectionPanelMode(canvasEditedTextSelected ? "appearance" : "content");
+    applyDrawerMode(canvasEditedTextSelected ? "appearance" : "content");
+  }
+
+  function changeChildFlow(sectionId: string, flow: SectionChildFlow | undefined, selection?: SectionChildReference) {
+    const section = workingSections.find(({ id }) => id === sectionId);
+    if (!section) return false;
+    if (sectionId !== effectiveSelectedId && sectionDirty) {
+      setPendingSelection(sectionId);
+      if (selection) setPendingChildSelection({ sectionId, reference: selection });
+      return false;
+    }
+    const content = structuredClone(sectionId === effectiveSelectedId && workingContent ? workingContent : section.content as Record<string, unknown>);
+    if (flow) content.childFlow = flow; else delete content.childFlow;
+    if (sectionId !== effectiveSelectedId) {
+      setSelectedId(sectionId);
+      setAppearanceOverride(null);
+    }
+    setContentOverride({ sectionId, content });
+    setInlineEditingTarget(null);
+    setSelectedNarrativeBlockId(null);
+    setStoryHeaderSelection(null);
+    if (selection) {
+      setSelectedChild({ sectionId, reference: selection });
+      const selectedElement = selection.kind === "element" ? findSectionElement(flow, selection.id) : undefined;
+      const canvasEditedTextSelected = selectedElement?.type === "text" || selectedElement?.type === "richText" || selectedElement?.type === "divider" || selectedElement?.type === "compositionGroup";
+      if (canvasEditedTextSelected) {
+        setSectionPanelMode("appearance");
+        applyDrawerMode("appearance");
+      }
+    }
+    return true;
   }
 
   function requestInlineEdit(target: InlineEditingTarget) {
@@ -441,6 +508,10 @@ export function WebsitePage() {
     setInlineEditingTarget(target);
     if (target.narrativeBlockId) {
       setSelectedNarrativeBlockId(target.narrativeBlockId);
+    } else if (target.elementId) {
+      setSelectedNarrativeBlockId(null);
+      setStoryHeaderSelection(null);
+      setSelectedChild({ sectionId: target.sectionId, reference: { kind: "element", id: target.elementId } });
     } else {
       setSelectedNarrativeBlockId(null);
       const field = target.path[0];
@@ -488,6 +559,17 @@ export function WebsitePage() {
         return;
       }
       path = ["elements", elementIndex, "slots", target.slot, "text"];
+    } else if (target.elementId) {
+      const flow = (next as { childFlow?: SectionChildFlow }).childFlow;
+      const updatedFlow = flow ? updateSectionTextElement(flow, target.elementId, value) : null;
+      if (!updatedFlow) {
+        setInlineEditingTarget(null);
+        setSelectedChild(null);
+        return;
+      }
+      (next as { childFlow: SectionChildFlow }).childFlow = updatedFlow;
+      setContentOverride({ sectionId: target.sectionId, content: next });
+      return;
     }
     let cursor: unknown = next;
     path.forEach((part, index) => {
@@ -699,6 +781,9 @@ export function WebsitePage() {
       selectedNarrativeBlockId={selectedNarrativeBlockId}
       selectedStoryHeaderField={storyHeaderSelection?.sectionId === effectiveSelectedId ? storyHeaderSelection.field : null}
       workingStory={selected?.type === "story" && workingContent ? { sectionId: selected.id, content: workingContent as import("../../features/websiteEditor/types").StoryContent } : null}
+      workingChildFlow={selected && workingContent && (selected.type === "date" || selected.type === "dressCode") ? { sectionId: selected.id, flow: (workingContent as { childFlow?: SectionChildFlow }).childFlow } : null}
+      selectedChild={selectedChild}
+      genericChildSectionIds={draft.template?.capabilities.sections.filter(({ elements }) => elements?.allowedTypes.includes("text")).map(({ id }) => id) ?? []}
       pending={listPending}
       onSelect={selectSection}
       onNarrativeBlockSelect={selectNarrativeBlock}
@@ -718,6 +803,8 @@ export function WebsitePage() {
         setInlineEditingTarget(null);
         return true;
       }}
+      onChildSelect={selectChild}
+      onChildFlowChange={changeChildFlow}
       onToggle={toggle}
       onMove={move}
       onReorder={reorderSections}
@@ -747,6 +834,7 @@ export function WebsitePage() {
         workingAppearance={workingAppearance}
         targetViewport={previewMode}
         selectedNarrativeBlockId={selectedNarrativeBlockId}
+        selectedChild={selectedChild && selectedChild.sectionId === selected?.id ? selectedChild.reference : null}
         narrativeContentDisclosure={narrativeContentDisclosure}
         narrativeAppearanceDisclosure={narrativeAppearanceDisclosure}
         storyHeaderFocus={storyHeaderSelection?.sectionId === selected?.id ? storyHeaderSelection : null}
@@ -799,6 +887,7 @@ export function WebsitePage() {
         workingAppearance={workingAppearance}
         targetViewport={previewMode}
         selectedNarrativeBlockId={selectedNarrativeBlockId}
+        selectedChild={selectedChild && selectedChild.sectionId === selected?.id ? selectedChild.reference : null}
         narrativeContentDisclosure={narrativeContentDisclosure}
         narrativeAppearanceDisclosure={narrativeAppearanceDisclosure}
         storyHeaderFocus={storyHeaderSelection?.sectionId === selected?.id ? storyHeaderSelection : null}
@@ -965,10 +1054,13 @@ export function WebsitePage() {
                 : null
             }
             selectedNarrativeBlockId={selectedNarrativeBlockId}
+            selectedChild={selectedChild?.sectionId === effectiveSelectedId ? selectedChild.reference : null}
             activeNarrativeSlot={activeNarrativeSlot}
             selectedStoryHeaderField={storyHeaderSelection?.sectionId === effectiveSelectedId ? storyHeaderSelection.field : null}
             selectionRequest={canvasSelectionRequest}
             onNarrativeBlockSelect={selectNarrativeBlock}
+            onChildSelect={selectChild}
+            onChildFlowChange={changeChildFlow}
             onNarrativeSlotSelect={selectNarrativeSlot}
             onSectionSelect={selectSection}
           />
@@ -1004,6 +1096,7 @@ export function WebsitePage() {
           setPendingMode(null);
           setPendingDrawerMode(null);
           setPendingStoryHeaderSelection(null);
+          setPendingChildSelection(null);
         }}
         onDiscard={() => {
           if (pendingSelection) setSelectedId(pendingSelection);
@@ -1015,10 +1108,12 @@ export function WebsitePage() {
             setStoryHeaderSelection(null);
           }
           if (pendingStoryHeaderSelection) setStoryHeaderSelection(pendingStoryHeaderSelection);
+          if (pendingChildSelection) setSelectedChild(pendingChildSelection);
           setPendingSelection(null);
           setPendingMode(null);
           setPendingDrawerMode(null);
           setPendingStoryHeaderSelection(null);
+          setPendingChildSelection(null);
           setContentOverride(null);
           setAppearanceOverride(null);
           setDesignOverride(null);
@@ -1268,10 +1363,13 @@ function PreviewCanvas({
   unsaved,
   inlineValue,
   selectedNarrativeBlockId,
+  selectedChild,
   activeNarrativeSlot,
   selectedStoryHeaderField,
   selectionRequest,
   onNarrativeBlockSelect,
+  onChildSelect,
+  onChildFlowChange,
   onNarrativeSlotSelect,
   onSectionSelect,
 }: {
@@ -1284,10 +1382,13 @@ function PreviewCanvas({
   unsaved: boolean;
   inlineValue: React.ComponentProps<typeof InlineEditProvider>["value"];
   selectedNarrativeBlockId: string | null;
+  selectedChild: SectionChildReference | null;
   activeNarrativeSlot: { blockId: string; slot: NarrativeSlotKey } | null;
   selectedStoryHeaderField: StoryHeaderField | null;
   selectionRequest: CanvasSelectionRequest | null;
   onNarrativeBlockSelect: (blockId: string) => void;
+  onChildSelect: (sectionId: string, reference: SectionChildReference) => void;
+  onChildFlowChange: (sectionId: string, flow: SectionChildFlow | undefined, selection?: SectionChildReference) => boolean;
   onNarrativeSlotSelect: (blockId: string, slot: NarrativeSlotKey) => void;
   onSectionSelect: (id: string) => void;
 }) {
@@ -1403,6 +1504,31 @@ function PreviewCanvas({
               onNarrativeBlockSelect={
                 editorMode === "edit" ? onNarrativeBlockSelect : undefined
               }
+              selectedElementId={
+                editorMode === "edit" && selectedChild?.kind === "element" ? selectedChild.id : null
+              }
+              onElementSelect={
+                editorMode === "edit" ? (sectionId, elementId) => onChildSelect(sectionId, { kind: "element", id: elementId }) : undefined
+              }
+              onElementEdit={
+                editorMode === "edit"
+                  ? (sectionId, elementId) => inlineValue?.requestEdit({
+                      sectionId,
+                      elementId,
+                      path: ["childFlow", "elements"],
+                      label: "Text",
+                    })
+                  : undefined
+              }
+              onElementChange={
+                editorMode === "edit"
+                  ? (sectionId: string, element: WebsiteElement) => {
+                      const section = draft.sections.find(({ id }) => id === sectionId);
+                      const flow = (section?.content as { childFlow?: SectionChildFlow } | undefined)?.childFlow;
+                      if (flow) onChildFlowChange(sectionId, updateSectionElement(flow, element), { kind: "element", id: element.id });
+                    }
+                  : undefined
+              }
               targetViewport={previewMode}
               scope={
                 editorMode === "edit" && selectedId
@@ -1476,6 +1602,7 @@ function SectionInspector({
   workingAppearance,
   targetViewport,
   selectedNarrativeBlockId,
+  selectedChild,
   narrativeContentDisclosure,
   narrativeAppearanceDisclosure,
   storyHeaderFocus,
@@ -1503,6 +1630,7 @@ function SectionInspector({
   workingAppearance?: WebsiteSectionAppearance;
   targetViewport: ResponsiveViewport;
   selectedNarrativeBlockId: string | null;
+  selectedChild: SectionChildReference | null;
   narrativeContentDisclosure: NarrativeSlotKey | null;
   narrativeAppearanceDisclosure: NarrativeTypographySlotKey | null;
   storyHeaderFocus: { field: StoryHeaderField; requestId: number; focusInspector: boolean } | null;
@@ -1535,16 +1663,27 @@ function SectionInspector({
     : -1;
   const narrativeBlock =
     narrativeIndex >= 0 ? (narrativeElements?.[narrativeIndex] ?? null) : null;
+  const childFlow = (workingContent as { childFlow?: SectionChildFlow }).childFlow;
+  const selectedElement = selectedChild?.kind === "element" ? findSectionElement(childFlow, selectedChild.id) : undefined;
+  const selectedText = selectedElement?.type === "text" ? selectedElement : null;
+  const selectedRichText = selectedElement?.type === "richText" ? selectedElement : null;
+  const selectedGroup = selectedElement?.type === "compositionGroup" ? selectedElement : null;
+  const selectedDivider = selectedElement?.type === "divider" ? selectedElement : null;
   const narrativeCapability = capabilities
     ? templateElementCapability(capabilities, "narrativeBlock")
     : undefined;
+  const textCapability = capabilities
+    ? templateElementCapability(capabilities, "text")
+    : undefined;
+  const textFontIds = textCapability?.appearance?.typography.find(({ role }) => role === "body")?.allowedFontIds ?? [];
+  const textColorIds = textCapability?.appearance?.colors.find(({ role }) => role === "textColor")?.allowedColorIds ?? [];
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="hidden shrink-0 border-b border-border xl:mb-4 xl:block xl:px-0 xl:pb-3 xl:pt-0">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Heading className="xl:text-base!" level={2} variant="panel">
-              {narrativeBlock ? "Narrative Block" : selected.type === "story" && storyHeaderFocus ? storyHeaderFocus.field === "eyebrow" ? "Eyebrow" : storyHeaderFocus.field === "heading" ? "Heading" : "Intro" : selected.displayName}
+              {selectedRichText ? "Rich Text" : selectedText ? "Text" : selectedGroup ? "Group" : selectedDivider ? "Divider" : narrativeBlock ? "Narrative Block" : selected.type === "story" && storyHeaderFocus ? storyHeaderFocus.field === "eyebrow" ? "Eyebrow" : storyHeaderFocus.field === "heading" ? "Heading" : "Intro" : selected.displayName}
             </Heading>
             {!selected.isEnabled && (
               <span className="rounded-full bg-surface-muted px-2 py-1 text-[10px] text-foreground-muted">
@@ -1552,7 +1691,7 @@ function SectionInspector({
               </span>
             )}
           </div>
-          {showModeSwitch && (
+          {showModeSwitch && !selectedRichText && !selectedText && !selectedGroup && !selectedDivider && (
             <SegmentedControl
               value={panelMode}
               options={[
@@ -1565,14 +1704,25 @@ function SectionInspector({
           )}
         </div>
         {!(panelMode === "content" && selected.type === "story" && storyHeaderFocus) && <Text className="mt-2 xl:mt-1" variant="helper">
-          {panelMode === "content"
+          {selectedRichText || selectedText
+            ? "Edit content directly on the canvas. Customize this element’s appearance here."
+            : selectedGroup ? "Arrange this Group’s children and responsive layout." 
+            : panelMode === "content"
             ? narrativeBlock
               ? "Edit this Narrative Block’s canonical content and visibility."
               : "Edit semantic content."
             : "Customize this Section’s presentation."}
         </Text>}
       </div>
-      {panelMode === "content" ? (
+      {selectedRichText && childFlow && capabilities ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><RichTextElementEditor element={selectedRichText} viewport={targetViewport} library={capabilities.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></div>
+      ) : selectedText && childFlow && capabilities ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><TextElementEditor element={selectedText} viewport={targetViewport} templateKey={templateKey} library={capabilities.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></div>
+      ) : selectedDivider && childFlow && capabilities ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><DividerElementEditor element={selectedDivider} templateKey={templateKey} library={capabilities.designLibrary} allowedColorIds={textColorIds} projectColors={projectColors} onAddColor={onAddColor} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></div>
+      ) : selectedGroup && childFlow ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><GroupElementEditor group={selectedGroup} viewport={targetViewport} onChange={(group) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, group) })} onUngroup={() => { const next = ungroupSectionElement(childFlow, selectedGroup.id); onContentChange({ ...workingContent, childFlow: next }); }} /></div>
+      ) : panelMode === "content" ? (
         narrativeBlock && selected.type === "story" ? (
           <NarrativeBlockContentPanel
             block={narrativeBlock}

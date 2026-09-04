@@ -3,6 +3,7 @@ import {
   WEBSITE_ELEMENT_LIMITS,
   WEBSITE_LEAF_ELEMENT_TYPES,
 } from "./constants";
+import { normalizeTextContent, validateTextFontTuple } from "./text";
 
 export const elementIdSchema = z
   .string()
@@ -22,6 +23,29 @@ const baseShape = { id: elementIdSchema };
 export const elementFontSizeSchema = z.enum(["xs", "s", "m", "l", "xl"]);
 export const elementLineSpacingSchema = z.enum(["tight", "normal", "relaxed"]);
 export const elementLetterSpacingSchema = z.enum(["tight", "normal", "wide"]);
+export const textAlignmentSchema = z.enum(["start", "center", "end"]);
+export const textTransformSchema = z.enum(["none", "uppercase", "lowercase", "capitalize"]);
+export const textResponsiveAppearanceSchema = z.object({
+  fontSize: elementFontSizeSchema.optional(),
+  alignment: textAlignmentSchema.optional(),
+}).strict();
+export const textAppearanceSchema = z.object({
+  fontFamilyId: z.string().min(1).optional(),
+  fontSize: elementFontSizeSchema.optional(),
+  fontWeight: z.union([z.literal(400), z.literal(600), z.literal(700)]).optional(),
+  lineHeight: elementLineSpacingSchema.optional(),
+  letterSpacing: elementLetterSpacingSchema.optional(),
+  alignment: textAlignmentSchema.optional(),
+  colorId: z.string().min(1).optional(),
+  italic: z.boolean().optional(),
+  underline: z.boolean().optional(),
+  strikethrough: z.boolean().optional(),
+  textTransform: textTransformSchema.optional(),
+  responsive: z.object({
+    tablet: textResponsiveAppearanceSchema.optional(),
+    mobile: textResponsiveAppearanceSchema.optional(),
+  }).strict().optional(),
+}).strict();
 const responsiveFontSizeSchema = z
   .object({
     desktop: elementFontSizeSchema.optional(),
@@ -51,9 +75,36 @@ export const textElementSchema = z
   .object({
     ...baseShape,
     type: z.literal("text"),
-    text: z.string().max(WEBSITE_ELEMENT_LIMITS.text),
+    text: z.string().max(WEBSITE_ELEMENT_LIMITS.text).transform(normalizeTextContent),
+    appearance: textAppearanceSchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((element, context) => {
+    const issue = validateTextFontTuple(element.appearance ?? {});
+    if (issue) context.addIssue({ code: "custom", message: issue, path: ["appearance"] });
+  });
+
+const richTextMarksSchema = z.object({
+  bold: z.boolean().optional(),
+  italic: z.boolean().optional(),
+  underline: z.boolean().optional(),
+  strikethrough: z.boolean().optional(),
+  link: z.string().max(WEBSITE_ELEMENT_LIMITS.externalUrl).url().refine((value) => ["http:", "https:", "mailto:"].includes(new URL(value).protocol), "Unsupported link protocol.").optional(),
+}).strict();
+export const richTextRunSchema = z.object({ text: z.string(), marks: richTextMarksSchema.optional() }).strict();
+const richTextParagraphSchema = z.object({ type: z.literal("paragraph"), children: z.array(richTextRunSchema).min(1) }).strict();
+const richTextListSchema = z.object({ type: z.enum(["bulletList", "orderedList"]), items: z.array(z.array(richTextRunSchema).min(1)).min(1) }).strict();
+export const richTextDocumentSchema = z.object({ type: z.literal("doc"), children: z.array(z.union([richTextParagraphSchema, richTextListSchema])).min(1).max(100) }).strict().superRefine((document, context) => {
+  const length = document.children.reduce((total, block) => total + (block.type === "paragraph" ? block.children : block.items.flat()).reduce((sum, run) => sum + run.text.length, 0), 0);
+  if (length > WEBSITE_ELEMENT_LIMITS.richText) context.addIssue({ code: "custom", message: `Rich Text cannot exceed ${WEBSITE_ELEMENT_LIMITS.richText} characters.` });
+});
+export const richTextAppearanceSchema = textAppearanceSchema.pick({ fontFamilyId: true, fontSize: true, lineHeight: true, letterSpacing: true, alignment: true, colorId: true, textTransform: true, responsive: true }).strict();
+export const richTextElementSchema = z.object({
+  ...baseShape,
+  type: z.literal("richText"),
+  document: richTextDocumentSchema,
+  appearance: richTextAppearanceSchema.optional(),
+}).strict();
 
 export const imageElementSchema = z
   .object({
@@ -63,10 +114,30 @@ export const imageElementSchema = z
   })
   .strict();
 
+const dividerAppearanceSchema = z.preprocess((value) => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
+  const appearance = { ...(value as Record<string, unknown>) };
+  if (appearance.assetId === undefined && typeof appearance.styleId === "string") appearance.assetId = appearance.styleId;
+  delete appearance.styleId;
+  if (typeof appearance.width === "string") {
+    const legacyWidths: Record<string, number> = { small: 0, medium: 50, large: 100, full: 100 };
+    appearance.width = legacyWidths[appearance.width] ?? appearance.width;
+  }
+  if (typeof appearance.opacity === "string" && /^\d+$/.test(appearance.opacity)) appearance.opacity = Number(appearance.opacity);
+  return appearance;
+}, z.object({
+  assetId: z.string().min(1).max(100).optional(),
+  width: z.number().int().min(0).max(100).optional(),
+  alignment: textAlignmentSchema.optional(),
+  colorId: z.string().min(1).optional(),
+  opacity: z.number().int().min(25).max(100).optional(),
+}).strict());
+
 export const dividerElementSchema = z
   .object({
     ...baseShape,
     type: z.literal("divider"),
+    appearance: dividerAppearanceSchema.optional(),
   })
   .strict();
 
@@ -267,6 +338,7 @@ export const countdownElementSchema = z
 export const websiteLeafElementSchema = z.discriminatedUnion("type", [
   headingElementSchema,
   textElementSchema,
+  richTextElementSchema,
   imageElementSchema,
   dividerElementSchema,
   quoteElementSchema,
@@ -278,84 +350,24 @@ export const websiteLeafElementSchema = z.discriminatedUnion("type", [
   countdownElementSchema,
 ]);
 
-const mediaOrientedLeafElementSchema = z.discriminatedUnion("type", [
-  imageElementSchema,
-  mediaCollectionElementSchema,
-]);
+const groupSpacingSchema = z.enum(["none", "xs", "s", "m", "l", "xl"]);
+const groupPaddingSchema = z.object({ top: groupSpacingSchema.optional(), right: groupSpacingSchema.optional(), bottom: groupSpacingSchema.optional(), left: groupSpacingSchema.optional() }).strict();
+const groupLayoutValues = {
+  direction: z.enum(["vertical", "horizontal"]),
+  gap: groupSpacingSchema,
+  padding: groupPaddingSchema,
+  alignment: z.enum(["start", "center", "end", "stretch"]),
+  columns: z.enum(["equal-2", "content-wide", "content-narrow", "equal-3"]),
+} as const;
+const groupLayoutOverrideSchema = z.object({ direction: groupLayoutValues.direction.optional(), gap: groupLayoutValues.gap.optional(), padding: groupLayoutValues.padding.optional(), alignment: groupLayoutValues.alignment.optional(), columns: groupLayoutValues.columns.optional() }).strict();
+export const groupLayoutSchema = z.object({
+  width: z.enum(["full", "wide", "medium", "narrow"]).optional(),
+  direction: groupLayoutValues.direction.optional(), gap: groupLayoutValues.gap.optional(), padding: groupLayoutValues.padding.optional(), alignment: groupLayoutValues.alignment.optional(), columns: groupLayoutValues.columns.optional(),
+  responsive: z.object({ tablet: groupLayoutOverrideSchema.optional(), mobile: groupLayoutOverrideSchema.optional() }).strict().optional(),
+}).strict();
 
-const contentOrientedLeafElementSchema = z.discriminatedUnion("type", [
-  headingElementSchema,
-  textElementSchema,
-  dividerElementSchema,
-  quoteElementSchema,
-  ctaElementSchema,
-  narrativeBlockElementSchema,
-  eventDateElementSchema,
-  eventTimeElementSchema,
-  countdownElementSchema,
-]);
-
-const flowCompositionGroupBaseSchema = z
-  .object({
-    ...baseShape,
-    type: z.literal("compositionGroup"),
-    composition: z.literal("flow"),
-    children: z.array(websiteLeafElementSchema),
-  })
-  .strict();
-
-const zonedCompositionGroupBaseSchema = z
-  .object({
-    ...baseShape,
-    type: z.literal("compositionGroup"),
-    composition: z.literal("zoned"),
-    zones: z
-      .object({
-        media: z.array(mediaOrientedLeafElementSchema),
-        content: z.array(contentOrientedLeafElementSchema),
-      })
-      .strict(),
-  })
-  .strict();
-
-function groupLeaves(
-  group:
-    | z.infer<typeof flowCompositionGroupBaseSchema>
-    | z.infer<typeof zonedCompositionGroupBaseSchema>,
-) {
-  return group.composition === "flow"
-    ? group.children
-    : [...group.zones.media, ...group.zones.content];
-}
-
-function addGroupIssues(
-  group:
-    | z.infer<typeof flowCompositionGroupBaseSchema>
-    | z.infer<typeof zonedCompositionGroupBaseSchema>,
-  context: z.RefinementCtx,
-) {
-  const leaves = groupLeaves(group);
-  if (
-    leaves.filter((element) => element.type === "mediaCollection").length > 1
-  ) {
-    context.addIssue({
-      code: "custom",
-      message: "A Composition Group may contain at most one Media Collection.",
-    });
-  }
-
-  addDuplicateIdIssues([group], context);
-}
-
-export const flowCompositionGroupSchema =
-  flowCompositionGroupBaseSchema.superRefine(addGroupIssues);
-export const zonedCompositionGroupSchema =
-  zonedCompositionGroupBaseSchema.superRefine(addGroupIssues);
-
-export const compositionGroupSchema = z.discriminatedUnion("composition", [
-  flowCompositionGroupSchema,
-  zonedCompositionGroupSchema,
-]);
+const nestedCompositionGroupSchema = z.object({ ...baseShape, type: z.literal("compositionGroup"), children: z.array(websiteLeafElementSchema).max(20), layout: groupLayoutSchema.optional() }).strict();
+export const compositionGroupSchema = z.object({ ...baseShape, type: z.literal("compositionGroup"), children: z.array(z.union([websiteLeafElementSchema, nestedCompositionGroupSchema])).max(20), layout: groupLayoutSchema.optional() }).strict().superRefine((group, context) => addDuplicateIdIssues([group], context));
 
 export const websiteElementSchema = z.union([
   websiteLeafElementSchema,
@@ -366,9 +378,8 @@ type ElementWithIdentity = {
   id: string;
   type?: string;
   items?: Array<{ id: string }>;
-  composition?: "flow" | "zoned" | z.infer<typeof narrativeCompositionSchema>;
+  composition?: z.infer<typeof narrativeCompositionSchema>;
   children?: ElementWithIdentity[];
-  zones?: { media: ElementWithIdentity[]; content: ElementWithIdentity[] };
 };
 
 function addDuplicateIdIssues(
@@ -386,11 +397,7 @@ function addDuplicateIdIssues(
     seen.add(element.id);
 
     if (element.type === "mediaCollection") element.items?.forEach(visit);
-    if (element.composition === "flow") element.children?.forEach(visit);
-    if (element.composition === "zoned") {
-      element.zones?.media.forEach(visit);
-      element.zones?.content.forEach(visit);
-    }
+    element.children?.forEach(visit);
   };
   elements.forEach(visit);
 }

@@ -45,6 +45,7 @@ import type { ElementCapability } from "../../websiteCapabilities/types";
 import { resolveEffectiveStorySequence } from "../storyEffectiveSequence";
 import { resolveStoryRenderItems } from "../storyRenderSequence";
 import { StoryDecorativeLayers } from "../StoryDecorativeLayers";
+import { SectionChildFlowRenderer } from "../SectionChildFlowRenderer";
 
 export function ClassicFilipinianaRenderer({
   event,
@@ -56,6 +57,9 @@ export function ClassicFilipinianaRenderer({
   scope = { kind: "full" },
   selectedNarrativeBlockId,
   onNarrativeBlockSelect,
+  selectedElementId,
+  onElementSelect,
+  onElementEdit,
 }: WebsiteRendererProps) {
   const narrativeCapability = website.template!.capabilities.elementCapabilities.find(({ type }) => type === "narrativeBlock");
   const candidates =
@@ -110,6 +114,9 @@ export function ClassicFilipinianaRenderer({
           onSelect={onSectionSelect}
           selectedNarrativeBlockId={selectedNarrativeBlockId}
           onNarrativeBlockSelect={onNarrativeBlockSelect}
+          selectedElementId={selectedElementId}
+          onElementSelect={onElementSelect}
+          onElementEdit={onElementEdit}
         />
       ))}
     </article>
@@ -133,6 +140,9 @@ function ClassicSection({
   onSelect,
   selectedNarrativeBlockId,
   onNarrativeBlockSelect,
+  selectedElementId,
+  onElementSelect,
+  onElementEdit,
 }: {
   section: WebsiteSection;
   sectionIndex: number;
@@ -152,6 +162,9 @@ function ClassicSection({
   onSelect?: (sectionId: string) => void;
   selectedNarrativeBlockId?: string | null;
   onNarrativeBlockSelect?: (blockId: string) => void;
+  selectedElementId?: string | null;
+  onElementSelect?: (sectionId: string, elementId: string) => void;
+  onElementEdit?: (sectionId: string, elementId: string) => void;
 }) {
   const appearance = resolveClassicFilipinianaSectionAppearance(
     section.type,
@@ -185,6 +198,7 @@ function ClassicSection({
         } as React.CSSProperties
       }
       data-preview-section={section.id}
+      data-section-surface
       onClick={mode === "editor" ? () => onSelect?.(section.id) : undefined}
       onKeyDown={
         mode === "editor"
@@ -215,7 +229,10 @@ function ClassicSection({
         narrativeCapability={narrativeCapability}
         selectedNarrativeBlockId={selectedNarrativeBlockId}
         onNarrativeBlockSelect={onNarrativeBlockSelect}
-      /></div></> : <>{showLeadingDivider && <ClassicSectionDivider />}<Section section={section} eventName={eventName} eventDate={eventDate} mode={mode} media={media} targetViewport={targetViewport} library={library} projectColors={designSettings.customColors} narrativeCapability={narrativeCapability} selectedNarrativeBlockId={selectedNarrativeBlockId} onNarrativeBlockSelect={onNarrativeBlockSelect} /></>}
+        selectedElementId={selectedElementId}
+        onElementSelect={onElementSelect}
+        onElementEdit={onElementEdit}
+      /></div></> : <>{showLeadingDivider && <ClassicSectionDivider />}<Section section={section} eventName={eventName} eventDate={eventDate} mode={mode} media={media} targetViewport={targetViewport} library={library} projectColors={designSettings.customColors} narrativeCapability={narrativeCapability} selectedNarrativeBlockId={selectedNarrativeBlockId} onNarrativeBlockSelect={onNarrativeBlockSelect} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} /></>}
     </section>
   );
 }
@@ -232,6 +249,9 @@ function Section({
   narrativeCapability,
   selectedNarrativeBlockId,
   onNarrativeBlockSelect,
+  selectedElementId,
+  onElementSelect,
+  onElementEdit,
 }: {
   section: WebsiteSection;
   eventName: string;
@@ -246,6 +266,9 @@ function Section({
   narrativeCapability?: ElementCapability;
   selectedNarrativeBlockId?: string | null;
   onNarrativeBlockSelect?: (blockId: string) => void;
+  selectedElementId?: string | null;
+  onElementSelect?: (sectionId: string, elementId: string) => void;
+  onElementEdit?: (sectionId: string, elementId: string) => void;
 }) {
   const presentation =
     section.appearance.presentation ?? section.presentationCapability?.default;
@@ -259,6 +282,9 @@ function Section({
       {content}
     </ClassicMediaPresentation>
   );
+  const childFlow = (flow: DateContent["childFlow"] | DressCodeContent["childFlow"]) => flow?.elements.length
+    ? (specialized: React.ReactNode) => <SectionChildFlowRenderer sectionId={section.id} flow={flow} specialized={specialized} mode={mode} viewport={targetViewport} templateKey="classic-filipiniana-v1" library={library} projectColors={projectColors} context={section.resolvedDesignContext} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />
+    : undefined;
   switch (section.type) {
     case "hero":
       return present(
@@ -268,14 +294,17 @@ function Section({
           content={section.content as HeroContent}
         />,
       );
-    case "date":
+    case "date": {
+      const content = section.content as DateContent;
       return (
         <ClassicFilipinianaDate
           sectionId={section.id}
           date={formatDateOnly(eventDate)}
-          content={section.content as DateContent}
+          content={content}
+          renderFlow={childFlow(content.childFlow)}
         />
       );
+    }
     case "story": {
       const content = section.content as StoryContent;
       const contract = narrativeCapability?.narrativeBlock?.composition;
@@ -288,7 +317,7 @@ function Section({
       return (
         <>
           {renderItems.map((item) => {
-            if (item.kind === "singletonRun") return <ClassicFilipinianaStoryHeader key={item.references.join("|")} sectionId={section.id} content={content} mode={mode} fields={item.fields} hasFollowingUnits={item.hasSuccessor} library={library} projectColors={projectColors} context={section.resolvedDesignContext ?? undefined} viewport={targetViewport} />;
+            if (item.kind === "singletonRun") return <ClassicFilipinianaStoryHeader key={item.references.join("|")} sectionId={section.id} content={content} mode={mode} fields={item.fields} library={library} projectColors={projectColors} context={section.resolvedDesignContext ?? undefined} viewport={targetViewport} />;
             const block = item.block;
             const index = content.elements.findIndex(({ id }) => id === block.id);
             if (block.isHidden && mode === "public") return null;
@@ -374,13 +403,16 @@ function Section({
           content={section.content as VenueContent}
         />,
       );
-    case "dressCode":
+    case "dressCode": {
+      const content = section.content as DressCodeContent;
       return (
         <ClassicFilipinianaDressCode
           sectionId={section.id}
-          content={section.content as DressCodeContent}
+          content={content}
+          renderFlow={childFlow(content.childFlow)}
         />
       );
+    }
     case "people":
       return (
         <ClassicFilipinianaPeople
@@ -644,9 +676,10 @@ function ClassicMediaPresentation({
           : "min-h-[100svh]"
         : "min-h-[32rem]";
     return (
-      <div className={`relative isolate overflow-hidden ${immersiveHeight}`}>
+      <div data-section-full-bleed className={`relative isolate overflow-hidden ${immersiveHeight}`}>
         {image("h-full", true)}
         <div
+          data-section-full-bleed-foreground
           className={`relative grid place-items-stretch backdrop-blur-[1px] ${immersiveHeight} [&_[data-section-content]]:min-h-full`}
           style={
             {

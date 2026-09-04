@@ -1,0 +1,28 @@
+import type { ReactNode } from "react";
+import type { ResolvedDesignContext, TemplateDesignLibrary } from "../websiteCapabilities/types";
+import type { ProjectColor } from "../websiteColors/projectColors";
+import type { SectionChildFlow } from "../websiteEditor/sectionChildFlow";
+import type { ResponsiveViewport } from "../websiteEditor/types";
+import { SectionRootFlow } from "./SectionRootFlow";
+import { WebsiteLeafElementRenderer } from "./WebsiteLeafElementRenderer";
+import { WebsiteElementFrame } from "./WebsiteElementFrame";
+import { GroupElementRenderer } from "./GroupElementRenderer";
+
+export function SectionChildFlowRenderer({ sectionId, flow, specialized, mode, viewport, templateKey, library, projectColors, context, selectedElementId, onElementSelect, onElementEdit }: {
+  sectionId: string;
+  flow: SectionChildFlow; specialized: ReactNode; mode: "editor" | "public"; viewport: ResponsiveViewport;
+  templateKey: string; library: TemplateDesignLibrary; projectColors: readonly ProjectColor[]; context?: ResolvedDesignContext | null;
+  selectedElementId?: string | null; onElementSelect?: (sectionId: string, elementId: string) => void;
+  onElementEdit?: (sectionId: string, elementId: string) => void;
+}) {
+  const elements = new Map(flow.elements.map((element) => [element.id, element]));
+  return <SectionRootFlow>{flow.order.map((reference) => {
+    if (reference.kind === "specialized") return <div data-section-specialized-content key="specialized:content">{specialized}</div>;
+    const element = elements.get(reference.id);
+    if (!element) return null;
+    const selected = selectedElementId === element.id;
+    return <WebsiteElementFrame key={element.id} mode={mode} sectionId={sectionId} elementId={element.id} elementType={element.type === "compositionGroup" ? "Group" : element.type} selected={selected} onSelect={onElementSelect} onEdit={element.type === "text" ? onElementEdit : undefined}>
+      {element.type === "compositionGroup" ? <GroupElementRenderer group={element} sectionId={sectionId} mode={mode} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} /> : <WebsiteLeafElementRenderer element={element} mode={mode} sectionId={sectionId} selected={selected} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} />}
+    </WebsiteElementFrame>;
+  })}</SectionRootFlow>;
+}

@@ -2,6 +2,7 @@ import { apiRequest, ensureCsrfCookie } from '../../lib/api'
 import type { ApiResource } from '../../lib/api'
 import { normalizeWebsiteDraftFromApi } from './schemas'
 import type { SectionDesignDefaults, WebsiteDesignSettings, WebsiteDraft, WebsiteSectionAppearance } from './types'
+import { canonicalizeSectionChildFlowRichText, type SectionChildFlow } from './sectionChildFlow'
 
 function projectPath(eventId: string, projectId: string): string {
   return `/api/events/${encodeURIComponent(eventId)}/websites/${encodeURIComponent(projectId)}`
@@ -36,7 +37,9 @@ export function addWebsiteProjectColor(eventId: string, projectId: string, value
 }
 
 export function updateWebsiteSectionContent(eventId: string, projectId: string, sectionId: string, content: Record<string, unknown>) {
-  return mutation(eventId, projectId, `/sections/${encodeURIComponent(sectionId)}`, { content })
+  const childFlow = content.childFlow as SectionChildFlow | undefined
+  const canonicalContent = childFlow ? { ...content, childFlow: canonicalizeSectionChildFlowRichText(childFlow) } : content
+  return mutation(eventId, projectId, `/sections/${encodeURIComponent(sectionId)}`, { content: canonicalContent })
 }
 
 export function updateWebsiteSectionAppearance(eventId: string, projectId: string, sectionId: string, appearance: WebsiteSectionAppearance) {

@@ -6,6 +6,7 @@ import { sectionCapability } from '../websiteCapabilities/lookup'
 import { ClassicFilipinianaRenderer } from './templates/ClassicFilipinianaRenderer'
 import { ModernEditorialRenderer } from './templates/ModernEditorialRenderer'
 import type { WebsiteRendererProps } from './types'
+import { WebsiteElementChangeContext } from './WebsiteElementChangeContext'
 
 const templateRenderers = {
   'classic-filipiniana-v1': ClassicFilipinianaRenderer,
@@ -44,5 +45,5 @@ export function WebsiteRenderer(props: WebsiteRendererProps) {
     }),
   }
 
-  return <div ref={rootRef}><Renderer {...props} website={website} targetViewport={targetViewport} /></div>
+  return <div ref={rootRef}><WebsiteElementChangeContext.Provider value={props.onElementChange ?? null}><Renderer {...props} website={website} targetViewport={targetViewport} /></WebsiteElementChangeContext.Provider></div>
 }

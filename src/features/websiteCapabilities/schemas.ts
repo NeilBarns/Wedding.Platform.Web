@@ -327,6 +327,7 @@ export const elementCapabilitySchema = z.object({
 const expectedElementAppearanceRoles = {
   heading: { typography: ['heading'], colors: ['headingColor'] },
   text: { typography: ['body'], colors: ['textColor'] },
+  richText: { typography: ['body'], colors: ['textColor'] },
   quote: { typography: ['body'], colors: ['textColor'] },
   narrativeBlock: { typography: ['heading', 'body'], colors: ['headingColor', 'textColor'] },
   image: null,

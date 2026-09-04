@@ -7,6 +7,7 @@ import { matchesCurrentDesignCatalog } from '../websiteTemplates/design/catalogs
 import { globalDesignCapability, supportsGlobalDesignValue, sectionCapability } from '../websiteCapabilities/lookup'
 import { isCanonicalStoryStructure } from './storyStructure'
 import { projectColorsSchema } from '../websiteColors/projectColors'
+import { textSectionChildFlowSchema } from './sectionChildFlow'
 
 const text = z.string()
 const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Required')
@@ -42,7 +43,7 @@ const responsiveControlSchema = z.object({
   }).strict().optional(),
 }).strict()
 export const heroContentSchema = z.object({ headline: text, subheadline: text, media: sectionMediaSchema }).strict()
-export const dateContentSchema = z.object({ heading: text, description: text }).strict()
+export const dateContentSchema = z.object({ heading: text, description: text, childFlow: textSectionChildFlowSchema.optional() }).strict()
 const storyMediaFramingSchema = z.object({
   focalPoint: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().optional(),
   zoom: z.number().min(1).max(3).optional(),
@@ -86,7 +87,7 @@ export const scheduleContentSchema = z.object({
   items: z.array(z.object({ time: text, title: text, description: text }).strict()),
 }).strict()
 export const venueContentSchema = z.object({ heading: text, name: text, address: text, description: text, media: sectionMediaSchema }).strict()
-export const dressCodeContentSchema = z.object({ heading: text, description: text }).strict()
+export const dressCodeContentSchema = z.object({ heading: text, description: text, childFlow: textSectionChildFlowSchema.optional() }).strict()
 const peoplePersonSchema = z.object({ id: semanticId, name: requiredLabel, role: text.max(255).nullable().optional(), media: sectionMediaSchema }).strict()
 const peopleGroupSchema = z.object({ id: semanticId, name: requiredLabel, people: z.array(peoplePersonSchema).max(100) }).strict()
 export const peopleContentSchema = z.object({

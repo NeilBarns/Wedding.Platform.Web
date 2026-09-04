@@ -21,6 +21,7 @@ import type { ResponsiveViewport } from "../../../websiteEditor/types";
 import type { ProjectColor } from "../../../websiteColors/projectColors";
 import { resolveNarrativeBackgroundColor } from "../../narrativeBackground";
 import { DecorativeBackgroundLayers } from "../../DecorativeBackgroundLayers";
+import { SectionContentInset } from "../../SectionContentInset";
 import type {
   ElementCapability,
   ResolvedDesignContext,
@@ -67,6 +68,7 @@ export function ClassicFilipinianaHero({
   return (
     <div
       data-section-content
+      data-hero-foreground-inset
       className="relative flex min-h-[34rem] flex-col items-center justify-center overflow-hidden px-8 py-20 text-center sm:py-24"
     >
       <ClassicFoundationOrnament className="relative mb-8" />
@@ -109,10 +111,12 @@ export function ClassicFilipinianaDate({
   sectionId,
   date,
   content,
+  renderFlow,
 }: {
   sectionId: string;
   date: string | null;
   content: DateContent;
+  renderFlow?: (specialized: React.ReactNode) => React.ReactNode;
 }) {
   return (
     <ContentSection
@@ -127,6 +131,7 @@ export function ClassicFilipinianaDate({
           label="Date heading"
         />
       }
+      renderFlow={renderFlow}
     >
       <p className="font-[family-name:var(--cf-heading-font)] text-2xl text-[var(--cf-text)]">
         {date ?? "Date to be announced"}
@@ -150,7 +155,6 @@ export function ClassicFilipinianaStoryHeader({
   content,
   mode,
   fields,
-  hasFollowingUnits,
   library,
   projectColors,
   context = emptyContext,
@@ -160,7 +164,6 @@ export function ClassicFilipinianaStoryHeader({
   content: StoryContent;
   mode: "editor" | "public";
   fields: import("../../../websiteEditor/types").StoryHeaderField[];
-  hasFollowingUnits: boolean;
   library: TemplateDesignLibrary;
   projectColors: ProjectColor[];
   context?: ResolvedDesignContext;
@@ -173,7 +176,7 @@ export function ClassicFilipinianaStoryHeader({
   const storyTextAlignmentClass = (field: import("../../../websiteEditor/types").StoryHeaderField) => content.singletonAppearance?.[field]?.alignment === "start" ? "text-left" : content.singletonAppearance?.[field]?.alignment === "end" ? "text-right" : content.singletonAppearance?.[field]?.alignment === "center" ? "text-center" : undefined;
   if (renderedFields.length === 0) return null;
   return (
-    <div data-section-content className={`relative overflow-hidden px-7 pt-20 text-center sm:px-12 sm:pt-24 ${hasFollowingUnits ? "pb-10 sm:pb-12" : "pb-20 sm:pb-24"}`}>
+    <SectionContentInset className="relative overflow-hidden text-center">
       <div className="relative mx-auto max-w-5xl">
         <ClassicFoundationOrnament className="mx-auto mb-5 h-5 w-32 opacity-75" />
         {renderedFields.map((field, index) => field === "eyebrow" ? (
@@ -184,7 +187,7 @@ export function ClassicFilipinianaStoryHeader({
           <p style={storyStyle(field)} key={field} data-editor-story-field={field} data-section-body={content.singletonAppearance?.intro?.alignment ? undefined : ""} className={`${index ? "mt-8" : ""} relative mx-auto max-w-2xl rounded-sm whitespace-pre-line text-sm leading-8 text-[var(--cf-section-body)]`}><EditableText sectionId={sectionId} path={["intro"]} value={content.intro ?? ""} placeholder="Add introduction" label="Story introduction" multiline className={storyTextAlignmentClass(field)} /><EditorSelectionFrame selected={mode === "editor" && selectedField === field} /></p>
         ))}
       </div>
-    </div>
+    </SectionContentInset>
   );
 }
 
@@ -682,9 +685,11 @@ export function ClassicFilipinianaVenue({
 export function ClassicFilipinianaDressCode({
   sectionId,
   content,
+  renderFlow,
 }: {
   sectionId: string;
   content: DressCodeContent;
+  renderFlow?: (specialized: React.ReactNode) => React.ReactNode;
 }) {
   return (
     <ContentSection
@@ -699,6 +704,7 @@ export function ClassicFilipinianaDressCode({
           label="Dress code heading"
         />
       }
+      renderFlow={renderFlow}
     >
       <p className="mx-auto max-w-xl whitespace-pre-line leading-8">
         <EditableText
@@ -954,7 +960,7 @@ function ContentSection({
   eyebrowParticipates,
   headingParticipates = true,
   bodyParticipates = true,
-  compactEnding = false,
+  renderFlow,
 }: {
   eyebrow?: React.ReactNode;
   heading: React.ReactNode;
@@ -962,15 +968,14 @@ function ContentSection({
   eyebrowParticipates?: boolean;
   headingParticipates?: boolean;
   bodyParticipates?: boolean;
-  compactEnding?: boolean;
+  renderFlow?: (specialized: React.ReactNode) => React.ReactNode;
 }) {
   const hasEyebrow = eyebrowParticipates ?? Boolean(eyebrow);
   return (
-    <div
-      data-section-content
-      className={`relative overflow-hidden px-7 pt-20 text-center sm:px-12 sm:pt-24 ${compactEnding ? "pb-10 sm:pb-12" : "pb-20 sm:pb-24"}`}
+    <SectionContentInset
+      className="relative overflow-hidden text-center"
     >
-      <div className="relative mx-auto max-w-5xl">
+      {(() => { const specialized = <div className="relative mx-auto max-w-5xl">
         <ClassicFoundationOrnament className="mx-auto mb-5 h-5 w-32 opacity-75" />
         {hasEyebrow && <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[var(--cf-secondary)]">{eyebrow}</p>}
         {headingParticipates && <h2
@@ -985,8 +990,8 @@ function ContentSection({
         >
           {children}
         </div>}
-      </div>
-    </div>
+      </div>; return renderFlow ? renderFlow(specialized) : specialized; })()}
+    </SectionContentInset>
   );
 }
 function EmptyCopy({ children }: { children: React.ReactNode }) {

@@ -18,6 +18,7 @@ import type { ResponsiveViewport } from "../../../websiteEditor/types";
 import type { ProjectColor } from "../../../websiteColors/projectColors";
 import { resolveNarrativeBackgroundColor } from "../../narrativeBackground";
 import { DecorativeBackgroundLayers } from "../../DecorativeBackgroundLayers";
+import { SectionContentInset } from "../../SectionContentInset";
 import type {
   ElementCapability,
   ResolvedDesignContext,
@@ -68,6 +69,7 @@ export function ModernEditorialHero({
   return (
     <div
       data-section-content
+      data-hero-foreground-inset
       className={`relative overflow-hidden ${compact ? "min-h-0 px-5 py-10 sm:px-8 sm:py-12" : "min-h-[38rem] px-7 py-20 sm:px-14 sm:py-28"}`}
       style={{ boxShadow: "var(--me-frame)" }}
     >
@@ -112,10 +114,12 @@ export function ModernEditorialDate({
   sectionId,
   date,
   content,
+  renderFlow,
 }: {
   sectionId: string;
   date: string | null;
   content: DateContent;
+  renderFlow?: (specialized: React.ReactNode) => React.ReactNode;
 }) {
   return (
     <EditorialSection
@@ -130,6 +134,7 @@ export function ModernEditorialDate({
           label="Date heading"
         />
       }
+      renderFlow={renderFlow}
     >
       <p className="font-[family-name:var(--me-heading-font)] text-4xl sm:text-6xl">
         {date ?? "Date to be announced"}
@@ -152,7 +157,6 @@ export function ModernEditorialStoryHeader({
   content,
   mode,
   fields,
-  hasFollowingUnits,
   showNumber,
   library, projectColors, context = emptyContext, viewport,
 }: {
@@ -160,7 +164,6 @@ export function ModernEditorialStoryHeader({
   content: StoryContent;
   mode: "editor" | "public";
   fields: import("../../../websiteEditor/types").StoryHeaderField[];
-  hasFollowingUnits: boolean;
   showNumber: boolean;
   library: TemplateDesignLibrary; projectColors: ProjectColor[]; context?: ResolvedDesignContext; viewport: ResponsiveViewport;
 }) {
@@ -171,7 +174,7 @@ export function ModernEditorialStoryHeader({
   const storyTextAlignmentClass = (field: import("../../../websiteEditor/types").StoryHeaderField) => content.singletonAppearance?.[field]?.alignment === "start" ? "text-left" : content.singletonAppearance?.[field]?.alignment === "end" ? "text-right" : content.singletonAppearance?.[field]?.alignment === "center" ? "text-center" : undefined;
   if (renderedFields.length === 0) return null;
   return (
-    <div data-section-content className={`px-7 pt-20 sm:px-14 sm:pt-24 ${hasFollowingUnits ? "pb-10 sm:pb-12" : "pb-20 sm:pb-24"}`} style={{ boxShadow: "var(--me-frame)" }}>
+    <SectionContentInset className="" style={{ boxShadow: "var(--me-frame)" }}>
       <div className={showNumber ? "grid gap-9 sm:grid-cols-[5rem_1fr]" : "block"}>
         {showNumber && <p className="text-[10px] font-bold tracking-[0.25em]" aria-hidden="true">03 / 10</p>}
         <div>
@@ -184,7 +187,7 @@ export function ModernEditorialStoryHeader({
           ))}
         </div>
       </div>
-    </div>
+    </SectionContentInset>
   );
 }
 export function ModernEditorialStoryBlock({
@@ -666,9 +669,11 @@ export function ModernEditorialVenue({
 export function ModernEditorialDressCode({
   sectionId,
   content,
+  renderFlow,
 }: {
   sectionId: string;
   content: DressCodeContent;
+  renderFlow?: (specialized: React.ReactNode) => React.ReactNode;
 }) {
   return (
     <EditorialSection
@@ -683,6 +688,7 @@ export function ModernEditorialDressCode({
           label="Dress code heading"
         />
       }
+      renderFlow={renderFlow}
     >
       <p className="max-w-2xl whitespace-pre-line text-xl leading-9">
         <EditableText
@@ -940,7 +946,7 @@ function EditorialSection({
   eyebrowParticipates,
   headingParticipates = true,
   bodyParticipates = true,
-  compactEnding = false,
+  renderFlow,
 }: {
   number: string | null;
   eyebrow?: React.ReactNode;
@@ -950,20 +956,15 @@ function EditorialSection({
   eyebrowParticipates?: boolean;
   headingParticipates?: boolean;
   bodyParticipates?: boolean;
-  compactEnding?: boolean;
+  renderFlow?: (specialized: React.ReactNode) => React.ReactNode;
 }) {
   const hasEyebrow = eyebrowParticipates ?? Boolean(eyebrow);
   return (
-    <div
-      data-section-content
-      className={
-        tabletEditorial
-          ? `px-7 pt-20 ${compactEnding ? "pb-10" : "pb-20"}`
-          : `px-7 pt-20 sm:px-14 sm:pt-24 ${compactEnding ? "pb-10 sm:pb-12" : "pb-20 sm:pb-24"}`
-      }
+    <SectionContentInset
+      className=""
       style={{ boxShadow: "var(--me-frame)" }}
     >
-      <div
+      {(() => { const specialized = <div
         className={
           !number
             ? "block"
@@ -988,8 +989,8 @@ function EditorialSection({
             {children}
           </div>}
         </div>
-      </div>
-    </div>
+      </div>; return renderFlow ? renderFlow(specialized) : specialized; })()}
+    </SectionContentInset>
   );
 }
 function EmptyCopy({ children }: { children: React.ReactNode }) {
