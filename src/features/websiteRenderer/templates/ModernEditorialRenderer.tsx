@@ -275,7 +275,7 @@ function Section({
     </ModernMediaPresentation>
   );
   const childFlow = (flow: DateContent["childFlow"] | DressCodeContent["childFlow"]) => flow?.elements.length
-    ? (specialized: React.ReactNode) => <SectionChildFlowRenderer sectionId={section.id} flow={flow} specialized={specialized} mode={mode} viewport={targetViewport} templateKey="modern-editorial-v1" library={library} projectColors={projectColors} context={section.resolvedDesignContext} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />
+    ? (specialized: React.ReactNode) => <SectionChildFlowRenderer media={media} sectionId={section.id} flow={flow} specialized={specialized} mode={mode} viewport={targetViewport} templateKey="modern-editorial-v1" library={library} projectColors={projectColors} context={section.resolvedDesignContext} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />
     : undefined;
   switch (section.type) {
     case "hero":
@@ -285,6 +285,7 @@ function Section({
           eventName={eventName}
           date={date}
           content={section.content as HeroContent}
+          viewport={targetViewport}
         />,
       );
     case "date": {
@@ -502,6 +503,8 @@ function ModernMediaPresentation({
   const spacingValue = (side: "top" | "right" | "bottom" | "left") =>
     spacing?.[side] ?? "medium";
   const spacingClass = `${spacingValue("top") === "none" ? "" : spacingValue("top") === "small" ? "pt-2 sm:pt-3" : spacingValue("top") === "large" ? "pt-5 sm:pt-8" : "pt-3 sm:pt-5"} ${spacingValue("right") === "none" ? "" : spacingValue("right") === "small" ? "pr-2 sm:pr-3" : spacingValue("right") === "large" ? "pr-5 sm:pr-8" : "pr-3 sm:pr-5"} ${spacingValue("bottom") === "none" ? "" : spacingValue("bottom") === "small" ? "pb-2 sm:pb-3" : spacingValue("bottom") === "large" ? "pb-5 sm:pb-8" : "pb-3 sm:pb-5"} ${spacingValue("left") === "none" ? "" : spacingValue("left") === "small" ? "pl-2 sm:pl-3" : spacingValue("left") === "large" ? "pl-5 sm:pl-8" : "pl-3 sm:pl-5"}`;
+  const venueSpacingClass = `${spacingValue("top") === "none" ? "" : spacingValue("top") === "small" ? "pt-2 md:pt-3" : spacingValue("top") === "large" ? "pt-5 md:pt-7 xl:pt-8" : "pt-3 md:pt-4 xl:pt-5"} ${spacingValue("right") === "none" ? "" : spacingValue("right") === "small" ? "pr-2 md:pr-3" : spacingValue("right") === "large" ? "pr-5 md:pr-7 xl:pr-8" : "pr-3 md:pr-4 xl:pr-5"} ${spacingValue("bottom") === "none" ? "" : spacingValue("bottom") === "small" ? "pb-2 md:pb-3" : spacingValue("bottom") === "large" ? "pb-5 md:pb-7 xl:pb-8" : "pb-3 md:pb-4 xl:pb-5"} ${spacingValue("left") === "none" ? "" : spacingValue("left") === "small" ? "pl-2 md:pl-3" : spacingValue("left") === "large" ? "pl-5 md:pl-7 xl:pl-8" : "pl-3 md:pl-4 xl:pl-5"}`;
+  const effectiveSpacingClass = section.type === "venue" ? venueSpacingClass : spacingClass;
   const gapClass =
     contentGap === "tight"
       ? "gap-3 sm:gap-4"
@@ -510,6 +513,8 @@ function ModernMediaPresentation({
         : contentGap === "generous"
           ? "gap-12 sm:gap-16"
           : "gap-5 sm:gap-7";
+  const venueGapClass = contentGap === "tight" ? "gap-3 md:gap-4 xl:gap-5" : contentGap === "spacious" ? "gap-6 md:gap-8 xl:gap-10" : contentGap === "generous" ? "gap-8 md:gap-12 xl:gap-16" : "gap-4 md:gap-5 xl:gap-7";
+  const effectiveGapClass = section.type === "venue" ? venueGapClass : gapClass;
   const decorationSafeAreaClass = modernDecorationSafeArea(
     typeof frame === "string" ? frame : undefined,
     typeof placement === "string" ? placement : undefined,
@@ -561,7 +566,7 @@ function ModernMediaPresentation({
       />
     ) : (
       <span
-        className={`block ${applySizing ? sizing : "w-full"} ${spacingClass} ${layoutClass} ${stretchWithSplit ? splitStretchClass : ""}`}
+        className={`block ${applySizing ? sizing : "w-full"} ${effectiveSpacingClass} ${layoutClass} ${stretchWithSplit ? splitStretchClass : ""}`}
       >
         <span
           className={`block w-full ${decorationSafeAreaClass} ${stretchWithSplit ? splitStretchClass : ""}`}
@@ -589,6 +594,7 @@ function ModernMediaPresentation({
     typeof size === "string" ? size : "balanced",
     targetViewport,
   );
+  const effectiveSplitGrid = section.type === "venue" ? modernVenueSplitGrid(typeof placement === "string" ? placement : "left", typeof size === "string" ? size : "balanced", targetViewport) : splitGrid;
   const mediaOrder =
     placement === "right"
       ? semanticClass(targetViewport, "order-2", "order-2")
@@ -639,12 +645,13 @@ function ModernMediaPresentation({
       0.5;
     const foreground =
       value("foregroundColor", "foregroundColors") ?? "#FFFFFF";
+    const immersiveHeight = section.type === "hero" ? "min-h-[100svh]" : "min-h-[36rem]";
     return (
-      <div data-section-full-bleed className="relative isolate min-h-[36rem] overflow-hidden">
+      <div data-section-full-bleed className={`relative isolate overflow-hidden ${immersiveHeight}`}>
         {image("h-full", true)}
         <div
           data-section-full-bleed-foreground
-          className="relative min-h-[36rem] backdrop-blur-[1px]"
+          className={`relative grid place-items-stretch backdrop-blur-[1px] ${immersiveHeight} [&_[data-section-specialized-content]]:min-h-full`}
           style={
             {
               background: `color-mix(in srgb, var(--me-page) ${strength * 100}%, transparent)`,
@@ -662,21 +669,31 @@ function ModernMediaPresentation({
   }
   if (presentation === "editorial") {
     const hero = section.type === "hero";
+    if (section.type === "venue" && targetViewport === "mobile") {
+      const venueMedia = image("aspect-[4/3] max-h-[24rem] object-cover", false, false);
+      const mediaFirst = placement === "top" || placement === "left";
+      return <div data-venue-composition="stacked" className={`grid min-w-0 ${effectiveGapClass}`}>{mediaFirst ? <>{venueMedia}{children}</> : <>{children}{venueMedia}</>}</div>;
+    }
     const heroClass =
       targetViewport === "mobile"
-        ? "min-h-[28rem] max-h-[52rem]"
+        ? "h-[clamp(24rem,62svh,36rem)]"
         : "h-full min-h-0 max-h-none";
     const media = image(
-      hero ? heroClass : "min-h-[28rem] max-h-[52rem]",
+      hero ? heroClass : section.type === "venue" && targetViewport === "tablet" ? "aspect-[4/3] max-h-[36rem] object-cover" : "min-h-[28rem] max-h-[52rem] object-cover",
       false,
       false,
       mediaOrder,
       hero,
     );
     const copy = <div className={copyOrder}>{children}</div>;
-    if (placement === "top" || placement === "bottom")
+    if (placement === "top" || placement === "bottom") {
+      const heroCopyEdge = hero
+        ? placement === "top"
+          ? "[&_[data-section-specialized-content]]:pt-0"
+          : "[&_[data-section-specialized-content]]:pb-0"
+        : "";
       return (
-        <div className={`grid ${gapClass}`}>
+        <div data-hero-vertical-composition={hero ? placement : undefined} className={`grid ${effectiveGapClass} ${heroCopyEdge}`}>
           {placement === "top" ? (
             <>
               {media}
@@ -690,8 +707,9 @@ function ModernMediaPresentation({
           )}
         </div>
       );
+    }
     return (
-      <div className={`grid items-stretch ${gapClass} ${splitGrid}`}>
+      <div data-venue-composition={section.type === "venue" ? "split" : undefined} className={`grid min-w-0 items-stretch ${effectiveGapClass} ${effectiveSplitGrid}`}>
         {media}
         {copy}
       </div>
@@ -733,7 +751,7 @@ function ModernMediaPresentation({
       <div className="mx-auto max-w-4xl px-7">{image("max-h-[36rem]")}</div>
     );
     const copy = (
-      <div className="[&_[data-section-content]]:py-10 sm:[&_[data-section-content]]:py-12">
+      <div className="[&_[data-section-specialized-content]]:py-10 sm:[&_[data-section-specialized-content]]:py-12">
         {children}
       </div>
     );
@@ -813,6 +831,18 @@ function modernSplitGrid(
           ? "grid-cols-[1.2fr_0.8fr]"
           : "grid-cols-2";
   return viewport === "tablet" ? tablet : viewport === "desktop" ? desktop : "";
+}
+
+function modernVenueSplitGrid(placement: string, size: string, viewport: ResponsiveViewport): string {
+  if (viewport === "mobile") return "";
+  if (placement === "right") {
+    if (size === "compact") return viewport === "desktop" ? "grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]" : "grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]";
+    if (size === "feature") return viewport === "desktop" ? "grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]" : "grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]";
+    return "grid-cols-[minmax(0,1fr)_minmax(0,1fr)]";
+  }
+  if (size === "compact") return viewport === "desktop" ? "grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]" : "grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]";
+  if (size === "feature") return viewport === "desktop" ? "grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]" : "grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]";
+  return "grid-cols-[minmax(0,1fr)_minmax(0,1fr)]";
 }
 
 function ModernOuterFrameDecoration({

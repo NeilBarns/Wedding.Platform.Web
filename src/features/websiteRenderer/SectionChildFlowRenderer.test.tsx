@@ -76,4 +76,13 @@ describe("SectionChildFlowRenderer canvas selection", () => {
     expect(editor).toContain("w-full");
     expect(published).toContain("w-full");
   });
+
+  it("omits hidden top-level generic elements in editor preview and public output", () => {
+    const hiddenProps = { ...props, flow: { ...props.flow, elements: [{ ...props.flow.elements[0], text: "Do not render", isHidden: true }] } };
+    for (const mode of ["editor", "public"] as const) {
+      const html = renderToStaticMarkup(<SectionChildFlowRenderer {...hiddenProps} mode={mode} />);
+      expect(html).not.toContain("Do not render");
+      expect(html).not.toContain('data-section-child-element="text-1"');
+    }
+  });
 });

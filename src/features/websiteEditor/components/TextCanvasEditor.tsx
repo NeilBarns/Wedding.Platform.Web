@@ -4,6 +4,7 @@ import type { TextElement } from "../../websiteElements/types";
 import { withTextAppearance } from "../../websiteElements/textStylePresets";
 import { EditableText } from "../inline/EditableText";
 import type { ResponsiveViewport } from "../types";
+import { FloatingFormattingToolbar } from "./FloatingFormattingToolbar";
 
 export function TextCanvasEditor({ element, sectionId, viewport, onChange, inputStyle, renderValue }: {
   element: TextElement;
@@ -25,12 +26,12 @@ export function TextCanvasEditor({ element, sectionId, viewport, onChange, input
   };
 
   return <span className="relative block" data-text-canvas-editor>
-    {viewport !== "mobile" && <span className="absolute bottom-full left-1/2 z-50 mb-2 flex -translate-x-1/2 gap-1 rounded-lg border border-border bg-surface p-1 text-foreground shadow-[var(--shadow-dialog)]" role="toolbar" aria-label="Text formatting">
+    <FloatingFormattingToolbar label="Text formatting" viewport={viewport}>
       <Tool label="Bold" pressed={element.appearance?.fontWeight === 700} onPress={toggleBold}><Bold size={16} /></Tool>
       <Tool label="Italic" pressed={element.appearance?.italic === true} onPress={() => toggle("italic")}><Italic size={16} /></Tool>
       <Tool label="Underline" pressed={element.appearance?.underline === true} onPress={() => toggle("underline")}><Underline size={16} /></Tool>
       <Tool label="Strikethrough" pressed={element.appearance?.strikethrough === true} onPress={() => toggle("strikethrough")}><Strikethrough size={16} /></Tool>
-    </span>}
+    </FloatingFormattingToolbar>
     <EditableText sectionId={sectionId} elementId={element.id} path={["childFlow", "elements"]} value={element.text} placeholder="Add text" label="Text" compact inputStyle={inputStyle} renderValue={renderValue} />
   </span>;
 }

@@ -1,12 +1,16 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { TemplateDesignLibrary } from "../websiteCapabilities/types";
-import type { StoryBlock } from "../websiteEditor/types";
+import type { StoryBlock, StoryContent } from "../websiteEditor/types";
 import { createEmptyStoryBlock } from "../websiteEditor/storyBlockOperations";
 import { normalizeNarrativeBlock } from "../websiteElements/narrativeBlock";
 import { narrativeBlockElementSchema } from "../websiteElements/schemas";
 import { ClassicFilipinianaStoryBlock } from "./templates/classicFilipiniana/sections";
 import { ModernEditorialStoryBlock } from "./templates/modernEditorial/sections";
+import { StoryDecorativeLayers } from "./StoryDecorativeLayers";
+import { ZoomedMediaImage } from "./ZoomedMediaImage";
+import { resolveEffectiveStorySequence } from "./storyEffectiveSequence";
+import { resolveStoryRenderItems } from "./storyRenderSequence";
 import {
   narrativeResponsiveOrderClasses,
   resolveNarrativeComposition,
@@ -79,12 +83,12 @@ function resolve(block: StoryBlock) {
   return resolveNarrativeComposition({ block, capability });
 }
 
-function renderClassic(block: StoryBlock, choreography?: Parameters<typeof ClassicFilipinianaStoryBlock>[0]["choreography"]) {
-  return renderToStaticMarkup(<ClassicFilipinianaStoryBlock sectionId="story" block={block} index={0} library={library} projectColors={[]} viewport="desktop" composition={resolve(block)} media={<img alt="Media lock" />} choreography={choreography} />);
+function renderClassic(block: StoryBlock, choreography?: Parameters<typeof ClassicFilipinianaStoryBlock>[0]["choreography"], viewport: "desktop" | "tablet" | "mobile" = "desktop", mode: "editor" | "public" = "public", media: React.ReactNode = <img alt="Media lock" />) {
+  return renderToStaticMarkup(<ClassicFilipinianaStoryBlock sectionId="story" block={block} index={0} library={library} projectColors={[]} viewport={viewport} mode={mode} composition={resolve(block)} media={media} choreography={choreography} />);
 }
 
-function renderModern(block: StoryBlock, choreography?: Parameters<typeof ModernEditorialStoryBlock>[0]["choreography"]) {
-  return renderToStaticMarkup(<ModernEditorialStoryBlock sectionId="story" block={block} index={0} library={library} projectColors={[]} viewport="desktop" composition={resolve(block)} media={<img alt="Media lock" />} choreography={choreography} />);
+function renderModern(block: StoryBlock, choreography?: Parameters<typeof ModernEditorialStoryBlock>[0]["choreography"], viewport: "desktop" | "tablet" | "mobile" = "desktop", mode: "editor" | "public" = "public", media: React.ReactNode = <img alt="Media lock" />) {
+  return renderToStaticMarkup(<ModernEditorialStoryBlock sectionId="story" block={block} index={0} library={library} projectColors={[]} viewport={viewport} mode={mode} composition={resolve(block)} media={media} choreography={choreography} />);
 }
 
 describe("Narrative Presentation resolver characterization", () => {
@@ -187,7 +191,7 @@ describe("Narrative Presentation responsive ordering characterization", () => {
   it.each([
     ["above", { media: "order-[-2]", caption: "-order-1" }],
     ["leading", { media: "order-[-2]", caption: "-order-1" }],
-    ["splitStart", { media: "order-[-2] sm:order-0", caption: "-order-1 sm:order-0" }],
+    ["splitStart", { media: "order-[-2] md:order-0", caption: "-order-1 md:order-0" }],
     ["below", { media: "", caption: "" }],
     ["trailing", { media: "", caption: "" }],
     ["splitEnd", { media: "", caption: "" }],
@@ -197,10 +201,14 @@ describe("Narrative Presentation responsive ordering characterization", () => {
     expect(narrativeResponsiveOrderClasses(resolve(block))).toEqual(expected);
   });
 
-  it.each(placements.filter((placement) => placement !== "inset"))("locks Editorial %s ordering as presentation-neutral", (placement) => {
+  it.each(placements.filter((placement) => placement !== "inset"))("preserves Editorial %s intent when split layouts stack", (placement) => {
     const block = storyBlock("editorial");
     block.composition.mediaPlacement = placement;
-    expect(narrativeResponsiveOrderClasses(resolve(block))).toEqual({ media: "", caption: "" });
+    expect(narrativeResponsiveOrderClasses(resolve(block))).toEqual(
+      placement === "splitStart"
+        ? { media: "order-[-2] md:order-0", caption: "-order-1 md:order-0" }
+        : { media: "", caption: "" },
+    );
   });
 
   it.each([
@@ -208,9 +216,9 @@ describe("Narrative Presentation responsive ordering characterization", () => {
     ["leading", { media: "order-[-2]", caption: "-order-1" }],
     ["below", { media: "", caption: "" }],
     ["trailing", { media: "", caption: "" }],
-    ["splitStart", { media: "order-[-2] sm:order-0", caption: "-order-1 sm:order-0" }],
-    ["splitEnd", { media: "order-[-2] sm:order-0", caption: "-order-1 sm:order-0" }],
-  ] as const)("locks Media First %s Media+Caption order and sm reset", (placement, expected) => {
+    ["splitStart", { media: "order-[-2] md:order-0", caption: "-order-1 md:order-0" }],
+    ["splitEnd", { media: "order-[-2] md:order-0", caption: "-order-1 md:order-0" }],
+  ] as const)("locks Media First %s Media+Caption order and canonical reset", (placement, expected) => {
     const block = storyBlock("mediaFirst");
     block.composition.mediaPlacement = placement;
     expect(narrativeResponsiveOrderClasses(resolve(block))).toEqual(expected);
@@ -222,32 +230,32 @@ describe("Classic Narrative Presentation renderer characterization", () => {
     const block = storyBlock();
     block.composition = {};
     const markup = renderClassic(block);
-    expect(markup).toContain("py-14 sm:py-20");
+    expect(markup).toContain("py-14 md:py-20");
     expect(markup).not.toContain("border-y");
   });
 
   it("locks Editorial baseline and fixed Split geometry even with Media-only content", () => {
     const editorial = storyBlock();
-    expect(renderClassic(editorial)).toContain("py-14 sm:py-20");
+    expect(renderClassic(editorial)).toContain("py-14 md:py-20");
     editorial.composition.mediaPlacement = "splitStart";
     for (const slot of ["eyebrow", "heading", "divider", "body", "quote", "caption", "cta"] as const) editorial.slots[slot].isHidden = true;
     const mediaOnly = renderClassic(editorial);
-    expect(mediaOnly).toContain("gap-x-10 sm:grid-cols-2");
-    expect(mediaOnly).toContain("sm:col-start-1 sm:row-start-1 sm:row-span-8");
+    expect(mediaOnly).toContain("gap-x-10 md:grid-cols-2");
+    expect(mediaOnly).toContain("md:col-start-1 md:row-start-1 md:row-span-8");
   });
 
   it("locks Media First spacing, consecutive rhythm, and ordering hooks", () => {
     const block = storyBlock("mediaFirst");
-    expect(renderClassic(block)).toContain("py-10 sm:py-14");
+    expect(renderClassic(block)).toContain("py-10 md:py-14");
     const consecutive = renderClassic(block, { effectiveIndex: 1, effectiveCount: 2, hasPredecessor: true, hasSuccessor: false, previousKind: "narrative", previousPresentation: "mediaFirst" });
-    expect(consecutive).toContain("pb-10 pt-6 sm:pb-14 sm:pt-8");
+    expect(consecutive).toContain("pb-10 pt-6 md:pb-14 md:pt-8");
     expect(consecutive).toContain("order-[-2]");
     expect(consecutive).toContain("-order-1");
   });
 
   it("locks Quote Led horizontal accent feature treatment", () => {
     const markup = renderClassic(storyBlock("quoteLed"));
-    for (const value of ["border-y", "border-[var(--cf-section-accent)]", "py-8", "text-3xl", "sm:text-4xl", "italic"]) expect(markup).toContain(value);
+    for (const value of ["border-y", "border-[var(--cf-section-accent)]", "py-8", "text-3xl", "md:text-4xl", "italic"]) expect(markup).toContain(value);
   });
 
   it("locks Text Only Media and Caption suppression", () => {
@@ -262,31 +270,31 @@ describe("Modern Narrative Presentation renderer characterization", () => {
     const block = storyBlock();
     block.composition = {};
     const markup = renderModern(block);
-    expect(markup).toContain("py-12 sm:py-16");
+    expect(markup).toContain("py-12 md:py-16");
     expect(markup).not.toContain("min-h-[28rem]");
     expect(markup).not.toContain("border-l-4");
   });
   it("locks Editorial baseline and fixed Split geometry with Caption in the text column", () => {
     const block = storyBlock();
-    expect(renderModern(block)).toContain("py-12 sm:py-16");
+    expect(renderModern(block)).toContain("py-12 md:py-16");
     block.composition.mediaPlacement = "splitStart";
     const split = renderModern(block);
-    expect(split).toContain("gap-x-12 sm:grid-cols-2");
-    expect(split).toContain("sm:col-start-1 sm:row-start-1 sm:row-span-8");
+    expect(split).toContain("gap-x-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]");
+    expect(split).toContain("md:col-start-1 md:row-start-1 md:row-span-8");
     expect(split).toMatch(/Caption lock[\s\S]*?<\/p>/);
-    expect(split.slice(split.lastIndexOf("<p", split.indexOf("Caption lock")), split.indexOf("Caption lock"))).toContain("sm:col-start-2");
+    expect(split.slice(split.lastIndexOf("<p", split.indexOf("Caption lock")), split.indexOf("Caption lock"))).toContain("md:col-start-2");
   });
 
   it("locks Media First consecutive rhythm and Modern minimum image height", () => {
     const block = storyBlock("mediaFirst");
     expect(renderModern(block)).toContain("min-h-[28rem]");
     const consecutive = renderModern(block, { effectiveIndex: 1, effectiveCount: 2, hasPredecessor: true, hasSuccessor: false, previousKind: "narrative", previousPresentation: "mediaFirst" });
-    expect(consecutive).toContain("pb-12 pt-5 sm:pb-16 sm:pt-7");
+    expect(consecutive).toContain("pb-12 pt-5 md:pb-16 md:pt-7");
   });
 
   it("locks Quote Led left-accent large semibold non-italic treatment", () => {
     const markup = renderModern(storyBlock("quoteLed"));
-    for (const value of ["border-l-4", "border-[var(--me-section-accent)]", "text-4xl", "sm:text-5xl", "font-semibold", "not-italic"]) expect(markup).toContain(value);
+    for (const value of ["border-l-4", "border-[var(--me-section-accent)]", "text-3xl", "md:text-5xl", "font-semibold", "not-italic"]) expect(markup).toContain(value);
   });
 
   it("locks Text Only Media and Caption suppression", () => {
@@ -300,7 +308,78 @@ describe("Modern Narrative Presentation renderer characterization", () => {
     block.composition.mediaPlacement = "splitEnd";
     for (const slot of ["eyebrow", "heading", "divider", "body", "quote", "caption", "cta"] as const) block.slots[slot].isHidden = true;
     const markup = renderModern(block);
-    expect(markup).toContain("gap-x-12 sm:grid-cols-2");
-    expect(markup).toContain("sm:col-start-2 sm:row-start-1 sm:row-span-8");
+    expect(markup).toContain("gap-x-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]");
+    expect(markup).toContain("md:col-start-2 md:row-start-1 md:row-span-8");
+  });
+});
+
+describe("Story responsive safety", () => {
+  it("preserves structureOrder and represents hidden items only in editor rendering", () => {
+    const visible = { ...storyBlock(), id: "visible" };
+    const hidden = { ...storyBlock(), id: "hidden", isHidden: true };
+    const content: StoryContent = {
+      eyebrow: "Eyebrow",
+      heading: "Heading",
+      intro: "Intro",
+      elements: [visible, hidden],
+      mediaFraming: {},
+      structureOrder: ["story:intro", "narrative:visible", "story:heading", "narrative:hidden", "story:eyebrow"],
+    };
+    const effective = resolveEffectiveStorySequence({ content, capability, isMediaRenderable: () => true });
+    expect(effective.map(({ reference }) => reference)).toEqual(["story:intro", "narrative:visible", "story:heading", "story:eyebrow"]);
+    expect(resolveStoryRenderItems(content, effective, "public").flatMap((item) => item.kind === "singletonRun" ? item.references : [`narrative:${item.block.id}`])).toEqual(["story:intro", "narrative:visible", "story:heading", "story:eyebrow"]);
+    expect(resolveStoryRenderItems(content, effective, "editor").flatMap((item) => item.kind === "singletonRun" ? item.references : [`narrative:${item.block.id}`])).toEqual(content.structureOrder);
+  });
+
+  it.each(["classic", "modern"] as const)("uses canonical Story split, padding, and order boundaries for %s", (template) => {
+    const block = storyBlock("editorial");
+    block.composition.mediaPlacement = "splitStart";
+    const markup = template === "classic" ? renderClassic(block) : renderModern(block);
+    expect(markup).toContain("px-7 md:px-12");
+    expect(markup).toContain("md:grid-cols-");
+    expect(markup).toContain("order-[-2] md:order-0");
+    expect(markup).not.toMatch(/\bsm:(?:grid|col|row|order|p[trblxy]?|gap)-/);
+  });
+
+  it.each(["classic", "modern"] as const)("keeps every %s media placement DOM-stable across semantic viewports", (template) => {
+    for (const placement of placements) {
+      const block = storyBlock("editorial");
+      block.composition.mediaPlacement = placement;
+      for (const viewport of ["mobile", "tablet", "desktop"] as const) {
+        const markup = template === "classic" ? renderClassic(block, undefined, viewport) : renderModern(block, undefined, viewport);
+        expect(markup.indexOf("Heading")).toBeLessThan(markup.indexOf("Media lock"));
+        expect(markup).toContain("min-w-0");
+        expect(markup).not.toContain("100vw");
+      }
+    }
+  });
+
+  it.each(["classic", "modern"] as const)("keeps %s full-bleed media bounded by its exactly paired Story inset", (template) => {
+    const block = storyBlock("editorial");
+    block.composition.mediaTreatment = "fullBleed";
+    const markup = template === "classic" ? renderClassic(block) : renderModern(block);
+    expect(markup).toContain("overflow-hidden px-7 md:px-12");
+    expect(markup).toContain("-mx-7 w-[calc(100%+3.5rem)] md:-mx-12 md:w-[calc(100%+6rem)]");
+    expect(markup).not.toContain("w-screen");
+    expect(markup).not.toContain("100vw");
+  });
+
+  it.each(["classic", "modern"] as const)("preserves %s Story focal point and zoom in editor and public geometry", (template) => {
+    const block = storyBlock();
+    const media = <ZoomedMediaImage src="/story.jpg" width={1200} height={900} className="block w-full object-cover" reference={{ focalPoint: { x: 0.2, y: 0.8 }, zoom: 1.4 }} />;
+    for (const mode of ["editor", "public"] as const) {
+      const markup = template === "classic" ? renderClassic(block, undefined, "mobile", mode, media) : renderModern(block, undefined, "mobile", mode, media);
+      expect(markup).toContain('data-media-focal-x="0.2"');
+      expect(markup).toContain('data-media-focal-y="0.8"');
+      expect(markup).toContain('data-media-zoom="1.4"');
+    }
+  });
+
+  it.each(["classic-filipiniana-v1", "modern-editorial-v1"] as const)("clips %s Story decorations to the Story surface", (templateKey) => {
+    for (const viewport of ["mobile", "tablet", "desktop"] as const) {
+      const markup = renderToStaticMarkup(<StoryDecorativeLayers templateKey={templateKey} viewport={viewport} appearance={{}} />);
+      expect(markup).toContain("absolute inset-0 overflow-hidden");
+      expect(markup).toContain("pointer-events-none");
+    }
   });
 });

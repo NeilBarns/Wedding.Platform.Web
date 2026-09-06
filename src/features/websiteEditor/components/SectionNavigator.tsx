@@ -42,7 +42,7 @@ import type { StoryStructureReference } from "../types";
 import { narrativeIdFromStoryReference, narrativeStoryReference, storyFieldFromReference } from "../storyStructure";
 import { StoryBlockList } from "./StoryBlockList";
 import { SectionChildList } from "./SectionChildList";
-import { SECTION_SPECIALIZED_REFERENCE, createDividerElement, createGroupElement, createRichTextElement, createTextElement, deleteSectionElement, duplicateSectionElement, insertSectionElement, type SectionChildFlow, type SectionChildReference } from "../sectionChildFlow";
+import { SECTION_SPECIALIZED_REFERENCE, createDividerElement, createGroupElement, createMediaElement, createRichTextElement, createTextElement, deleteSectionElement, duplicateSectionElement, insertSectionElement, type SectionChildFlow, type SectionChildReference } from "../sectionChildFlow";
 import {
   StructureActionMenu,
   StructureMenuAction,
@@ -262,7 +262,7 @@ function SortableSection(
             }}
           />
         )}
-        {supportsGenericChildren && <ElementAddControl triggerLabel={`Add to ${section.displayName}`} disabled={resolvedChildFlow.elements.length >= 20} onOpen={() => { if (props.selectedId !== section.id) props.onSelect(section.id); }} items={[{ label: "Text", onAdd: () => addGeneric(createTextElement()) }, { label: "Rich Text", onAdd: () => addGeneric(createRichTextElement()) }, { label: "Divider", onAdd: () => addGeneric(createDividerElement()) }, { label: "Group", onAdd: () => addGeneric(createGroupElement()) }]} />}
+        {supportsGenericChildren && <ElementAddControl triggerLabel={`Add to ${section.displayName}`} disabled={resolvedChildFlow.elements.length >= 20} onOpen={() => { if (props.selectedId !== section.id) props.onSelect(section.id); }} items={[{ label: "Text", onAdd: () => addGeneric(createTextElement()) }, { label: "Rich Text", onAdd: () => addGeneric(createRichTextElement()) }, { label: "Divider", onAdd: () => addGeneric(createDividerElement()) }, { label: "Media", onAdd: () => addGeneric(createMediaElement()) }, { label: "Group", onAdd: () => addGeneric(createGroupElement()) }]} />}
         {(isStory || supportsGenericChildren) && (
           <IconButton
             size="sm"
@@ -348,7 +348,7 @@ function SortableSection(
     </div>
   );
 
-  function addGeneric(element: ReturnType<typeof createTextElement> | ReturnType<typeof createRichTextElement> | ReturnType<typeof createDividerElement> | ReturnType<typeof createGroupElement>) {
+  function addGeneric(element: ReturnType<typeof createTextElement> | ReturnType<typeof createRichTextElement> | ReturnType<typeof createDividerElement> | ReturnType<typeof createMediaElement> | ReturnType<typeof createGroupElement>) {
     const after = props.selectedChild?.sectionId === section.id ? props.selectedChild.reference : SECTION_SPECIALIZED_REFERENCE;
     const flow = insertSectionElement(childFlow, element, after);
     props.onExpandedChange(true);

@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import type { SectionMedia } from '../websiteEditor/types'
 
 type Size = { width: number; height: number }
 
-export function ZoomedMediaImage({ className = '', fill = false, height, reference, src, width }: { className?: string; fill?: boolean; height: number; reference: NonNullable<SectionMedia>; src: string; width: number }) {
+export function ZoomedMediaImage({ alt = '', className = '', fill = false, height, reference, src, width }: { alt?: string; className?: string; fill?: boolean; height: number; reference: { focalPoint?: { x: number; y: number }; zoom?: number }; src: string; width: number }) {
   const containerRef = useRef<HTMLSpanElement>(null)
   const [container, setContainer] = useState<Size>({ width: 0, height: 0 })
   const point = reference.focalPoint ?? { x: 0.5, y: 0.5 }
@@ -25,13 +24,13 @@ export function ZoomedMediaImage({ className = '', fill = false, height, referen
   const left = Math.max(container.width - renderedWidth, Math.min(0, container.width / 2 - point.x * renderedWidth))
   const top = Math.max(container.height - renderedHeight, Math.min(0, container.height / 2 - point.y * renderedHeight))
 
-  return <span ref={containerRef} className={`${fill ? 'absolute inset-0' : 'relative'} block overflow-hidden ${className}`}>
+  return <span ref={containerRef} data-media-focal-x={point.x} data-media-focal-y={point.y} data-media-zoom={zoom} className={`${fill ? 'absolute inset-0' : 'relative'} block overflow-hidden ${className}`}>
     <img className="invisible block h-full w-full object-cover" src={src} alt="" aria-hidden="true" />
     <img
       className={baseScale ? 'absolute max-w-none' : 'absolute inset-0 h-full w-full object-cover object-center'}
       style={baseScale ? { height: renderedHeight, left, top, width: renderedWidth } : undefined}
       src={src}
-      alt=""
+      alt={alt}
     />
   </span>
 }

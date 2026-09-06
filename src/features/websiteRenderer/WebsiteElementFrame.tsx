@@ -24,6 +24,7 @@ export function WebsiteElementFrame({
     return (
       <div
         className={stretchesWidth ? "w-full" : undefined}
+        data-section-generic-child
         data-section-child-element={elementId}
       >
         {children}
@@ -37,6 +38,8 @@ export function WebsiteElementFrame({
         ? "Text"
         : elementType === "divider"
           ? "Divider"
+        : elementType === "media"
+          ? "Media"
         : elementType === "compositionGroup"
           ? "Group"
           : elementType;
@@ -44,6 +47,7 @@ export function WebsiteElementFrame({
   return (
     <div
       className={`editor-selection-target relative rounded-sm${stretchesWidth ? " w-full" : ""}`}
+      data-section-generic-child
       data-section-child-element={elementId}
       data-editor-website-element={elementId}
       data-editor-selected={selected ? "true" : undefined}

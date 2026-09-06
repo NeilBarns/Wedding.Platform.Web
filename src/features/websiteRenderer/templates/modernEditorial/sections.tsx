@@ -58,17 +58,21 @@ export function ModernEditorialHero({
   eventName,
   date,
   content,
+  viewport = "desktop",
   compact = false,
 }: {
   sectionId: string;
   eventName: string;
   date: string | null;
   content: HeroContent;
+  viewport?: ResponsiveViewport;
   compact?: boolean;
 }) {
+  const headingOffset = viewport === "mobile" ? "0rem" : viewport === "tablet" ? "calc(var(--me-offset) / 2)" : "var(--me-offset)";
   return (
     <div
       data-section-content
+      data-section-specialized-content
       data-hero-foreground-inset
       className={`relative overflow-hidden ${compact ? "min-h-0 px-5 py-10 sm:px-8 sm:py-12" : "min-h-[38rem] px-7 py-20 sm:px-14 sm:py-28"}`}
       style={{ boxShadow: "var(--me-frame)" }}
@@ -81,7 +85,8 @@ export function ModernEditorialHero({
       </div>
       <h1
         data-section-heading
-        className={`max-w-4xl translate-x-[var(--me-offset)] font-[family-name:var(--me-heading-font)] ${compact ? "text-[clamp(3.5rem,9vw,6.5rem)]" : "text-[clamp(4rem,12vw,8.5rem)]"} leading-[0.82] tracking-[-0.055em] text-[var(--me-text)]`}
+        className={`max-w-full xl:max-w-4xl font-[family-name:var(--me-heading-font)] ${compact ? "text-[clamp(3.5rem,9vw,6.5rem)]" : "text-[clamp(4rem,12vw,8.5rem)]"} leading-[0.82] tracking-[-0.055em] text-[var(--me-text)]`}
+        style={{ transform: `translateX(${headingOffset})` }}
       >
         <EditableText
           sectionId={sectionId}
@@ -135,11 +140,12 @@ export function ModernEditorialDate({
         />
       }
       renderFlow={renderFlow}
+      specializedClassName="px-5 py-12 [&_[data-section-body]]:mt-8 md:px-8 md:py-16 md:[&_[data-section-body]]:mt-10 xl:px-14 xl:py-20 xl:[&_[data-section-body]]:mt-12"
     >
-      <p className="font-[family-name:var(--me-heading-font)] text-4xl sm:text-6xl">
+      <p className="max-w-3xl break-words font-[family-name:var(--me-heading-font)] text-4xl leading-tight md:text-6xl">
         {date ?? "Date to be announced"}
       </p>
-      <p className="mt-6 max-w-xl whitespace-pre-line">
+      <p className="mt-5 max-w-xl break-words whitespace-pre-line md:mt-6">
         <EditableText
           sectionId={sectionId}
           path={["description"]}
@@ -175,15 +181,15 @@ export function ModernEditorialStoryHeader({
   if (renderedFields.length === 0) return null;
   return (
     <SectionContentInset className="" style={{ boxShadow: "var(--me-frame)" }}>
-      <div className={showNumber ? "grid gap-9 sm:grid-cols-[5rem_1fr]" : "block"}>
+      <div data-section-specialized-content className={showNumber ? "grid gap-9 md:grid-cols-[5rem_1fr]" : "block"}>
         {showNumber && <p className="text-[10px] font-bold tracking-[0.25em]" aria-hidden="true">03 / 10</p>}
         <div>
           {renderedFields.map((field, index) => field === "eyebrow" ? (
             <p style={storyStyle(field)} key={field} data-editor-story-field={field} className={`${index ? "mt-4" : ""} relative rounded-sm text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--me-section-accent)]`}><EditableText sectionId={sectionId} path={["eyebrow"]} value={content.eyebrow ?? ""} placeholder="Add eyebrow" label="Story eyebrow" className={storyTextAlignmentClass(field)} /><EditorSelectionFrame selected={mode === "editor" && selectedField === field} /></p>
           ) : field === "heading" ? (
-            <h2 style={storyStyle(field)} key={field} data-editor-story-field={field} data-section-heading={content.singletonAppearance?.heading?.alignment ? undefined : ""} className={`${index ? "mt-4" : ""} relative max-w-3xl rounded-sm font-[family-name:var(--me-heading-font)] text-4xl leading-none tracking-[-0.035em] sm:text-6xl`}><EditableText sectionId={sectionId} path={["heading"]} value={content.heading} placeholder="Add heading" label="Story heading" className={storyTextAlignmentClass(field)} /><EditorSelectionFrame selected={mode === "editor" && selectedField === field} /></h2>
+            <h2 style={storyStyle(field)} key={field} data-editor-story-field={field} data-section-heading={content.singletonAppearance?.heading?.alignment ? undefined : ""} className={`${index ? "mt-4" : ""} relative max-w-3xl break-words rounded-sm font-[family-name:var(--me-heading-font)] text-4xl leading-none tracking-[-0.035em] md:text-6xl`}><EditableText sectionId={sectionId} path={["heading"]} value={content.heading} placeholder="Add heading" label="Story heading" className={storyTextAlignmentClass(field)} /><EditorSelectionFrame selected={mode === "editor" && selectedField === field} /></h2>
           ) : (
-            <p style={storyStyle(field)} key={field} data-editor-story-field={field} data-section-body={content.singletonAppearance?.intro?.alignment ? undefined : ""} className={`${index ? "mt-12" : ""} relative max-w-2xl rounded-sm whitespace-pre-line font-[family-name:var(--me-body-font)] text-xl leading-9 text-[var(--me-section-body)]`}><EditableText sectionId={sectionId} path={["intro"]} value={content.intro ?? ""} placeholder="Add introduction" label="Story introduction" multiline className={storyTextAlignmentClass(field)} /><EditorSelectionFrame selected={mode === "editor" && selectedField === field} /></p>
+            <p style={storyStyle(field)} key={field} data-editor-story-field={field} data-section-body={content.singletonAppearance?.intro?.alignment ? undefined : ""} className={`${index ? "mt-8 md:mt-12" : ""} relative max-w-2xl break-words rounded-sm whitespace-pre-line font-[family-name:var(--me-body-font)] text-lg leading-8 text-[var(--me-section-body)] md:text-xl md:leading-9`}><EditableText sectionId={sectionId} path={["intro"]} value={content.intro ?? ""} placeholder="Add introduction" label="Story introduction" multiline className={storyTextAlignmentClass(field)} /><EditorSelectionFrame selected={mode === "editor" && selectedField === field} /></p>
           ))}
         </div>
       </div>
@@ -252,8 +258,8 @@ export function ModernEditorialStoryBlock({
   );
   const textColumn =
     composition.effective.mediaPlacement === "splitStart"
-      ? "sm:col-start-2"
-      : "sm:col-start-1";
+      ? "md:col-start-2"
+      : "md:col-start-1";
   const rendered = composition.rendering.slots;
   const hasTextGroup =
     rendered.eyebrow || rendered.heading || rendered.divider || rendered.body || rendered.quote;
@@ -270,15 +276,16 @@ export function ModernEditorialStoryBlock({
     && composition.effective.legacyPresentation === "mediaFirst";
   const rootRhythm = hasAdjacentPredecessor
     ? consecutiveMediaFirst
-      ? "pb-12 pt-5 sm:pb-16 sm:pt-7"
-      : "pb-12 pt-7 sm:pb-16 sm:pt-9"
-    : "py-12 sm:py-16";
+      ? "pb-12 pt-5 md:pb-16 md:pt-7"
+      : "pb-12 pt-7 md:pb-16 md:pt-9"
+    : "py-12 md:py-16";
   return (
     <div
       data-section-content
+      data-section-specialized-content
       data-narrative-presentation={composition.effective.legacyPresentation}
       style={backgroundColor ? { backgroundColor } : undefined}
-      className={`relative isolate grid overflow-hidden px-7 sm:px-12 [&>:not([data-background-decoration])]:relative [&>:not([data-background-decoration])]:z-10 ${rootRhythm} ${hasAdjacentPredecessor ? "border-t border-[var(--me-border)]" : ""} ${split ? "gap-x-12 sm:grid-cols-2 sm:items-center" : "grid-cols-1"} ${alignment.text} ${surface}`}
+      className={`relative isolate grid min-w-0 overflow-hidden px-7 md:px-12 [&>:not([data-background-decoration])]:relative [&>:not([data-background-decoration])]:z-10 ${rootRhythm} ${hasAdjacentPredecessor ? "border-t border-[var(--me-border)]" : ""} ${split ? "gap-x-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-center xl:gap-x-12" : "grid-cols-1"} ${alignment.text} ${surface}`}
     >
       <DecorativeBackgroundLayers templateKey="modern-editorial-v1" appearance={block.appearance?.decorativeAppearance?.background} viewport={viewport} />
       {!hasVisibleSlot && mode === "editor" ? (
@@ -304,7 +311,7 @@ export function ModernEditorialStoryBlock({
       )}
       {rendered.heading && (
         <h3 {...slotTarget("heading")}
-          className={`${rendered.eyebrow ? "mt-4" : ""} max-w-3xl font-[family-name:var(--me-heading-font)] text-4xl font-semibold leading-tight sm:text-5xl ${textColumn} ${alignment.constrainedGroup}`}
+          className={`${rendered.eyebrow ? "mt-4" : ""} max-w-3xl break-words font-[family-name:var(--me-heading-font)] text-4xl font-semibold leading-tight md:text-5xl ${textColumn} ${alignment.constrainedGroup}`}
         >
           <ModernEditorialStoryBlockHeading
             sectionId={sectionId}
@@ -335,7 +342,7 @@ export function ModernEditorialStoryBlock({
         <blockquote
           {...slotTarget("quote")}
           style={style("quote")}
-          className={`${composition.effective.legacyPresentation === "quoteLed" ? `${beforeQuote ? "mt-10" : ""} border-l-4 border-[var(--me-section-accent)] pl-6 text-4xl font-semibold not-italic sm:text-5xl` : `${beforeQuote && !rendered.divider ? "mt-8" : ""} text-2xl italic`} max-w-2xl font-[family-name:var(--me-heading-font)] ${textColumn} ${alignment.constrainedGroup}`}
+          className={`${composition.effective.legacyPresentation === "quoteLed" ? `${beforeQuote ? "mt-10" : ""} border-l-4 border-[var(--me-section-accent)] pl-5 text-3xl font-semibold not-italic md:pl-6 md:text-5xl` : `${beforeQuote && !rendered.divider ? "mt-8" : ""} text-2xl italic`} max-w-2xl break-words font-[family-name:var(--me-heading-font)] ${textColumn} ${alignment.constrainedGroup}`}
         >
           <EditableText
             sectionId={sectionId}
@@ -412,11 +419,11 @@ function modernNarrativeMediaClass(
   const collapsedMediaFirstSplit =
     compact && split && composition.effective.legacyPresentation === "mediaFirst";
   const column =
-    placement === "splitStart" ? "sm:col-start-1" : "sm:col-start-2";
+    placement === "splitStart" ? "md:col-start-1" : "md:col-start-2";
   const position = collapsedMediaFirstSplit
     ? ""
     : split && !compact
-      ? `${column} sm:row-start-1 sm:row-span-8`
+      ? `${column} md:row-start-1 md:row-span-8`
       : placement === "above" || placement === "leading"
         ? `${composition.effective.legacyPresentation === "mediaFirst" ? "" : "-order-1"} ${hasTextGroup ? "mb-10" : ""}`
         : placement === "inset"
@@ -428,13 +435,13 @@ function modernNarrativeMediaClass(
     treatment === "cinematic"
       ? "[&_img]:aspect-[2/1] [&_img]:object-cover"
       : treatment === "wide"
-        ? "w-full sm:scale-[1.08]"
+        ? "w-full md:scale-[1.08]"
         : treatment === "fullBleed"
-          ? "-mx-7 w-[calc(100%+3.5rem)] sm:-mx-12 sm:w-[calc(100%+6rem)]"
+          ? "-mx-7 w-[calc(100%+3.5rem)] md:-mx-12 md:w-[calc(100%+6rem)]"
           : "";
   const dominance =
     composition.effective.legacyPresentation === "mediaFirst"
-      ? "sm:[&_img]:min-h-[28rem]"
+      ? "xl:[&_img]:min-h-[28rem]"
       : "";
   return `min-w-0 ${position} ${treatmentClass} ${dominance}`;
 }
@@ -524,7 +531,7 @@ export function ModernEditorialStoryBlockBody({
   return !slot.isHidden ? (
     <p
       style={effectiveStyle}
-      className={`max-w-2xl whitespace-pre-line text-base leading-8 text-[var(--me-section-body)] ${alignment.text} ${alignment.constrainedGroup}`}
+      className={`max-w-2xl break-words whitespace-pre-line text-base leading-8 text-[var(--me-section-body)] ${alignment.text} ${alignment.constrainedGroup}`}
     >
       <EditableText
         sectionId={sectionId}
@@ -559,15 +566,16 @@ export function ModernEditorialSchedule({
           label="Schedule heading"
         />
       }
+      specializedClassName="px-5 py-12 md:px-8 md:py-16 xl:px-14 xl:py-20"
     >
       {content.items.length ? (
-        <ol>
+        <ol className="w-full max-w-5xl">
           {content.items.map((item, index) => (
             <li
-              className="grid grid-cols-[5rem_1fr] gap-5 border-t border-[var(--me-border)] py-6 sm:grid-cols-[8rem_1fr]"
+              className="grid min-w-0 grid-cols-[minmax(0,4.5rem)_minmax(0,1fr)] gap-3 border-t border-[var(--me-border)] py-4 md:grid-cols-[minmax(0,6rem)_minmax(0,1fr)] md:gap-5 md:py-5 xl:grid-cols-[minmax(0,8rem)_minmax(0,1fr)] xl:py-6"
               key={index}
             >
-              <span className="text-xs font-bold uppercase tracking-widest text-[var(--me-section-accent)]">
+              <span className="min-w-0 break-words [overflow-wrap:anywhere] !text-left text-xs font-bold uppercase tracking-widest text-[var(--me-section-accent)]">
                 <EditableText
                   sectionId={sectionId}
                   path={["items", index, "time"]}
@@ -577,8 +585,8 @@ export function ModernEditorialSchedule({
                   label={`Schedule item ${index + 1} time`}
                 />
               </span>
-              <div>
-                <h3 className="font-[family-name:var(--me-heading-font)] text-2xl">
+              <div className="min-w-0 !text-left">
+                <h3 className="break-words [overflow-wrap:anywhere] font-[family-name:var(--me-heading-font)] text-xl leading-tight md:text-2xl">
                   <EditableText
                     sectionId={sectionId}
                     path={["items", index, "title"]}
@@ -588,7 +596,7 @@ export function ModernEditorialSchedule({
                     label={`Schedule item ${index + 1} title`}
                   />
                 </h3>
-                <p className="mt-2 whitespace-pre-line">
+                <p className="mt-2 break-words [overflow-wrap:anywhere] whitespace-pre-line">
                   <EditableText
                     sectionId={sectionId}
                     path={["items", index, "description"]}
@@ -628,10 +636,11 @@ export function ModernEditorialVenue({
           label="Venue heading"
         />
       }
+      specializedClassName="px-5 py-12 [&_[data-section-body]]:mt-8 md:px-8 md:py-16 md:[&_[data-section-body]]:mt-10 xl:px-14 xl:py-20 xl:[&_[data-section-body]]:mt-12"
     >
-      <div className="space-y-7">
-        <div>
-          <p className="font-[family-name:var(--me-heading-font)] text-3xl">
+      <div className="min-w-0 space-y-5 md:space-y-7">
+        <div className="min-w-0">
+          <p className="w-full max-w-3xl break-words [overflow-wrap:anywhere] font-[family-name:var(--me-heading-font)] text-2xl leading-tight md:text-3xl">
             <EditableText
               sectionId={sectionId}
               path={["name"]}
@@ -641,7 +650,7 @@ export function ModernEditorialVenue({
               label="Venue name"
             />
           </p>
-          <p className="mt-3 whitespace-pre-line text-xs font-semibold uppercase tracking-widest">
+          <p className="mt-2 w-full max-w-3xl break-words [overflow-wrap:anywhere] whitespace-pre-line text-xs font-semibold uppercase tracking-widest md:mt-3">
             <EditableText
               sectionId={sectionId}
               path={["address"]}
@@ -652,7 +661,7 @@ export function ModernEditorialVenue({
             />
           </p>
         </div>
-        <p className="max-w-xl whitespace-pre-line">
+        <p className="w-full max-w-xl break-words [overflow-wrap:anywhere] whitespace-pre-line">
           <EditableText
             sectionId={sectionId}
             path={["description"]}
@@ -689,8 +698,9 @@ export function ModernEditorialDressCode({
         />
       }
       renderFlow={renderFlow}
+      specializedClassName="px-5 py-12 [&_[data-section-body]]:mt-8 md:px-8 md:py-16 md:[&_[data-section-body]]:mt-10 xl:px-14 xl:py-20 xl:[&_[data-section-body]]:mt-12"
     >
-      <p className="max-w-2xl whitespace-pre-line text-xl leading-9">
+      <p className="w-full max-w-2xl break-words whitespace-pre-line text-lg leading-8 md:text-xl md:leading-9">
         <EditableText
           sectionId={sectionId}
           path={["description"]}
@@ -725,7 +735,7 @@ export function ModernEditorialPeople({
     presentation === "squareGrid"
       ? "mb-4 aspect-square w-full"
       : presentation === "minimal"
-        ? "mb-3 aspect-square w-16 rounded-full"
+        ? "mb-3 aspect-square w-20 rounded-full md:w-16"
         : "mb-4 aspect-[4/5] w-full";
   return (
     <EditorialSection
@@ -740,19 +750,22 @@ export function ModernEditorialPeople({
           label="Wedding Party heading"
         />
       }
+      specializedClassName="px-5 py-12 [&_[data-section-body]]:mt-8 md:px-8 md:py-16 md:[&_[data-section-body]]:mt-10 xl:px-14 xl:py-20 xl:[&_[data-section-body]]:mt-12"
     >
       {groups.length > 0 ? (
-        <div className="grid gap-x-12 gap-y-10 md:grid-cols-2">
+        <div data-people-groups className={`grid w-full gap-7 md:gap-8 xl:gap-x-12 xl:gap-y-10 ${groups.length === 1 ? "max-w-3xl" : "md:grid-cols-2"}`}>
           {groups.map((group, index) => (
             <section
-              className={`${index % 2 ? "md:translate-y-8" : ""} border-t-2 border-[var(--me-theme-text)] pt-4`}
+              data-people-group
+              className={`${index % 2 ? "xl:translate-y-8" : ""} ${groups.length > 1 && groups.length % 2 === 1 && index === groups.length - 1 ? "md:col-span-2 md:mx-auto md:w-full md:max-w-2xl xl:max-w-xl" : ""} min-w-0 border-t-2 border-[var(--me-theme-text)] pt-4`}
               key={group.id}
             >
-              <h3 className="text-xs font-bold uppercase tracking-[0.22em] text-[var(--me-text)]">
+              <h3 className="break-words [overflow-wrap:anywhere] text-xs font-bold uppercase tracking-[0.22em] text-[var(--me-text)]">
                 {group.name}
               </h3>
               <ul
-                className={`mt-6 ${imagesVisible && group.people.some((person) => person.media && media[person.media.assetId]) ? (presentation === "minimal" ? "space-y-5" : "grid grid-cols-2 gap-5") : "space-y-4"}`}
+                data-people-list
+                className={`mt-5 md:mt-6 ${imagesVisible && group.people.some((person) => person.media && media[person.media.assetId]) ? (presentation === "minimal" ? "space-y-5" : `grid min-w-0 grid-cols-1 gap-5 ${groups.length === 1 ? "md:grid-cols-2" : "xl:grid-cols-2"}`) : "space-y-4"}`}
               >
                 {group.people.map((person) => {
                   const asset =
@@ -761,10 +774,11 @@ export function ModernEditorialPeople({
                       : undefined;
                   return (
                     <li
+                      data-person-card
                       className={
                         presentation === "minimal" && asset
-                          ? "grid grid-cols-[4rem_1fr] items-center gap-4"
-                          : ""
+                          ? "grid min-w-0 grid-cols-1 items-center gap-3 md:grid-cols-[4rem_minmax(0,1fr)] md:gap-4"
+                          : "min-w-0"
                       }
                       key={person.id}
                     >
@@ -777,12 +791,12 @@ export function ModernEditorialPeople({
                           width={asset.web.width}
                         />
                       )}
-                      <span>
-                        <span className="block font-[family-name:var(--me-heading-font)] text-2xl text-[var(--me-text)]">
+                      <span className="min-w-0">
+                        <span className="block break-words [overflow-wrap:anywhere] font-[family-name:var(--me-heading-font)] text-xl leading-tight text-[var(--me-text)] md:text-2xl">
                           {person.name}
                         </span>
                         {person.role && (
-                          <span className="mt-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--me-section-accent)]">
+                          <span className="mt-1 block break-words [overflow-wrap:anywhere] text-[10px] font-bold uppercase tracking-widest text-[var(--me-section-accent)]">
                             {person.role}
                           </span>
                         )}
@@ -856,7 +870,7 @@ export function ModernEditorialFaq({
         <div>
           {content.items.map((item, index) => (
             <div
-              className="grid gap-3 border-t border-[var(--me-border)] py-6 sm:grid-cols-[1fr_1.5fr]"
+              className="grid gap-3 border-t border-[var(--me-border)] py-6 md:grid-cols-[1fr_1.5fr]"
               key={index}
             >
               <h3 className="font-[family-name:var(--me-heading-font)] text-xl">
@@ -947,6 +961,7 @@ function EditorialSection({
   headingParticipates = true,
   bodyParticipates = true,
   renderFlow,
+  specializedClassName = "",
 }: {
   number: string | null;
   eyebrow?: React.ReactNode;
@@ -957,6 +972,7 @@ function EditorialSection({
   headingParticipates?: boolean;
   bodyParticipates?: boolean;
   renderFlow?: (specialized: React.ReactNode) => React.ReactNode;
+  specializedClassName?: string;
 }) {
   const hasEyebrow = eyebrowParticipates ?? Boolean(eyebrow);
   return (
@@ -964,13 +980,13 @@ function EditorialSection({
       className=""
       style={{ boxShadow: "var(--me-frame)" }}
     >
-      {(() => { const specialized = <div
+      {(() => { const specialized = <div data-section-specialized-content
         className={
-          !number
+          `mx-auto w-full max-w-5xl ${specializedClassName} ${!number
             ? "block"
             : tabletEditorial
             ? "grid grid-cols-[3rem_minmax(0,1fr)] gap-5"
-            : "grid gap-9 sm:grid-cols-[5rem_1fr]"
+            : "grid gap-9 md:grid-cols-[5rem_1fr]"}`
         }
       >
         {number && <p className="text-[10px] font-bold tracking-[0.25em]" aria-hidden="true">{number} / 10</p>}

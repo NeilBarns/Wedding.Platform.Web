@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createSemanticId } from "./createSemanticId";
 import { websiteElementTreeSchema } from "../websiteElements/schemas";
-import type { CompositionGroup, DividerElement, RichTextElement, TextElement, WebsiteElement } from "../websiteElements/types";
+import type { CompositionGroup, DividerElement, MediaElement, RichTextElement, TextElement, WebsiteElement } from "../websiteElements/types";
 import { canonicalizeRichTextDocument } from "../websiteElements/richText";
 
 export const SECTION_SPECIALIZED_REFERENCE = { kind: "specialized", key: "content" } as const;
@@ -37,7 +37,7 @@ export const sectionChildFlowSchema = z.object({
 
 export const textSectionChildFlowSchema = sectionChildFlowSchema.superRefine((flow, context) => {
   flow.elements.forEach((element, index) => {
-    if (element.type !== "text" && element.type !== "richText" && element.type !== "divider" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
+    if (element.type !== "text" && element.type !== "richText" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
   });
 });
 
@@ -60,8 +60,12 @@ export function createDividerElement(): DividerElement {
   return { id: createSemanticId("divider"), type: "divider" };
 }
 
+export function createMediaElement(mediaId?: string): MediaElement {
+  return { id: createSemanticId("media"), type: "media", items: mediaId ? [{ id: createSemanticId("media-item"), type: "image", mediaId, alt: "Image" }] : [] };
+}
+
 export function createGroupElement(): CompositionGroup {
-  return { id: createSemanticId("group"), type: "compositionGroup", children: [], layout: { direction: "vertical", gap: "none", alignment: "stretch", width: "full" } };
+  return { id: createSemanticId("group"), type: "compositionGroup", children: [] };
 }
 
 export function insertSectionElement(flow: SectionChildFlow | undefined, element: WebsiteElement, after?: SectionChildReference): SectionChildFlow {
@@ -74,6 +78,15 @@ export function insertSectionElement(flow: SectionChildFlow | undefined, element
 
 export function updateSectionElement(flow: SectionChildFlow, element: WebsiteElement): SectionChildFlow {
   return { ...flow, elements: flow.elements.map((current) => updateElementTree(current, element)) };
+}
+
+export function setSectionElementHidden(flow: SectionChildFlow, elementId: string, hidden: boolean): SectionChildFlow {
+  const current = findSectionElement(flow, elementId);
+  if (!current) return flow;
+  const next = { ...current };
+  if (hidden) next.isHidden = true;
+  else delete next.isHidden;
+  return updateSectionElement(flow, next);
 }
 
 export function canonicalizeSectionChildFlowRichText(flow: SectionChildFlow): SectionChildFlow {
@@ -99,6 +112,15 @@ export function findSectionElement(flow: SectionChildFlow | undefined, id: strin
 export function updateSectionTextElement(flow: SectionChildFlow, elementId: string, text: string): SectionChildFlow | null {
   const element = findSectionElement(flow, elementId);
   return element?.type === "text" ? updateSectionElement(flow, { ...element, text }) : null;
+}
+
+export function updateSectionRichTextAppearance(flow: SectionChildFlow, elementId: string, appearance: RichTextElement["appearance"]): SectionChildFlow | null {
+  const current = findSectionElement(flow, elementId);
+  if (current?.type !== "richText") return null;
+  const next = { ...current };
+  if (appearance === undefined) delete next.appearance;
+  else next.appearance = appearance;
+  return updateSectionElement(flow, next);
 }
 
 export function addGroupChild(flow: SectionChildFlow, groupId: string, child: WebsiteElement): SectionChildFlow {
@@ -160,7 +182,7 @@ function sameReference(first: SectionChildReference, second: SectionChildReferen
 
 function regenerateElementIds(element: WebsiteElement): WebsiteElement {
   element.id = createSemanticId(element.type === "compositionGroup" ? "group" : element.type);
-  if (element.type === "mediaCollection") element.items.forEach((item) => { item.id = createSemanticId("media-item"); });
+  if (element.type === "mediaCollection" || element.type === "media") element.items.forEach((item) => { item.id = createSemanticId("media-item"); });
   if (element.type === "compositionGroup") element.children.forEach((child) => regenerateElementIds(child));
   return element;
 }

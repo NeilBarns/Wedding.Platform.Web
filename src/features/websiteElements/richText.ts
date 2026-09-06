@@ -55,20 +55,21 @@ function runsToHtml(runs: RichTextRun[]) {
 export function richTextDocumentFromElement(root: HTMLElement): RichTextDocument {
   const children: RichTextDocument["children"] = [];
   const appendNodes = (nodes: NodeListOf<ChildNode> | ChildNode[]) => Array.from(nodes).forEach((node) => {
-    if (node.nodeType === Node.TEXT_NODE) {
+    if (node.nodeType === 3) {
       const text = node.textContent ?? "";
       if (text) children.push({ type: "paragraph", children: [{ text }] });
       return;
     }
-    if (!(node instanceof HTMLElement)) return;
-    const tag = node.tagName.toLowerCase();
+    if (node.nodeType !== 1) return;
+    const element = node as HTMLElement;
+    const tag = element.tagName.toLowerCase();
     if (tag === "ul" || tag === "ol") {
-      const items = Array.from(node.children).filter((item) => item.tagName.toLowerCase() === "li").map((item) => extractRuns(item));
+      const items = Array.from(element.children).filter((item) => item.tagName.toLowerCase() === "li").map((item) => extractRuns(item));
       if (items.length) children.push({ type: tag === "ul" ? "bulletList" : "orderedList", items });
-    } else if (tag === "div" && Array.from(node.children).some((child) => ["div", "p", "ul", "ol"].includes(child.tagName.toLowerCase()))) {
-      appendNodes(node.childNodes);
+    } else if (tag === "div" && Array.from(element.children).some((child) => ["div", "p", "ul", "ol"].includes(child.tagName.toLowerCase()))) {
+      appendNodes(element.childNodes);
     } else {
-      children.push({ type: "paragraph", children: extractRuns(node) });
+      children.push({ type: "paragraph", children: extractRuns(element) });
     }
   });
   appendNodes(root.childNodes);
@@ -78,7 +79,7 @@ export function richTextDocumentFromElement(root: HTMLElement): RichTextDocument
 function extractRuns(root: Element): RichTextRun[] {
   const runs: RichTextRun[] = [];
   const visit = (node: Node, marks: NonNullable<RichTextRun["marks"]>) => {
-    if (node.nodeType === Node.TEXT_NODE) {
+    if (node.nodeType === 3) {
       const text = node.textContent ?? "";
       if (!text) return;
       const compactMarks = Object.fromEntries(Object.entries(marks).filter(([, value]) => value)) as NonNullable<RichTextRun["marks"]>;
@@ -87,19 +88,20 @@ function extractRuns(root: Element): RichTextRun[] {
       else runs.push({ text, ...(Object.keys(compactMarks).length ? { marks: compactMarks } : {}) });
       return;
     }
-    if (!(node instanceof HTMLElement)) return;
-    if (node.tagName === "BR") { runs.push({ text: "\n", ...(Object.keys(marks).length ? { marks } : {}) }); return; }
-    const tag = node.tagName.toLowerCase();
+    if (node.nodeType !== 1) return;
+    const element = node as HTMLElement;
+    if (element.tagName === "BR") { runs.push({ text: "\n", ...(Object.keys(marks).length ? { marks } : {}) }); return; }
+    const tag = element.tagName.toLowerCase();
     const next = { ...marks };
     if (tag === "b" || tag === "strong") next.bold = true;
     if (tag === "i" || tag === "em") next.italic = true;
     if (tag === "u") next.underline = true;
     if (tag === "s" || tag === "strike" || tag === "del") next.strikethrough = true;
     if (tag === "a") {
-      const href = node.getAttribute("href");
+      const href = element.getAttribute("href");
       if (href && safeLink(href)) next.link = href;
     }
-    node.childNodes.forEach((child) => visit(child, next));
+    element.childNodes.forEach((child) => visit(child, next));
   };
   root.childNodes.forEach((node) => visit(node, {}));
   return runs.length ? runs : [{ text: "" }];

@@ -9,7 +9,7 @@ import { WebsiteColorSwatchControl } from "./WebsiteColorSwatchControl";
 import { IconChoices, LineHeightIcon } from "./TextElementEditor";
 import { dispatchRichTextCommand, type RichTextCommand } from "../richTextCommands";
 
-type Props = { element: RichTextElement; viewport: ResponsiveViewport; library: TemplateDesignLibrary; allowedFontIds: readonly string[]; allowedColorIds: readonly string[]; projectColors: readonly ProjectColor[]; context?: ResolvedDesignContext | null; onAddColor: (value: string) => Promise<ProjectColor>; onChange: (element: RichTextElement) => void };
+type Props = { element: RichTextElement; viewport: ResponsiveViewport; library: TemplateDesignLibrary; allowedFontIds: readonly string[]; allowedColorIds: readonly string[]; projectColors: readonly ProjectColor[]; context?: ResolvedDesignContext | null; onAddColor: (value: string) => Promise<ProjectColor>; onAppearanceChange: (appearance: RichTextElement["appearance"]) => void };
 const labels = (values: readonly string[]) => values.map((value) => ({ value, label: value[0].toUpperCase() + value.slice(1) }));
 
 export function RichTextElementEditor(props: Props) {
@@ -18,9 +18,7 @@ export function RichTextElementEditor(props: Props) {
   const update = (next: TextAppearance) => {
     const allowed = { fontFamilyId: next.fontFamilyId, fontSize: next.fontSize, lineHeight: next.lineHeight, letterSpacing: next.letterSpacing, alignment: next.alignment, colorId: next.colorId, textTransform: next.textTransform, responsive: next.responsive };
     const compact = Object.fromEntries(Object.entries(allowed).filter(([, value]) => value !== undefined));
-    const element = { ...props.element };
-    if (Object.keys(compact).length) element.appearance = compact; else delete element.appearance;
-    props.onChange(element);
+    props.onAppearanceChange(Object.keys(compact).length ? compact : undefined);
   };
   const setGlobal = (key: "fontFamilyId" | "fontSize" | "lineHeight" | "letterSpacing" | "alignment" | "colorId" | "textTransform", value?: string) => { const next = { ...appearance } as TextAppearance; if (value) Object.assign(next, { [key]: value }); else delete next[key]; update(next); };
   const responsiveValue = (key: "fontSize" | "alignment") => props.viewport === "desktop" ? appearance[key] : responsive?.[key];

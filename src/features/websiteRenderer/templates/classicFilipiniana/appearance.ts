@@ -24,7 +24,7 @@ export function resolveClassicFilipinianaSectionAppearance(
   sectionType: string,
   _design: WebsiteDesignSettings,
   appearance: WebsiteSectionAppearance,
-  index: number,
+  _index: number,
   library: TemplateDesignLibrary,
   projectColors: readonly ProjectColor[],
 ): ResolvedSectionAppearance {
@@ -32,17 +32,21 @@ export function resolveClassicFilipinianaSectionAppearance(
   const heading = appearance.headingAlignment === 'inherit' ? 'center' : appearance.headingAlignment
   const body = appearance.bodyAlignment === 'inherit' ? defaultBodyAlignment : appearance.bodyAlignment
   const customBackground = resolveStoryCustomBackground(sectionType, appearance, library, projectColors)
-  const background = appearance.backgroundTreatment === 'inherit' || appearance.backgroundTreatment === 'custom' ? (index % 2 ? 'soft' : 'plain') : appearance.backgroundTreatment
+  const background = appearance.backgroundTreatment === 'inherit' || appearance.backgroundTreatment === 'custom' ? classicBackgroundDefault(sectionType) : appearance.backgroundTreatment
   const emphasis = sectionType === 'story' || appearance.emphasis === 'inherit' ? 'standard' : appearance.emphasis
 
   const backgroundResult = resolveBackground(background)
   const emphasisClass = emphasis === 'featured'
-    ? 'border-b-2 [&_[data-section-content]]:py-24'
-    : emphasis === 'subtle' ? 'opacity-[0.92] [&_[data-section-content]]:py-14' : ''
+    ? 'border-b-2 [&_[data-section-specialized-content]]:py-24'
+    : emphasis === 'subtle' ? 'opacity-[0.92] [&_[data-section-specialized-content]]:py-14' : ''
   return {
     sectionClass: `${backgroundResult.className} ${headingAlignmentClasses[heading]} ${bodyAlignmentClasses[body]} ${emphasisClass}`,
     sectionStyle: customBackground ? { ...backgroundResult.style, ...customBackground } : backgroundResult.style,
   }
+}
+
+function classicBackgroundDefault(sectionType: string): 'plain' | 'soft' {
+  return ['date', 'venue', 'people', 'rsvp'].includes(sectionType) ? 'soft' : 'plain'
 }
 
 function resolveBackground(background: 'plain' | 'soft' | 'accent'): { className: string; style?: CSSProperties } {

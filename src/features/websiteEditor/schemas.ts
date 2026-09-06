@@ -1,10 +1,11 @@
 import { z } from 'zod'
-import type { WebsiteDraft, WebsiteSection } from './types'
+import type { WebsiteDraft, WebsiteSection, WebsiteSectionAppearance } from './types'
 import { CURRENT_WEBSITE_SCHEMA_VERSION } from './schema'
 import { narrativeBlockElementSchema } from '../websiteElements/schemas'
 import { templateCapabilitiesSchema } from '../websiteCapabilities/schemas'
 import { matchesCurrentDesignCatalog } from '../websiteTemplates/design/catalogs'
-import { globalDesignCapability, supportsGlobalDesignValue, sectionCapability } from '../websiteCapabilities/lookup'
+import { controlsForViewport, globalDesignCapability, presentationCapability, supportsGlobalDesignValue, sectionCapability } from '../websiteCapabilities/lookup'
+import type { AppearanceControlCapability, SectionCapability } from '../websiteCapabilities/types'
 import { isCanonicalStoryStructure } from './storyStructure'
 import { projectColorsSchema } from '../websiteColors/projectColors'
 import { textSectionChildFlowSchema } from './sectionChildFlow'
@@ -123,6 +124,56 @@ const contentSchemas: Record<string, z.ZodType> = {
   gallery: galleryContentSchema,
   faq: faqContentSchema,
   rsvp: rsvpContentSchema,
+}
+
+const capabilityBoundAppearanceFields = [
+  'mediaPlacement',
+  'mediaSize',
+  'mediaContentGap',
+  'mediaSpacing',
+  'frameStyle',
+  'cornerStyle',
+  'shadowStyle',
+] as const
+const responsiveCapabilityBoundAppearanceFields = [...capabilityBoundAppearanceFields, 'headingAlignment', 'bodyAlignment'] as const
+
+function appearanceValueSupported(control: AppearanceControlCapability | undefined, value: unknown): boolean {
+  if (!control) return false
+  if (control.type === 'option') return typeof value === 'string' && control.options.some((option) => option.key === value)
+  if (control.type === 'spacing') {
+    return Boolean(value && typeof value === 'object' && ['top', 'right', 'bottom', 'left'].every((side) => {
+      const sideValue = (value as Record<string, unknown>)[side]
+      return typeof sideValue === 'string' && control.options.some((option) => option.key === sideValue)
+    }))
+  }
+  return false
+}
+
+export function sectionAppearanceCapabilityIssues(capability: SectionCapability, appearance: WebsiteSectionAppearance) {
+  const issues: Array<{ viewport: 'desktop' | 'tablet' | 'mobile'; field: typeof responsiveCapabilityBoundAppearanceFields[number] }> = []
+  const presentation = presentationCapability(capability, appearance.presentation)
+  const validate = (viewport: 'desktop' | 'tablet' | 'mobile', values: Record<string, unknown>, fields: readonly typeof responsiveCapabilityBoundAppearanceFields[number][]) => {
+    const controls = controlsForViewport(capability, presentation, viewport)
+    for (const field of fields) {
+      const value = values[field]
+      if (value === undefined) continue
+      const control = controls.find(({ id }) => id === field)
+      if (!appearanceValueSupported(control, value)) issues.push({ viewport, field })
+    }
+  }
+  validate('desktop', appearance, capabilityBoundAppearanceFields)
+  for (const viewport of ['tablet', 'mobile'] as const) {
+    const override = appearance.responsive?.[viewport]
+    if (override) validate(viewport, override, responsiveCapabilityBoundAppearanceFields)
+  }
+  return issues
+}
+
+function validateCapabilityBoundAppearance(capability: SectionCapability, appearance: WebsiteSectionAppearance, sectionIndex: number, context: z.RefinementCtx) {
+  for (const issue of sectionAppearanceCapabilityIssues(capability, appearance)) {
+    const path = issue.viewport === 'desktop' ? [] : ['responsive', issue.viewport]
+    context.addIssue({ code: 'custom', message: `${issue.field} is not supported by this Template, Section, presentation, and viewport`, path: ['sections', sectionIndex, 'appearance', ...path, issue.field] })
+  }
 }
 
 export function validateSectionContent(type: string, content: Record<string, unknown>) {
@@ -360,6 +411,9 @@ const draftSchema = draftCommonSchema.extend({
         message: 'Presentation is not supported by the selected Template',
         path: ['sections', index, 'appearance', 'presentation'],
       })
+    }
+    if (capability && (!presentation || capability.presentations.some((option) => option.id === presentation))) {
+      validateCapabilityBoundAppearance(capability, section.appearance, index, context)
     }
   })
 })

@@ -34,14 +34,14 @@ export function resolveSectionAppearanceForViewport(
 
   if (viewport === 'desktop') return base
 
-  const independent = { ...base }
-  for (const setting of responsiveSettings) delete independent[setting]
-
-  return {
-    ...independent,
-    ...responsiveTemplateDefaults(section, appearance.presentation, viewport),
-    ...(responsive?.[viewport] ?? {}),
-  } as WebsiteSectionAppearance
+  const defaults = responsiveTemplateDefaults(section, appearance.presentation, viewport)
+  const inherited = { ...base } as WebsiteSectionAppearance
+  for (const setting of responsiveSettings) {
+    if (inherited[setting] === undefined && defaults[setting] !== undefined) {
+      Object.assign(inherited, { [setting]: defaults[setting] })
+    }
+  }
+  return { ...inherited, ...(responsive?.[viewport] ?? {}) } as WebsiteSectionAppearance
 }
 
 export function canonicalizeResponsiveAppearance(
@@ -56,7 +56,8 @@ export function canonicalizeResponsiveAppearance(
     const override = { ...responsive[viewport] }
     for (const setting of responsiveSettings) {
       if (override[setting] === undefined) continue
-      if (!responsiveValueIsSupported(setting, override[setting], controls) || valuesEqual(override[setting], defaults[setting])) delete override[setting]
+      const inheritedValue = appearance[setting] ?? defaults[setting]
+      if (!responsiveValueIsSupported(setting, override[setting], controls) || valuesEqual(override[setting], inheritedValue)) delete override[setting]
     }
     if (Object.keys(override).length > 0) responsive[viewport] = override
     else delete responsive[viewport]

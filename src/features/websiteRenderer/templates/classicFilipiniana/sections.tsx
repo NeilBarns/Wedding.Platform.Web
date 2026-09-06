@@ -68,6 +68,7 @@ export function ClassicFilipinianaHero({
   return (
     <div
       data-section-content
+      data-section-specialized-content
       data-hero-foreground-inset
       className="relative flex min-h-[34rem] flex-col items-center justify-center overflow-hidden px-8 py-20 text-center sm:py-24"
     >
@@ -132,11 +133,12 @@ export function ClassicFilipinianaDate({
         />
       }
       renderFlow={renderFlow}
+      specializedClassName="px-5 py-12 [&_[data-section-body]]:mt-6 md:px-8 md:py-16 md:[&_[data-section-body]]:mt-8 xl:px-12 xl:py-20"
     >
-      <p className="font-[family-name:var(--cf-heading-font)] text-2xl text-[var(--cf-text)]">
+      <p className="mx-auto max-w-2xl break-words font-[family-name:var(--cf-heading-font)] text-2xl leading-tight text-[var(--cf-text)]">
         {date ?? "Date to be announced"}
       </p>
-      <p className="mt-4">
+      <p className="mx-auto mt-4 max-w-xl break-words">
         <EditableText
           sectionId={sectionId}
           path={["description"]}
@@ -177,14 +179,14 @@ export function ClassicFilipinianaStoryHeader({
   if (renderedFields.length === 0) return null;
   return (
     <SectionContentInset className="relative overflow-hidden text-center">
-      <div className="relative mx-auto max-w-5xl">
+      <div data-section-specialized-content className="relative mx-auto max-w-5xl">
         <ClassicFoundationOrnament className="mx-auto mb-5 h-5 w-32 opacity-75" />
         {renderedFields.map((field, index) => field === "eyebrow" ? (
           <p style={storyStyle(field)} key={field} data-editor-story-field={field} className={`${index ? "mt-3" : ""} relative rounded-sm text-[10px] font-semibold uppercase tracking-[0.32em] text-[var(--cf-secondary)]`}><EditableText sectionId={sectionId} path={["eyebrow"]} value={content.eyebrow ?? ""} placeholder="Add eyebrow" label="Story eyebrow" className={storyTextAlignmentClass(field)} /><EditorSelectionFrame selected={mode === "editor" && selectedField === field} /></p>
         ) : field === "heading" ? (
-          <h2 style={storyStyle(field)} key={field} data-editor-story-field={field} data-section-heading={content.singletonAppearance?.heading?.alignment ? undefined : ""} className={`${index ? "mt-3" : ""} relative mx-auto w-full max-w-2xl rounded-sm font-[family-name:var(--cf-heading-font)] text-3xl leading-tight text-[var(--cf-text)] sm:text-4xl`}><EditableText sectionId={sectionId} path={["heading"]} value={content.heading} placeholder="Add heading" label="Story heading" className={storyTextAlignmentClass(field)} /><EditorSelectionFrame selected={mode === "editor" && selectedField === field} /></h2>
+          <h2 style={storyStyle(field)} key={field} data-editor-story-field={field} data-section-heading={content.singletonAppearance?.heading?.alignment ? undefined : ""} className={`${index ? "mt-3" : ""} relative mx-auto w-full max-w-2xl break-words rounded-sm font-[family-name:var(--cf-heading-font)] text-3xl leading-tight text-[var(--cf-text)] md:text-4xl`}><EditableText sectionId={sectionId} path={["heading"]} value={content.heading} placeholder="Add heading" label="Story heading" className={storyTextAlignmentClass(field)} /><EditorSelectionFrame selected={mode === "editor" && selectedField === field} /></h2>
         ) : (
-          <p style={storyStyle(field)} key={field} data-editor-story-field={field} data-section-body={content.singletonAppearance?.intro?.alignment ? undefined : ""} className={`${index ? "mt-8" : ""} relative mx-auto max-w-2xl rounded-sm whitespace-pre-line text-sm leading-8 text-[var(--cf-section-body)]`}><EditableText sectionId={sectionId} path={["intro"]} value={content.intro ?? ""} placeholder="Add introduction" label="Story introduction" multiline className={storyTextAlignmentClass(field)} /><EditorSelectionFrame selected={mode === "editor" && selectedField === field} /></p>
+          <p style={storyStyle(field)} key={field} data-editor-story-field={field} data-section-body={content.singletonAppearance?.intro?.alignment ? undefined : ""} className={`${index ? "mt-6 md:mt-8" : ""} relative mx-auto max-w-2xl break-words rounded-sm whitespace-pre-line text-sm leading-8 text-[var(--cf-section-body)]`}><EditableText sectionId={sectionId} path={["intro"]} value={content.intro ?? ""} placeholder="Add introduction" label="Story introduction" multiline className={storyTextAlignmentClass(field)} /><EditorSelectionFrame selected={mode === "editor" && selectedField === field} /></p>
         ))}
       </div>
     </SectionContentInset>
@@ -252,12 +254,12 @@ export function ClassicFilipinianaStoryBlock({
     composition.effective.mediaPlacement ?? "",
   );
   const layout = split
-    ? "grid gap-x-10 sm:grid-cols-2 sm:items-center"
+    ? "grid gap-x-10 md:grid-cols-2 md:items-center"
     : "grid grid-cols-1";
   const textColumn =
     composition.effective.mediaPlacement === "splitStart"
-      ? "sm:col-start-2"
-      : "sm:col-start-1";
+      ? "md:col-start-2"
+      : "md:col-start-1";
   const rendered = composition.rendering.slots;
   const hasTextGroup =
     rendered.eyebrow || rendered.heading || rendered.divider || rendered.body || rendered.quote;
@@ -280,17 +282,18 @@ export function ClassicFilipinianaStoryBlock({
     && composition.effective.legacyPresentation === "mediaFirst";
   const rootRhythm = composition.effective.legacyPresentation === "mediaFirst"
     ? hasAdjacentPredecessor
-      ? consecutiveMediaFirst ? "pb-10 pt-6 sm:pb-14 sm:pt-8" : "pb-10 pt-8 sm:pb-14 sm:pt-10"
-      : "py-10 sm:py-14"
+      ? consecutiveMediaFirst ? "pb-10 pt-6 md:pb-14 md:pt-8" : "pb-10 pt-8 md:pb-14 md:pt-10"
+      : "py-10 md:py-14"
     : hasAdjacentPredecessor
-      ? "pb-14 pt-10 sm:pb-20 sm:pt-14"
-      : "py-14 sm:py-20";
+      ? "pb-14 pt-10 md:pb-20 md:pt-14"
+      : "py-14 md:py-20";
   return (
     <div
       data-section-content
+      data-section-specialized-content
       data-narrative-presentation={composition.effective.legacyPresentation}
       style={backgroundColor ? { backgroundColor } : undefined}
-      className={`relative isolate overflow-hidden px-7 sm:px-12 [&>:not([data-background-decoration])]:relative [&>:not([data-background-decoration])]:z-10 ${rootRhythm} ${alignment.text} ${surface} ${layout}`}
+      className={`relative isolate min-w-0 overflow-hidden px-7 md:px-12 [&>:not([data-background-decoration])]:relative [&>:not([data-background-decoration])]:z-10 ${rootRhythm} ${alignment.text} ${surface} ${layout}`}
     >
       <DecorativeBackgroundLayers templateKey="classic-filipiniana-v1" appearance={block.appearance?.decorativeAppearance?.background} viewport={viewport} />
       {!hasVisibleSlot && mode === "editor" ? (
@@ -348,7 +351,7 @@ export function ClassicFilipinianaStoryBlock({
         <blockquote
           {...slotTarget("quote")}
           style={style("quote")}
-          className={`${composition.effective.legacyPresentation === "quoteLed" ? `${beforeQuote ? "mt-8" : ""} border-y border-[var(--cf-section-accent)] py-8 text-3xl sm:text-4xl` : `${beforeQuote && !rendered.divider ? "mt-7" : ""} text-xl`} max-w-xl font-[family-name:var(--cf-heading-font)] italic ${textColumn} ${alignment.constrainedGroup}`}
+          className={`${composition.effective.legacyPresentation === "quoteLed" ? `${beforeQuote ? "mt-8" : ""} border-y border-[var(--cf-section-accent)] py-8 text-3xl md:text-4xl` : `${beforeQuote && !rendered.divider ? "mt-7" : ""} text-xl`} max-w-xl break-words font-[family-name:var(--cf-heading-font)] italic ${textColumn} ${alignment.constrainedGroup}`}
         >
           <EditableText
             sectionId={sectionId}
@@ -451,7 +454,7 @@ export function ClassicFilipinianaStoryBlockHeading({
       data-editor-narrative-slot={editorSlotTarget ? "heading" : undefined}
       data-editor-narrative-block={editorSlotTarget ? block.id : undefined}
       style={effectiveStyle}
-      className={`max-w-2xl font-[family-name:var(--cf-heading-font)] text-3xl text-[var(--cf-text)] ${className}`}
+      className={`max-w-2xl break-words font-[family-name:var(--cf-heading-font)] text-3xl text-[var(--cf-text)] ${className}`}
     >
       <EditableText
         sectionId={sectionId}
@@ -478,11 +481,11 @@ function narrativeMediaClass(
   const collapsedMediaFirstSplit =
     compact && split && composition.effective.legacyPresentation === "mediaFirst";
   const column =
-    placement === "splitStart" ? "sm:col-start-1" : "sm:col-start-2";
+    placement === "splitStart" ? "md:col-start-1" : "md:col-start-2";
   const position = collapsedMediaFirstSplit
     ? ""
     : split && !compact
-      ? `${column} sm:row-start-1 sm:row-span-8`
+      ? `${column} md:row-start-1 md:row-span-8`
       : placement === "above" || placement === "leading"
         ? `${composition.effective.legacyPresentation === "mediaFirst" ? "" : "-order-1"} ${hasTextGroup ? "mb-8" : ""}`
         : placement === "inset"
@@ -494,9 +497,9 @@ function narrativeMediaClass(
     treatment === "cinematic"
       ? "[&_img]:aspect-[16/7] [&_img]:object-cover"
       : treatment === "wide"
-        ? "w-full sm:scale-[1.06]"
+        ? "w-full md:scale-[1.06]"
         : treatment === "fullBleed"
-          ? "-mx-7 w-[calc(100%+3.5rem)] sm:-mx-12 sm:w-[calc(100%+6rem)]"
+          ? "-mx-7 w-[calc(100%+3.5rem)] md:-mx-12 md:w-[calc(100%+6rem)]"
           : "";
   return `min-w-0 ${position} ${treatmentClass} ${template === "classic" ? "[&_img]:grayscale-[12%]" : ""}`;
 }
@@ -540,7 +543,7 @@ export function ClassicFilipinianaStoryBlockBody({
   return !slot.isHidden ? (
     <p
       style={effectiveStyle}
-      className={`max-w-2xl whitespace-pre-line text-sm leading-8 text-[var(--cf-section-body)] ${alignment.text} ${alignment.constrainedGroup}`}
+      className={`max-w-2xl break-words whitespace-pre-line text-sm leading-8 text-[var(--cf-section-body)] ${alignment.text} ${alignment.constrainedGroup}`}
     >
       <EditableText
         sectionId={sectionId}
@@ -576,15 +579,16 @@ export function ClassicFilipinianaSchedule({
           label="Schedule heading"
         />
       }
+      specializedClassName="px-5 py-12 md:px-8 md:py-16 xl:px-12 xl:py-20"
     >
       {content.items.length ? (
-        <ol className="mx-auto max-w-xl text-left">
+        <ol className="mx-auto w-full max-w-2xl text-left">
           {content.items.map((item, index) => (
             <li
-              className="grid grid-cols-[6rem_1fr] gap-4 border-t border-[color-mix(in_srgb,var(--cf-border)_25%,transparent)] py-5"
+              className="grid min-w-0 grid-cols-1 gap-2 border-t border-[color-mix(in_srgb,var(--cf-border)_25%,transparent)] py-4 md:grid-cols-[minmax(6rem,8rem)_minmax(0,1fr)] md:gap-4 md:py-5 xl:grid-cols-[minmax(7rem,9rem)_minmax(0,1fr)] xl:py-6"
               key={index}
             >
-              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--cf-section-accent)]">
+              <span className="min-w-0 break-words [overflow-wrap:anywhere] !text-left text-xs font-semibold uppercase tracking-wider text-[var(--cf-section-accent)]">
                 <EditableText
                   sectionId={sectionId}
                   path={["items", index, "time"]}
@@ -594,8 +598,8 @@ export function ClassicFilipinianaSchedule({
                   label={`Schedule item ${index + 1} time`}
                 />
               </span>
-              <div>
-                <h3 className="font-[family-name:var(--cf-heading-font)] text-xl text-[var(--cf-text)]">
+              <div className="min-w-0 !text-left">
+                <h3 className="break-words [overflow-wrap:anywhere] font-[family-name:var(--cf-heading-font)] text-xl text-[var(--cf-text)]">
                   <EditableText
                     sectionId={sectionId}
                     path={["items", index, "title"]}
@@ -605,7 +609,7 @@ export function ClassicFilipinianaSchedule({
                     label={`Schedule item ${index + 1} title`}
                   />
                 </h3>
-                <p className="mt-1 text-sm leading-6">
+                <p className="mt-1 break-words [overflow-wrap:anywhere] text-sm leading-6">
                   <EditableText
                     sectionId={sectionId}
                     path={["items", index, "description"]}
@@ -646,8 +650,9 @@ export function ClassicFilipinianaVenue({
           label="Venue heading"
         />
       }
+      specializedClassName="px-5 py-12 [&_[data-section-body]]:mt-6 md:px-8 md:py-16 md:[&_[data-section-body]]:mt-8 xl:px-12 xl:py-20"
     >
-      <p className="font-[family-name:var(--cf-heading-font)] text-2xl text-[var(--cf-text)] sm:text-3xl">
+      <p className="mx-auto w-full max-w-2xl break-words [overflow-wrap:anywhere] font-[family-name:var(--cf-heading-font)] text-2xl leading-tight text-[var(--cf-text)] md:text-3xl">
         <EditableText
           sectionId={sectionId}
           path={["name"]}
@@ -657,8 +662,8 @@ export function ClassicFilipinianaVenue({
           label="Venue name"
         />
       </p>
-      <ClassicFoundationOrnament className="mx-auto my-5 h-4 w-28 opacity-55" />
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--cf-muted)]">
+      <ClassicFoundationOrnament className="mx-auto my-4 h-4 w-24 opacity-55 md:my-5 md:w-28" />
+      <p className="mx-auto w-full max-w-2xl break-words [overflow-wrap:anywhere] whitespace-pre-line text-xs font-semibold uppercase tracking-[0.2em] text-[var(--cf-muted)]">
         <EditableText
           sectionId={sectionId}
           path={["address"]}
@@ -668,7 +673,7 @@ export function ClassicFilipinianaVenue({
           multiline
         />
       </p>
-      <p className="mx-auto mt-6 max-w-xl whitespace-pre-line">
+      <p className="mx-auto mt-5 w-full max-w-xl break-words [overflow-wrap:anywhere] whitespace-pre-line md:mt-6">
         <EditableText
           sectionId={sectionId}
           path={["description"]}
@@ -705,8 +710,9 @@ export function ClassicFilipinianaDressCode({
         />
       }
       renderFlow={renderFlow}
+      specializedClassName="px-5 py-12 [&_[data-section-body]]:mt-6 md:px-8 md:py-16 md:[&_[data-section-body]]:mt-8 xl:px-12 xl:py-20"
     >
-      <p className="mx-auto max-w-xl whitespace-pre-line leading-8">
+      <p className="mx-auto w-full max-w-xl break-words whitespace-pre-line leading-8">
         <EditableText
           sectionId={sectionId}
           path={["description"]}
@@ -740,8 +746,8 @@ export function ClassicFilipinianaPeople({
   const imagesVisible = showMedia && presentation !== "namesOnly";
   const imageClass =
     presentation === "portraitCards"
-      ? "mx-auto mb-3 aspect-[4/5] w-full max-w-36 rounded-sm object-cover"
-      : "mx-auto mb-3 aspect-square w-full max-w-28 rounded-full object-cover";
+      ? "mx-auto mb-3 aspect-[4/5] w-full max-w-48 rounded-sm object-cover md:max-w-40 xl:max-w-36"
+      : "mx-auto mb-3 aspect-square w-full max-w-32 rounded-full object-cover md:max-w-28";
   return (
     <ContentSection
       eyebrow="Those beside us"
@@ -755,19 +761,22 @@ export function ClassicFilipinianaPeople({
           label="Wedding Party heading"
         />
       }
+      specializedClassName="px-5 py-12 [&_[data-section-body]]:mt-6 md:px-8 md:py-16 md:[&_[data-section-body]]:mt-8 xl:px-12 xl:py-20"
     >
       {groups.length > 0 ? (
-        <div className="mx-auto grid max-w-4xl gap-x-10 gap-y-10 sm:grid-cols-2">
-          {groups.map((group) => (
+        <div data-people-groups className={`mx-auto grid w-full gap-7 md:gap-8 xl:gap-x-10 xl:gap-y-10 ${groups.length === 1 ? "max-w-2xl" : "max-w-5xl md:grid-cols-2"}`}>
+          {groups.map((group, groupIndex) => (
             <section
-              className="bg-[color-mix(in_srgb,var(--cf-surface)_52%,transparent)] px-5 py-6 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--cf-border)_20%,transparent)]"
+              data-people-group
+              className={`${groups.length > 1 && groups.length % 2 === 1 && groupIndex === groups.length - 1 ? "md:col-span-2 md:mx-auto md:w-full md:max-w-xl" : ""} min-w-0 bg-[color-mix(in_srgb,var(--cf-surface)_52%,transparent)] px-4 py-5 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--cf-border)_20%,transparent)] md:px-5 md:py-6`}
               key={group.id}
             >
-              <h3 className="font-[family-name:var(--cf-heading-font)] text-xl text-[var(--cf-text)]">
+              <h3 className="break-words [overflow-wrap:anywhere] font-[family-name:var(--cf-heading-font)] text-xl text-[var(--cf-text)]">
                 {group.name}
               </h3>
               <ul
-                className={`mt-4 ${imagesVisible && group.people.some((person) => person.media && media[person.media.assetId]) ? "grid grid-cols-2 gap-5" : "space-y-3"}`}
+                data-people-list
+                className={`mt-4 ${imagesVisible && group.people.some((person) => person.media && media[person.media.assetId]) ? `grid min-w-0 grid-cols-1 gap-5 ${groups.length === 1 ? "md:grid-cols-2" : "xl:grid-cols-2"}` : "space-y-3"}`}
               >
                 {group.people.map((person) => {
                   const asset =
@@ -775,7 +784,7 @@ export function ClassicFilipinianaPeople({
                       ? media[person.media.assetId]
                       : undefined;
                   return (
-                    <li key={person.id}>
+                    <li className="min-w-0" data-person-card key={person.id}>
                       {asset && person.media && (
                         <ZoomedMediaImage
                           className={imageClass}
@@ -785,11 +794,11 @@ export function ClassicFilipinianaPeople({
                           width={asset.web.width}
                         />
                       )}
-                      <span className="text-base text-[var(--cf-text)]">
+                      <span className="block break-words [overflow-wrap:anywhere] text-base text-[var(--cf-text)]">
                         {person.name}
                       </span>
                       {person.role && (
-                        <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--cf-section-accent)]">
+                        <span className="mt-0.5 block break-words [overflow-wrap:anywhere] text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--cf-section-accent)]">
                           {person.role}
                         </span>
                       )}
@@ -961,6 +970,7 @@ function ContentSection({
   headingParticipates = true,
   bodyParticipates = true,
   renderFlow,
+  specializedClassName = "",
 }: {
   eyebrow?: React.ReactNode;
   heading: React.ReactNode;
@@ -969,13 +979,14 @@ function ContentSection({
   headingParticipates?: boolean;
   bodyParticipates?: boolean;
   renderFlow?: (specialized: React.ReactNode) => React.ReactNode;
+  specializedClassName?: string;
 }) {
   const hasEyebrow = eyebrowParticipates ?? Boolean(eyebrow);
   return (
     <SectionContentInset
-      className="relative overflow-hidden text-center"
+      className={renderFlow ? "" : "relative overflow-hidden"}
     >
-      {(() => { const specialized = <div className="relative mx-auto max-w-5xl">
+      {(() => { const specialized = <div data-section-specialized-content className={`relative mx-auto max-w-5xl overflow-hidden text-center ${specializedClassName}`}>
         <ClassicFoundationOrnament className="mx-auto mb-5 h-5 w-32 opacity-75" />
         {hasEyebrow && <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[var(--cf-secondary)]">{eyebrow}</p>}
         {headingParticipates && <h2

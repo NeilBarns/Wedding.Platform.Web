@@ -38,6 +38,7 @@ import { TextElementEditor } from "../../features/websiteEditor/components/TextE
 import { RichTextElementEditor } from "../../features/websiteEditor/components/RichTextElementEditor";
 import { GroupElementEditor } from "../../features/websiteEditor/components/GroupElementEditor";
 import { DividerElementEditor } from "../../features/websiteEditor/components/DividerElementEditor";
+import { MediaElementEditor } from "../../features/websiteEditor/components/MediaElementEditor";
 import { SectionDesignDefaultsPanel } from "../../features/websiteEditor/components/SectionDesignDefaultsPanel";
 import { SectionNavigator } from "../../features/websiteEditor/components/SectionNavigator";
 import { validateSectionContent } from "../../features/websiteEditor/schemas";
@@ -78,7 +79,8 @@ import {
 } from "../../features/websiteCapabilities/lookup";
 import type { TemplateCapabilities } from "../../features/websiteCapabilities/types";
 import { ApiError } from "../../lib/api";
-import { findSectionElement, ungroupSectionElement, updateSectionElement, updateSectionTextElement, type SectionChildFlow, type SectionChildReference } from "../../features/websiteEditor/sectionChildFlow";
+import { findSectionElement, ungroupSectionElement, updateSectionElement, updateSectionRichTextAppearance, updateSectionTextElement, type SectionChildFlow, type SectionChildReference } from "../../features/websiteEditor/sectionChildFlow";
+import { syncEditorPreviewTheme } from "../../features/websiteEditor/editorPreviewTheme";
 import type { WebsiteElement } from "../../features/websiteElements/types";
 
 type BuilderMode = "content" | "design";
@@ -823,6 +825,7 @@ export function WebsitePage() {
       />
     ) : (
       <SectionInspector
+        eventId={event.id}
         templateKey={draft.templateKey}
         capabilities={draft.template?.capabilities}
         resolvedMedia={previewDraft.media}
@@ -876,6 +879,7 @@ export function WebsitePage() {
       />
     ) : (
       <SectionInspector
+        eventId={event.id}
         templateKey={draft.templateKey}
         capabilities={draft.template?.capabilities}
         resolvedMedia={previewDraft.media}
@@ -1555,9 +1559,19 @@ function PreviewViewport({
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [mount, setMount] = useState<HTMLElement | null>(null);
 
+  useEffect(() => {
+    const target = frameRef.current?.contentDocument?.documentElement;
+    if (!mount || !target) return;
+    const sync = () => syncEditorPreviewTheme(document.documentElement, target);
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme"] });
+    return () => observer.disconnect();
+  }, [mount]);
+
   if (viewport === "desktop")
     return (
-      <div data-editor-preview-scroll className="mx-auto h-full min-h-0 max-w-full overflow-y-auto rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)]">
+      <div data-editor-preview-scroll className="mx-auto h-full min-h-0 w-[1280px] max-w-none shrink-0 overflow-y-auto rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)]">
         {children}
       </div>
     );
@@ -1572,16 +1586,15 @@ function PreviewViewport({
         className="h-full w-full border-0"
         title={`${viewport[0].toUpperCase() + viewport.slice(1)} Website preview`}
         srcDoc="<!doctype html><html><head></head><body><div id='responsive-preview-root'></div></body></html>"
-        onLoad={() => {
-          const documentTarget = frameRef.current?.contentDocument;
+        onLoad={(event) => {
+          const documentTarget = event.currentTarget.contentDocument;
           if (!documentTarget) return;
           document
             .querySelectorAll('style, link[rel="stylesheet"]:not([data-font-preview])')
             .forEach((node) =>
               documentTarget.head.appendChild(node.cloneNode(true)),
             );
-          documentTarget.documentElement.className =
-            document.documentElement.className;
+          syncEditorPreviewTheme(document.documentElement, documentTarget.documentElement);
           documentTarget.body.style.margin = "0";
           const root = documentTarget.getElementById("responsive-preview-root");
           if (root) setMount(root);
@@ -1593,6 +1606,7 @@ function PreviewViewport({
 }
 
 function SectionInspector({
+  eventId,
   templateKey,
   capabilities,
   resolvedMedia,
@@ -1621,6 +1635,7 @@ function SectionInspector({
   onAppearanceChange,
   onSectionDesignChange,
 }: {
+  eventId: string;
   templateKey: string;
   capabilities?: TemplateCapabilities;
   resolvedMedia: WebsiteDraft["media"];
@@ -1669,6 +1684,7 @@ function SectionInspector({
   const selectedRichText = selectedElement?.type === "richText" ? selectedElement : null;
   const selectedGroup = selectedElement?.type === "compositionGroup" ? selectedElement : null;
   const selectedDivider = selectedElement?.type === "divider" ? selectedElement : null;
+  const selectedMedia = selectedElement?.type === "media" ? selectedElement : null;
   const narrativeCapability = capabilities
     ? templateElementCapability(capabilities, "narrativeBlock")
     : undefined;
@@ -1683,7 +1699,7 @@ function SectionInspector({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Heading className="xl:text-base!" level={2} variant="panel">
-              {selectedRichText ? "Rich Text" : selectedText ? "Text" : selectedGroup ? "Group" : selectedDivider ? "Divider" : narrativeBlock ? "Narrative Block" : selected.type === "story" && storyHeaderFocus ? storyHeaderFocus.field === "eyebrow" ? "Eyebrow" : storyHeaderFocus.field === "heading" ? "Heading" : "Intro" : selected.displayName}
+              {selectedRichText ? "Rich Text" : selectedText ? "Text" : selectedGroup ? "Group" : selectedDivider ? "Divider" : selectedMedia ? "Media" : narrativeBlock ? "Narrative Block" : selected.type === "story" && storyHeaderFocus ? storyHeaderFocus.field === "eyebrow" ? "Eyebrow" : storyHeaderFocus.field === "heading" ? "Heading" : "Intro" : selected.displayName}
             </Heading>
             {!selected.isEnabled && (
               <span className="rounded-full bg-surface-muted px-2 py-1 text-[10px] text-foreground-muted">
@@ -1715,13 +1731,15 @@ function SectionInspector({
         </Text>}
       </div>
       {selectedRichText && childFlow && capabilities ? (
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><RichTextElementEditor element={selectedRichText} viewport={targetViewport} library={capabilities.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><RichTextElementEditor element={selectedRichText} viewport={targetViewport} library={capabilities.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onAppearanceChange={(appearance) => { const next = updateSectionRichTextAppearance(childFlow, selectedRichText.id, appearance); if (next) onContentChange({ ...workingContent, childFlow: next }); }} /></div>
       ) : selectedText && childFlow && capabilities ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><TextElementEditor element={selectedText} viewport={targetViewport} templateKey={templateKey} library={capabilities.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></div>
       ) : selectedDivider && childFlow && capabilities ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><DividerElementEditor element={selectedDivider} templateKey={templateKey} library={capabilities.designLibrary} allowedColorIds={textColorIds} projectColors={projectColors} onAddColor={onAddColor} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></div>
+      ) : selectedMedia && childFlow ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><MediaElementEditor element={selectedMedia} eventId={eventId} viewport={targetViewport} mode={panelMode} resolvedMedia={resolvedMedia} onMediaResolved={onMediaResolved} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></div>
       ) : selectedGroup && childFlow ? (
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><GroupElementEditor group={selectedGroup} viewport={targetViewport} onChange={(group) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, group) })} onUngroup={() => { const next = ungroupSectionElement(childFlow, selectedGroup.id); onContentChange({ ...workingContent, childFlow: next }); }} /></div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><GroupElementEditor group={selectedGroup} viewport={targetViewport} templateKey={templateKey} capability={narrativeCapability?.narrativeBlock ?? undefined} library={capabilities?.designLibrary} projectColors={projectColors} onAddColor={onAddColor} onChange={(group) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, group) })} onUngroup={() => { const next = ungroupSectionElement(childFlow, selectedGroup.id); onContentChange({ ...workingContent, childFlow: next }); }} /></div>
       ) : panelMode === "content" ? (
         narrativeBlock && selected.type === "story" ? (
           <NarrativeBlockContentPanel

@@ -3,6 +3,7 @@ export const WEBSITE_ELEMENT_TYPES = [
   'text',
   'richText',
   'image',
+  'media',
   'divider',
   'quote',
   'cta',

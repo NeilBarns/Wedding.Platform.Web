@@ -4,6 +4,7 @@ import type { ProjectColor } from "../websiteColors/projectColors";
 import { resolveWebsiteColor } from "../websiteColors/projectColors";
 import { dividerRegistryForTemplate, resolveDividerAsset } from "../websiteElements/divider";
 import type { DividerElement } from "../websiteElements/types";
+import { resolveElementInlineAlignment } from "./elementInlineAlignment";
 
 const alignmentStyles = { start: "flex-start", center: "center", end: "flex-end" } as const;
 
@@ -25,5 +26,5 @@ export function DividerElementRenderer({ element, templateKey, library, projectC
     WebkitMask: `url('${asset.assetPath}') center / contain no-repeat`,
   };
 
-  return <div data-website-element="divider" data-divider-asset={asset.id} role="separator" className="flex w-full" style={{ justifyContent: alignmentStyles[alignment] }}><span aria-hidden="true" style={visualStyle} /></div>;
+  return <div data-website-element="divider" data-divider-asset={asset.id} role="separator" className="flex w-full" style={{ justifyContent: resolveElementInlineAlignment(alignmentStyles[alignment]) }}><span aria-hidden="true" style={visualStyle} /></div>;
 }

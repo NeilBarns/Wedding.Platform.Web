@@ -331,6 +331,7 @@ const expectedElementAppearanceRoles = {
   quote: { typography: ['body'], colors: ['textColor'] },
   narrativeBlock: { typography: ['heading', 'body'], colors: ['headingColor', 'textColor'] },
   image: null,
+  media: { typography: [], colors: [] },
   divider: null,
   cta: null,
   mediaCollection: null,

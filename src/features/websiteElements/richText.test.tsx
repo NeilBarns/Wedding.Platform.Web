@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { richTextDocumentSchema, richTextElementSchema } from "./schemas";
-import { richTextDocumentToHtml, richTextPlainText, safeLink } from "./richText";
+import { richTextDocumentFromElement, richTextDocumentToHtml, richTextPlainText, safeLink } from "./richText";
 import { RichTextElementRenderer } from "../websiteRenderer/RichTextElementRenderer";
 import type { TemplateDesignLibrary } from "../websiteCapabilities/types";
 
@@ -10,6 +10,24 @@ const document = { type: "doc" as const, children: [
   { type: "bulletList" as const, items: [[{ text: "One", marks: { italic: true, underline: true, strikethrough: true } }]] },
 ] };
 const library = { colors: [], fontFamilies: [], fontRecommendations: { heading: [], body: [], accent: [] }, palettePresets: [], typographyPresets: [] } as unknown as TemplateDesignLibrary;
+
+type ForeignNode = {
+  nodeType: number;
+  textContent?: string;
+  tagName?: string;
+  childNodes: ForeignNode[];
+  children: ForeignNode[];
+  getAttribute(name: string): string | null;
+};
+
+const foreignText = (textContent: string): ForeignNode => ({ nodeType: 3, textContent, childNodes: [], children: [], getAttribute: () => null });
+const foreignElement = (tagName: string, childNodes: ForeignNode[], attributes: Record<string, string> = {}): ForeignNode => ({
+  nodeType: 1,
+  tagName: tagName.toUpperCase(),
+  childNodes,
+  children: childNodes.filter(({ nodeType }) => nodeType === 1),
+  getAttribute: (name) => attributes[name] ?? null,
+});
 
 describe("Rich Text", () => {
   it("accepts structured paragraphs, lists, marks, and safe links", () => {
@@ -22,6 +40,19 @@ describe("Rich Text", () => {
   it("serializes only the bounded canonical markup used by the editor", () => {
     expect(richTextDocumentToHtml(document)).toBe('<p><strong>Hello </strong><a href="https://example.com">world</a></p><ul><li><s><u><em>One</em></u></s></li></ul>');
     expect(richTextPlainText(document)).toBe("Hello world One");
+  });
+
+  it.each([
+    ["Bold", foreignElement("p", [foreignElement("b", [foreignText("Keep me")])]), { type: "paragraph", children: [{ text: "Keep me", marks: { bold: true } }] }],
+    ["Italic", foreignElement("p", [foreignElement("i", [foreignText("Keep me")])]), { type: "paragraph", children: [{ text: "Keep me", marks: { italic: true } }] }],
+    ["Underline", foreignElement("p", [foreignElement("u", [foreignText("Keep me")])]), { type: "paragraph", children: [{ text: "Keep me", marks: { underline: true } }] }],
+    ["Strikethrough", foreignElement("p", [foreignElement("strike", [foreignText("Keep me")])]), { type: "paragraph", children: [{ text: "Keep me", marks: { strikethrough: true } }] }],
+    ["Link", foreignElement("p", [foreignElement("a", [foreignText("Keep me")], { href: "https://example.com" })]), { type: "paragraph", children: [{ text: "Keep me", marks: { link: "https://example.com" } }] }],
+    ["Bulleted list", foreignElement("ul", [foreignElement("li", [foreignText("Keep me")])]), { type: "bulletList", items: [[{ text: "Keep me" }]] }],
+    ["Numbered list", foreignElement("ol", [foreignElement("li", [foreignText("Keep me")])]), { type: "orderedList", items: [[{ text: "Keep me" }]] }],
+  ])("serializes Tablet iframe %s DOM without parent-realm instanceof checks", (_command, formatted, expected) => {
+    const root = foreignElement("div", [formatted]);
+    expect(richTextDocumentFromElement(root as unknown as HTMLElement)).toEqual({ type: "doc", children: [expected] });
   });
 
   it("renders semantic long-form content without injecting stored HTML", () => {

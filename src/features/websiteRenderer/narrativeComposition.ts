@@ -146,15 +146,18 @@ export type ResolvedNarrativeComposition = ReturnType<
 export function narrativeResponsiveOrderClasses(
   composition: ResolvedNarrativeComposition,
 ) {
+  const placement = composition.effective.mediaPlacement;
   if (!composition.effective.legacyPresentation) {
-    const placement = composition.effective.mediaPlacement;
     if (placement === "splitStart") {
-      return { media: "order-[-2] sm:order-0", caption: "-order-1 sm:order-0" } as const;
+      return { media: "order-[-2] md:order-0", caption: "-order-1 md:order-0" } as const;
     }
     if (placement === "above" || placement === "leading") {
       return { media: "order-[-2]", caption: "-order-1" } as const;
     }
     return { media: "", caption: "" } as const;
+  }
+  if (placement === "splitStart" && composition.effective.legacyPresentation !== "mediaFirst") {
+    return { media: "order-[-2] md:order-0", caption: "-order-1 md:order-0" } as const;
   }
   const collapsedMediaFirstSplit =
     composition.effective.legacyPresentation === "mediaFirst" &&
@@ -162,8 +165,8 @@ export function narrativeResponsiveOrderClasses(
       composition.effective.mediaPlacement === "splitEnd");
   if (collapsedMediaFirstSplit) {
     return {
-        media: "order-[-2] sm:order-0",
-        caption: "-order-1 sm:order-0",
+        media: "order-[-2] md:order-0",
+        caption: "-order-1 md:order-0",
       } as const;
   }
   const mediaLeadingFlow =

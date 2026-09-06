@@ -7,7 +7,7 @@ type ImageFraming = { point: { x: number; y: number }; zoom: number }
 
 const clampZoom = (value: number) => Math.max(1, Math.min(3, Math.round(value * 10) / 10))
 
-export function FocalPointEditor({ url, point, zoom = 1, onChange }: { url: string; point: { x: number; y: number }; zoom?: number; onChange: (framing: ImageFraming) => void }) {
+export function FocalPointEditor({ url, point, zoom = 1, controlId = "image-framing", onChange }: { url: string; point: { x: number; y: number }; zoom?: number; controlId?: string; onChange: (framing: ImageFraming) => void }) {
   const draggingPointer = useRef<number | null>(null)
   const choose = (element: HTMLElement, clientX: number, clientY: number) => {
     const rect = element.getBoundingClientRect()
@@ -52,10 +52,10 @@ export function FocalPointEditor({ url, point, zoom = 1, onChange }: { url: stri
       </span>
     </button>
     <div className="mt-4">
-      <div className="flex items-center justify-between gap-3"><label className="text-sm font-medium" htmlFor="image-framing-zoom">Zoom</label><span className="text-xs tabular-nums text-foreground-muted">{zoom.toFixed(1)}×</span></div>
+      <div className="flex items-center justify-between gap-3"><label className="text-sm font-medium" htmlFor={`${controlId}-zoom`}>Zoom</label><span className="text-xs tabular-nums text-foreground-muted">{zoom.toFixed(1)}×</span></div>
       <div className="mt-2 grid grid-cols-[auto_1fr_auto] items-center gap-2">
         <IconButton type="button" size="sm" aria-label="Zoom out" disabled={zoom <= 1} onClick={() => onChange({ point, zoom: clampZoom(zoom - 0.1) })}><Minus size={16} /></IconButton>
-        <input id="image-framing-zoom" className="w-full cursor-pointer accent-accent" type="range" min="1" max="3" step="0.1" value={zoom} onChange={(event) => onChange({ point, zoom: clampZoom(Number(event.target.value)) })} />
+        <input id={`${controlId}-zoom`} className="w-full cursor-pointer accent-accent" type="range" min="1" max="3" step="0.1" value={zoom} onChange={(event) => onChange({ point, zoom: clampZoom(Number(event.target.value)) })} />
         <IconButton type="button" size="sm" aria-label="Zoom in" disabled={zoom >= 3} onClick={() => onChange({ point, zoom: clampZoom(zoom + 0.1) })}><Plus size={16} /></IconButton>
       </div>
     </div>

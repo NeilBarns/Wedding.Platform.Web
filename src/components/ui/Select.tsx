@@ -65,7 +65,7 @@ export function Select({
       <button
         id={id}
         name={name}
-        className="flex min-h-10 w-full items-center rounded-sm! border border-border bg-background px-3 py-2 text-left text-sm! text-foreground outline-none transition-colors hover:border-foreground-muted focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+        className="flex min-h-8 w-full items-center rounded-sm! border border-border bg-background px-3 py-2 text-left text-sm! text-foreground outline-none transition-colors hover:border-foreground-muted focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
         type="button"
         disabled={disabled}
         aria-haspopup="listbox"
@@ -82,7 +82,7 @@ export function Select({
         }}
         {...ariaProps}
       >
-        <span className="min-w-0 flex-1 truncate">
+        <span className="min-w-0 flex-1 truncate text-xs media-sm:text-sm">
           {selected?.label ?? "Select an option"}
         </span>
         <ChevronDown
@@ -110,7 +110,9 @@ export function Select({
                 disabled={option.disabled}
                 onClick={() => select(option)}
               >
-                <span className="flex-1">{option.label}</span>
+                <span className="flex-1 text-xs media-sm:text-sm">
+                  {option.label}
+                </span>
                 {optionSelected && (
                   <Check className="text-accent" size={15} aria-hidden="true" />
                 )}

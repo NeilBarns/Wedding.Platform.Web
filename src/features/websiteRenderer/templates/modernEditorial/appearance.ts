@@ -15,18 +15,22 @@ const bodyAlignment = {
   right: '[&_[data-section-body]]:text-right [&_[data-section-body]_*]:text-right',
 }
 
-export function resolveModernEditorialSectionAppearance(sectionType: string, appearance: WebsiteSectionAppearance, index: number, library: TemplateDesignLibrary, projectColors: readonly ProjectColor[]) {
-  const heading = appearance.headingAlignment === 'inherit' ? (sectionType === 'hero' ? 'left' : index % 2 ? 'right' : 'left') : appearance.headingAlignment
+export function resolveModernEditorialSectionAppearance(sectionType: string, appearance: WebsiteSectionAppearance, _index: number, library: TemplateDesignLibrary, projectColors: readonly ProjectColor[]) {
+  const heading = appearance.headingAlignment === 'inherit' ? 'left' : appearance.headingAlignment
   const body = appearance.bodyAlignment === 'inherit' ? 'left' : appearance.bodyAlignment
   const customBackground = resolveStoryCustomBackground(sectionType, appearance, library, projectColors)
-  const background = appearance.backgroundTreatment === 'inherit' || appearance.backgroundTreatment === 'custom' ? (index % 3 === 1 ? 'soft' : 'plain') : appearance.backgroundTreatment
+  const background = appearance.backgroundTreatment === 'inherit' || appearance.backgroundTreatment === 'custom' ? modernBackgroundDefault(sectionType) : appearance.backgroundTreatment
   const emphasis = sectionType === 'story' || appearance.emphasis === 'inherit' ? 'standard' : appearance.emphasis
   const backgroundResult = resolveBackground(background)
 
   return {
-    sectionClass: `${backgroundResult.className} ${headingAlignment[heading]} ${bodyAlignment[body]} ${emphasis === 'featured' ? '[&_[data-section-content]]:py-28' : emphasis === 'subtle' ? 'opacity-90 [&_[data-section-content]]:py-14' : ''}`,
+    sectionClass: `${backgroundResult.className} ${headingAlignment[heading]} ${bodyAlignment[body]} ${emphasis === 'featured' ? '[&_[data-section-specialized-content]]:py-28' : emphasis === 'subtle' ? 'opacity-90 [&_[data-section-specialized-content]]:py-14' : ''}`,
     sectionStyle: customBackground ? { ...backgroundResult.style, ...customBackground } : backgroundResult.style,
   }
+}
+
+function modernBackgroundDefault(sectionType: string): 'plain' | 'soft' {
+  return ['date', 'venue', 'people', 'rsvp'].includes(sectionType) ? 'soft' : 'plain'
 }
 
 function resolveBackground(background: 'plain' | 'soft' | 'accent'): { className: string; style?: CSSProperties } {

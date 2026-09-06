@@ -19,7 +19,7 @@ const mediaIdSchema = z
     "Media ID must be a canonical ULID.",
   );
 const shortTextSchema = z.string().max(WEBSITE_ELEMENT_LIMITS.shortText);
-const baseShape = { id: elementIdSchema };
+const baseShape = { id: elementIdSchema, isHidden: z.boolean().optional() };
 export const elementFontSizeSchema = z.enum(["xs", "s", "m", "l", "xl"]);
 export const elementLineSpacingSchema = z.enum(["tight", "normal", "relaxed"]);
 export const elementLetterSpacingSchema = z.enum(["tight", "normal", "wide"]);
@@ -113,6 +113,42 @@ export const imageElementSchema = z
     mediaId: mediaIdSchema,
   })
   .strict();
+
+const focalPointSchema = z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict();
+const mediaImageItemSchema = z.object({
+  id: elementIdSchema, type: z.literal("image"), mediaId: mediaIdSchema,
+  alt: z.string().max(500).optional(), decorative: z.boolean().optional(), focalPoint: focalPointSchema.optional(),
+  zoom: z.number().min(1).max(3).optional(),
+}).strict().superRefine((item, context) => {
+  if (!item.decorative && !item.alt?.trim()) context.addIssue({ code: "custom", path: ["alt"], message: "Alt text is required unless the image is decorative." });
+});
+const mediaVideoItemSchema = z.object({
+  id: elementIdSchema, type: z.literal("video"), url: z.string().max(WEBSITE_ELEMENT_LIMITS.externalUrl).url().refine((value) => new URL(value).protocol === "https:", "Video URLs must use HTTPS."),
+  controls: z.boolean().optional(),
+}).strict();
+export const mediaItemSchema = z.discriminatedUnion("type", [mediaImageItemSchema, mediaVideoItemSchema]);
+const mediaResponsivePresentationSchema = z.object({ mode: z.enum(["single", "carousel", "stacked"]).optional(), width: z.enum(["small", "medium", "large", "full"]).optional(), aspectRatio: z.enum(["natural", "square", "portrait", "landscape", "wide"]).optional() }).strict();
+const mediaPresentationSchema = mediaResponsivePresentationSchema.extend({
+  alignment: z.enum(["start", "center", "end"]).optional(), fit: z.enum(["cover", "contain"]).optional(),
+  carousel: z.object({ style: z.enum(["standard", "peek"]).optional(), autoplay: z.boolean().optional(), interval: z.number().int().min(2000).max(15000).optional(), arrows: z.boolean().optional(), dots: z.boolean().optional(), loop: z.boolean().optional() }).strict().optional(),
+  stacked: z.object({ style: z.enum(["polaroid", "soft-overlap", "editorial"]).optional() }).strict().optional(),
+  responsive: z.object({ tablet: mediaResponsivePresentationSchema.optional(), mobile: mediaResponsivePresentationSchema.optional() }).strict().optional(),
+}).strict();
+const mediaAppearanceSchema = z.object({ corners: z.enum(["square", "soft", "rounded", "pill"]).optional(), frame: z.enum(["none", "line", "mat"]).optional(), shadow: z.enum(["none", "soft", "medium", "strong"]).optional() }).strict();
+export const mediaElementSchema = z.object({ ...baseShape, type: z.literal("media"), items: z.array(mediaItemSchema).max(8), presentation: mediaPresentationSchema.optional(), appearance: mediaAppearanceSchema.optional() }).strict().superRefine((element, context) => {
+  const kinds = new Set(element.items.map(({ type }) => type));
+  if (kinds.size > 1) context.addIssue({ code: "custom", path: ["items"], message: "Mixed image and video collections are not supported yet." });
+  if (element.items.filter(({ type }) => type === "video").length > 1) context.addIssue({ code: "custom", path: ["items"], message: "Media supports only one video." });
+  if (element.presentation?.mode === "single" && element.items.length !== 1) context.addIssue({ code: "custom", path: ["presentation", "mode"], message: "Single presentation requires exactly one item." });
+  if (element.presentation?.mode === "carousel" && (element.items.length < 2 || element.items.some(({ type }) => type !== "image"))) context.addIssue({ code: "custom", path: ["presentation", "mode"], message: "Carousel presentation requires at least two images." });
+  if (element.presentation?.mode === "stacked" && (element.items.length < 2 || element.items.length > 5 || element.items.some(({ type }) => type !== "image"))) context.addIssue({ code: "custom", path: ["presentation", "mode"], message: "Stacked presentation requires two to five images." });
+  for (const viewport of ["tablet", "mobile"] as const) {
+    const mode = element.presentation?.responsive?.[viewport]?.mode;
+    if (mode === "single" && element.items.length !== 1) context.addIssue({ code: "custom", path: ["presentation", "responsive", viewport, "mode"], message: "Single presentation requires exactly one item." });
+    if (mode === "carousel" && (element.items.length < 2 || element.items.some(({ type }) => type !== "image"))) context.addIssue({ code: "custom", path: ["presentation", "responsive", viewport, "mode"], message: "Carousel presentation requires at least two images." });
+    if (mode === "stacked" && (element.items.length < 2 || element.items.length > 5 || element.items.some(({ type }) => type !== "image"))) context.addIssue({ code: "custom", path: ["presentation", "responsive", viewport, "mode"], message: "Stacked presentation requires two to five images." });
+  }
+});
 
 const dividerAppearanceSchema = z.preprocess((value) => {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
@@ -340,6 +376,7 @@ export const websiteLeafElementSchema = z.discriminatedUnion("type", [
   textElementSchema,
   richTextElementSchema,
   imageElementSchema,
+  mediaElementSchema,
   dividerElementSchema,
   quoteElementSchema,
   ctaElementSchema,
@@ -353,21 +390,35 @@ export const websiteLeafElementSchema = z.discriminatedUnion("type", [
 const groupSpacingSchema = z.enum(["none", "xs", "s", "m", "l", "xl"]);
 const groupPaddingSchema = z.object({ top: groupSpacingSchema.optional(), right: groupSpacingSchema.optional(), bottom: groupSpacingSchema.optional(), left: groupSpacingSchema.optional() }).strict();
 const groupLayoutValues = {
+  width: z.enum(["full", "wide", "medium", "narrow"]),
   direction: z.enum(["vertical", "horizontal"]),
   gap: groupSpacingSchema,
   padding: groupPaddingSchema,
   alignment: z.enum(["start", "center", "end", "stretch"]),
   columns: z.enum(["equal-2", "content-wide", "content-narrow", "equal-3"]),
 } as const;
-const groupLayoutOverrideSchema = z.object({ direction: groupLayoutValues.direction.optional(), gap: groupLayoutValues.gap.optional(), padding: groupLayoutValues.padding.optional(), alignment: groupLayoutValues.alignment.optional(), columns: groupLayoutValues.columns.optional() }).strict();
+const groupLayoutOverrideSchema = z.object({ width: groupLayoutValues.width.optional(), direction: groupLayoutValues.direction.optional(), gap: groupLayoutValues.gap.optional(), padding: groupLayoutValues.padding.optional(), alignment: groupLayoutValues.alignment.optional(), columns: groupLayoutValues.columns.optional() }).strict();
+const groupAppearanceSchema = z.object({
+  backgroundColorId: z.string().min(1).optional(),
+  shadow: z.enum(["none", "soft", "medium", "strong"]).optional(),
+  decorativeAppearance: z.object({
+    background: z.object({
+      texture: z.enum(["none", "paper", "fabric", "grain"]).optional(),
+      textureStrength: z.number().int().min(10).max(100).optional(),
+      pattern: z.enum(["none", "botanical", "geometric", "heritage"]).optional(),
+      patternStrength: z.number().int().min(10).max(100).optional(),
+    }).strict().optional(),
+  }).strict().optional(),
+}).strict();
 export const groupLayoutSchema = z.object({
-  width: z.enum(["full", "wide", "medium", "narrow"]).optional(),
+  width: groupLayoutValues.width.optional(),
   direction: groupLayoutValues.direction.optional(), gap: groupLayoutValues.gap.optional(), padding: groupLayoutValues.padding.optional(), alignment: groupLayoutValues.alignment.optional(), columns: groupLayoutValues.columns.optional(),
   responsive: z.object({ tablet: groupLayoutOverrideSchema.optional(), mobile: groupLayoutOverrideSchema.optional() }).strict().optional(),
 }).strict();
 
-const nestedCompositionGroupSchema = z.object({ ...baseShape, type: z.literal("compositionGroup"), children: z.array(websiteLeafElementSchema).max(20), layout: groupLayoutSchema.optional() }).strict();
-export const compositionGroupSchema = z.object({ ...baseShape, type: z.literal("compositionGroup"), children: z.array(z.union([websiteLeafElementSchema, nestedCompositionGroupSchema])).max(20), layout: groupLayoutSchema.optional() }).strict().superRefine((group, context) => addDuplicateIdIssues([group], context));
+const groupLeafElementSchema = z.discriminatedUnion("type", [textElementSchema, richTextElementSchema, dividerElementSchema, mediaElementSchema]);
+const nestedCompositionGroupSchema = z.object({ ...baseShape, type: z.literal("compositionGroup"), children: z.array(groupLeafElementSchema).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional() }).strict();
+export const compositionGroupSchema = z.object({ ...baseShape, type: z.literal("compositionGroup"), children: z.array(z.union([groupLeafElementSchema, nestedCompositionGroupSchema])).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional() }).strict().superRefine((group, context) => addDuplicateIdIssues([group], context));
 
 export const websiteElementSchema = z.union([
   websiteLeafElementSchema,
