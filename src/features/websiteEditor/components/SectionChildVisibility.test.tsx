@@ -25,9 +25,10 @@ describe("generic element visibility action", () => {
       onDelete={vi.fn()}
     />);
     expect(html).toContain('data-element-hidden="true"');
-    expect(html).toContain("opacity-50");
+    expect(html).toContain("opacity-60");
     expect(html).toContain("Hidden copy");
-    expect(html).toContain(">Hidden</span>");
+    expect(html).toContain('role="img" aria-label="Hidden" title="Hidden"');
+    expect(html).not.toContain(">Hidden</span>");
     const hiddenRowOpeningTag = html.match(/<div[^>]*data-element-hidden="true"[^>]*>/)?.[0];
     expect(hiddenRowOpeningTag).not.toContain("opacity-");
     expect(html).toContain('aria-label="Hidden copy actions"');

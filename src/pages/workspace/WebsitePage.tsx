@@ -10,7 +10,7 @@ import {
   Smartphone,
   Tablet,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useParams } from "react-router-dom";
 import { Heading } from "../../components/ui/Heading";
@@ -82,6 +82,7 @@ import { ApiError } from "../../lib/api";
 import { findSectionElement, ungroupSectionElement, updateSectionElement, updateSectionRichTextAppearance, updateSectionTextElement, type SectionChildFlow, type SectionChildReference } from "../../features/websiteEditor/sectionChildFlow";
 import { syncEditorPreviewTheme } from "../../features/websiteEditor/editorPreviewTheme";
 import type { WebsiteElement } from "../../features/websiteElements/types";
+import { findEditorTarget, revealEditorTarget } from "../../features/websiteEditor/canvasReveal";
 
 type BuilderMode = "content" | "design";
 type SectionPanelMode = "content" | "appearance";
@@ -92,7 +93,8 @@ type CanvasSelectionRequest =
   | { kind: "section"; id: string; requestId: number }
   | { kind: "storyField"; id: StoryHeaderField; sectionId: string; requestId: number }
   | { kind: "narrative"; id: string; requestId: number }
-  | { kind: "narrativeSlot"; id: string; slot: NarrativeSlotKey; requestId: number };
+  | { kind: "narrativeSlot"; id: string; slot: NarrativeSlotKey; requestId: number }
+  | { kind: "element"; id: string; sectionId: string; requestId: number };
 type SectionStructureOverride = {
   order: string[];
   enabledById: Record<string, boolean>;
@@ -139,7 +141,7 @@ export function WebsitePage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pendingSelection, setPendingSelection] = useState<string | null>(null);
   const [pendingStoryHeaderSelection, setPendingStoryHeaderSelection] = useState<{ sectionId: string; field: StoryHeaderField; requestId: number; focusInspector: boolean } | null>(null);
-  const [pendingChildSelection, setPendingChildSelection] = useState<{ sectionId: string; reference: SectionChildReference } | null>(null);
+  const [pendingChildSelection, setPendingChildSelection] = useState<{ sectionId: string; reference: SectionChildReference; requestCanvasScroll?: boolean } | null>(null);
   const [pendingMode, setPendingMode] = useState<BuilderMode | null>(null);
   const [mode, setMode] = useState<BuilderMode>("content");
   const [editorMode, setEditorMode] = useState<EditorMode>("edit");
@@ -450,7 +452,7 @@ export function WebsitePage() {
     setStoryHeaderSelection(target);
   }
 
-  function selectChild(sectionId: string, reference: SectionChildReference) {
+  function selectChild(sectionId: string, reference: SectionChildReference, requestCanvasScroll = false) {
     const target = { sectionId, reference };
     const section = workingSections.find(({ id }) => id === sectionId);
     const flow = (section?.content as { childFlow?: SectionChildFlow } | undefined)?.childFlow;
@@ -458,7 +460,7 @@ export function WebsitePage() {
     const canvasEditedTextSelected = selectedElement?.type === "text" || selectedElement?.type === "richText" || selectedElement?.type === "divider" || selectedElement?.type === "compositionGroup";
     if (sectionId !== effectiveSelectedId && sectionDirty) {
       setPendingSelection(sectionId);
-      setPendingChildSelection(target);
+      setPendingChildSelection({ ...target, requestCanvasScroll });
       return;
     }
     if (sectionId !== effectiveSelectedId) {
@@ -470,6 +472,9 @@ export function WebsitePage() {
     setSelectedNarrativeBlockId(null);
     setStoryHeaderSelection(null);
     setSelectedChild(target);
+    if (requestCanvasScroll && selectedElement && !selectedElement.isHidden) {
+      setCanvasSelectionRequest({ kind: "element", id: selectedElement.id, sectionId, requestId: ++canvasSelectionRequestId.current });
+    }
     setMode("content");
     setSectionPanelMode(canvasEditedTextSelected ? "appearance" : "content");
     applyDrawerMode(canvasEditedTextSelected ? "appearance" : "content");
@@ -805,7 +810,7 @@ export function WebsitePage() {
         setInlineEditingTarget(null);
         return true;
       }}
-      onChildSelect={selectChild}
+      onChildSelect={(sectionId, reference) => selectChild(sectionId, reference, true)}
       onChildFlowChange={changeChildFlow}
       onToggle={toggle}
       onMove={move}
@@ -864,7 +869,7 @@ export function WebsitePage() {
     );
   const mobileDrawerPanel =
     drawerMode === "sections" ? (
-      <div className="h-full overflow-y-auto overscroll-contain">
+      <div className="h-full overflow-y-auto overscroll-contain" data-structure-scroll-container>
         {sectionRail}
       </div>
     ) : drawerMode === "design" && draft.template ? (
@@ -1036,6 +1041,7 @@ export function WebsitePage() {
           <aside
             className="hidden min-h-0 overflow-y-auto border-r border-border bg-background p-3 xl:block"
             aria-label="Builder Section rail"
+            data-structure-scroll-container
           >
             {sectionRail}
           </aside>
@@ -1112,7 +1118,15 @@ export function WebsitePage() {
             setStoryHeaderSelection(null);
           }
           if (pendingStoryHeaderSelection) setStoryHeaderSelection(pendingStoryHeaderSelection);
-          if (pendingChildSelection) setSelectedChild(pendingChildSelection);
+          if (pendingChildSelection) {
+            setSelectedChild({ sectionId: pendingChildSelection.sectionId, reference: pendingChildSelection.reference });
+            const pendingSection = workingSections.find(({ id }) => id === pendingChildSelection.sectionId);
+            const pendingFlow = (pendingSection?.content as { childFlow?: SectionChildFlow } | undefined)?.childFlow;
+            const pendingElement = pendingChildSelection.reference.kind === "element" ? findSectionElement(pendingFlow, pendingChildSelection.reference.id) : undefined;
+            if (pendingChildSelection.requestCanvasScroll && pendingElement && !pendingElement.isHidden) {
+              setCanvasSelectionRequest({ kind: "element", id: pendingElement.id, sectionId: pendingChildSelection.sectionId, requestId: ++canvasSelectionRequestId.current });
+            }
+          }
           setPendingSelection(null);
           setPendingMode(null);
           setPendingDrawerMode(null);
@@ -1396,71 +1410,35 @@ function PreviewCanvas({
   onNarrativeSlotSelect: (blockId: string, slot: NarrativeSlotKey) => void;
   onSectionSelect: (id: string) => void;
 }) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (editorMode !== "edit" || !selectionRequest) return;
     const selector =
       selectionRequest.kind === "section"
         ? `[data-preview-section="${CSS.escape(selectionRequest.id)}"]`
         : selectionRequest.kind === "storyField"
           ? `[data-editor-story-field="${CSS.escape(selectionRequest.id)}"]`
+          : selectionRequest.kind === "element"
+            ? `[data-editor-website-element="${CSS.escape(selectionRequest.id)}"]`
           : selectionRequest.kind === "narrativeSlot"
             ? `[data-editor-narrative-block="${CSS.escape(selectionRequest.id)}"] [data-editor-narrative-slot="${CSS.escape(selectionRequest.slot)}"]`
             : `[data-editor-narrative-block="${CSS.escape(selectionRequest.id)}"]`;
-    let secondFrame = 0;
-    const firstFrame = window.requestAnimationFrame(() => {
-      secondFrame = window.requestAnimationFrame(() => {
-        const documents = [
-          document,
-          ...Array.from(document.querySelectorAll("iframe")).flatMap(
-            (frame) => (frame.contentDocument ? [frame.contentDocument] : []),
-          ),
-        ];
-        let target = documents
-          .map((candidate) => candidate.querySelector<HTMLElement>(selector))
-          .find(Boolean);
+    const documents = [
+      document,
+      ...Array.from(document.querySelectorAll("iframe")).flatMap(
+        (frame) => (frame.contentDocument ? [frame.contentDocument] : []),
+      ),
+    ];
+    let target = findEditorTarget(documents, selector);
         if (!target && selectionRequest.kind === "storyField") {
           const storySelector = `[data-preview-section="${CSS.escape(selectionRequest.sectionId)}"] [data-section-content]`;
-          target = documents
-            .map((candidate) => candidate.querySelector<HTMLElement>(storySelector))
-            .find(Boolean);
+          target = findEditorTarget(documents, storySelector);
         }
         if (!target && selectionRequest.kind === "narrativeSlot") {
           const blockSelector = `[data-editor-narrative-block="${CSS.escape(selectionRequest.id)}"]`;
-          target = documents
-            .map((candidate) => candidate.querySelector<HTMLElement>(blockSelector))
-            .find(Boolean);
+          target = findEditorTarget(documents, blockSelector);
         }
         if (!target) return;
-        const ownerWindow = target.ownerDocument.defaultView;
-        if (!ownerWindow) return;
-        const scrollContainer = target.closest<HTMLElement>(
-          "[data-editor-preview-scroll]",
-        );
-        const targetBounds = target.getBoundingClientRect();
-        const viewportBounds = scrollContainer?.getBoundingClientRect();
-        const top = viewportBounds?.top ?? 0;
-        const bottom =
-          viewportBounds?.bottom ?? ownerWindow.document.documentElement.clientHeight;
-        const comfort = 24;
-        if (
-          targetBounds.top >= top + comfort &&
-          targetBounds.bottom <= bottom - comfort
-        )
-          return;
-        const behavior = ownerWindow.matchMedia(
-          "(prefers-reduced-motion: reduce)",
-        ).matches
-          ? "auto"
-          : "smooth";
-        const delta = targetBounds.top - top - comfort;
-        if (scrollContainer) scrollContainer.scrollBy({ top: delta, behavior });
-        else ownerWindow.scrollBy({ top: delta, behavior });
-      });
-    });
-    return () => {
-      window.cancelAnimationFrame(firstFrame);
-      window.cancelAnimationFrame(secondFrame);
-    };
+    revealEditorTarget(target);
   }, [editorMode, selectionRequest]);
 
   return (

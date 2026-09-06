@@ -23,7 +23,7 @@ import {
   GripVertical,
   Plus,
 } from "lucide-react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Heading } from "../../../components/ui/Heading";
 import { IconButton } from "../../../components/ui/IconButton";
@@ -47,6 +47,8 @@ import {
   StructureActionMenu,
   StructureMenuAction,
 } from "./StructureActionMenu";
+import { resolveExpandedSectionId, resolveSelectionOwnerId, toggleExpandedSectionId } from "./sectionAccordion";
+import { revealStructureRow } from "./structureReveal";
 
 type Props = {
   sections: WebsiteSection[];
@@ -63,7 +65,7 @@ type Props = {
   onStoryHeaderSelect: (sectionId: string, field: StoryHeaderField, requestCanvasScroll?: boolean) => void;
   onStoryChange: (sectionId: string, content: StoryContent) => boolean;
   onChildFlowChange: (sectionId: string, flow: SectionChildFlow | undefined, selection?: SectionChildReference) => boolean;
-  onChildSelect: (sectionId: string, reference: SectionChildReference) => void;
+  onChildSelect: (sectionId: string, reference: SectionChildReference, requestCanvasScroll?: boolean) => void;
   onToggle: (section: WebsiteSection) => void;
   onMove: (index: number, direction: -1 | 1) => void;
   onReorder: (sectionIds: string[]) => void;
@@ -72,7 +74,32 @@ type Props = {
 const sortableSectionId = (id: string) => `section:${id}`;
 
 export function SectionNavigator(props: Props) {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const navigatorRef = useRef<HTMLElement>(null);
+  const sectionIds = useMemo(() => props.sections.map(({ id }) => id), [props.sections]);
+  const selectedOwnerId = resolveSelectionOwnerId(props.selectedId, props.selectedChild?.sectionId);
+  const selectionKey = props.selectedChild
+    ? `${props.selectedChild.sectionId}:${props.selectedChild.reference.kind}:${props.selectedChild.reference.kind === "element" ? props.selectedChild.reference.id : props.selectedChild.reference.key}`
+    : props.selectedNarrativeBlockId
+      ? `${props.selectedId}:narrative:${props.selectedNarrativeBlockId}`
+      : props.selectedStoryHeaderField
+        ? `${props.selectedId}:story:${props.selectedStoryHeaderField}`
+        : `${props.selectedId}:section`;
+  const [expandedSectionId, setExpandedSectionId] = useState<string | null>(() =>
+    resolveExpandedSectionId(sectionIds, selectedOwnerId),
+  );
+  const sectionIdsRef = useRef(sectionIds);
+  useEffect(() => {
+    sectionIdsRef.current = sectionIds;
+  }, [sectionIds]);
+  useLayoutEffect(() => {
+    setExpandedSectionId(resolveExpandedSectionId(sectionIdsRef.current, selectedOwnerId));
+  }, [selectedOwnerId, selectionKey]);
+  useLayoutEffect(() => {
+    const navigator = navigatorRef.current;
+    const row = navigator?.querySelector<HTMLElement>('[aria-current="true"]');
+    const container = navigator?.closest<HTMLElement>('[data-structure-scroll-container]');
+    if (row && container) revealStructureRow(container, row);
+  }, [expandedSectionId, selectionKey]);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, {
@@ -98,6 +125,7 @@ export function SectionNavigator(props: Props) {
   };
   return (
     <section
+      ref={navigatorRef}
       className="rounded-2xl border border-border bg-surface p-3 xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0"
       aria-label="Website sections"
     >
@@ -125,12 +153,11 @@ export function SectionNavigator(props: Props) {
                 {...props}
                 section={section}
                 index={index}
-                expanded={expanded[section.id] ?? true}
+                expanded={expandedSectionId === section.id}
                 onExpandedChange={(value) =>
-                  setExpanded((current) => ({
-                    ...current,
-                    [section.id]: value,
-                  }))
+                  setExpandedSectionId((current) =>
+                    toggleExpandedSectionId(current, section.id, value),
+                  )
                 }
               />
             ))}
@@ -189,6 +216,7 @@ function SortableSection(
       : props.selectedNarrativeBlockId
         ? narrativeStoryReference(props.selectedNarrativeBlockId)
         : null;
+  const hasSelectedStoryChild = props.selectedId === section.id && Boolean(selectedReference);
   const selectStoryReference = (
     reference: StoryStructureReference | null,
     requestCanvasScroll = false,
@@ -231,7 +259,10 @@ function SortableSection(
         <button
           className="min-w-0 flex-1 rounded px-1.5 py-1.5 text-left"
           type="button"
-          onClick={() => props.onSelect(section.id, true)}
+          onClick={() => {
+            props.onSelect(section.id, true);
+            if (props.selectedId === section.id) props.onExpandedChange(true);
+          }}
           aria-current={
             props.selectedId === section.id && !selectedReference && !hasSelectedChild
               ? "true"
@@ -267,7 +298,15 @@ function SortableSection(
           <IconButton
             size="sm"
             type="button"
-            onClick={() => props.onExpandedChange(!props.expanded)}
+            onClick={() => {
+              if (props.expanded) {
+                if (hasSelectedChild || hasSelectedStoryChild) props.onSelect(section.id);
+                props.onExpandedChange(false);
+                return;
+              }
+              if (props.selectedId === section.id) props.onExpandedChange(true);
+              else props.onSelect(section.id);
+            }}
             aria-label={`${props.expanded ? "Collapse" : "Expand"} ${section.displayName}`}
             aria-expanded={props.expanded}
           >
@@ -343,7 +382,7 @@ function SortableSection(
         </div>
       )}
       {supportsGenericChildren && props.expanded && (
-        <div className="ml-5 mt-0.5"><SectionChildList sectionLabel={section.displayName} flow={resolvedChildFlow} selected={props.selectedChild?.sectionId === section.id ? props.selectedChild.reference : null} onSelect={(reference) => props.onChildSelect(section.id, reference)} onChange={(flow) => { props.onChildFlowChange(section.id, flow, props.selectedChild?.sectionId === section.id ? props.selectedChild.reference : undefined); }} onDuplicate={(elementId) => { const result = duplicateSectionElement(resolvedChildFlow, elementId); if (result) props.onChildFlowChange(section.id, result.flow, { kind: "element", id: result.elementId }); }} onDelete={(elementId) => { const result = deleteSectionElement(resolvedChildFlow, elementId); props.onChildFlowChange(section.id, result.flow, result.selection); }} /></div>
+        <div className="ml-5 mt-0.5"><SectionChildList sectionLabel={section.displayName} flow={resolvedChildFlow} selected={props.selectedChild?.sectionId === section.id ? props.selectedChild.reference : null} onSelect={(reference) => props.onChildSelect(section.id, reference, true)} onChange={(flow) => { props.onChildFlowChange(section.id, flow, props.selectedChild?.sectionId === section.id ? props.selectedChild.reference : undefined); }} onDuplicate={(elementId) => { const result = duplicateSectionElement(resolvedChildFlow, elementId); if (result) props.onChildFlowChange(section.id, result.flow, { kind: "element", id: result.elementId }); }} onDelete={(elementId) => { const result = deleteSectionElement(resolvedChildFlow, elementId); props.onChildFlowChange(section.id, result.flow, result.selection); }} /></div>
       )}
     </div>
   );

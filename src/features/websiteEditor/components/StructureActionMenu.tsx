@@ -5,14 +5,16 @@ import { IconButton } from "../../../components/ui/IconButton";
 export function StructureActionMenu({
   label,
   children,
+  className = "",
 }: {
   label: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <div
-      className="relative"
+      className={`relative ${className}`}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
       }}
