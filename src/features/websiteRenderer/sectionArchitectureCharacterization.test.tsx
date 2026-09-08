@@ -161,6 +161,25 @@ describe("Section renderer boundary", () => {
     expect(markup.indexOf("data-section-full-bleed")).toBeLessThan(markup.indexOf("data-hero-foreground-inset"));
   });
 
+  it.each(["classic", "modern"] as const)("uses shared %s Section decorations for Story in editor and public output", (template) => {
+    const value = section("story", "story", { heading: "Our Story", intro: null, elements: [], mediaFraming: {} });
+    value.appearance = {
+      ...appearance,
+      backgroundTreatment: "custom",
+      decorativeAppearance: {
+        background: { customColor: "#123456", texture: "paper", pattern: "botanical", overlay: "soft" },
+        frame: { style: "fine" },
+      },
+    };
+    for (const mode of ["editor", "public"] as const) {
+      const markup = render(template, [value], "desktop", mode);
+      expect(markup).toContain("data-section-decoration");
+      expect(markup).toContain('aria-hidden="true"');
+      expect(markup).toContain("background-color:#123456");
+      expect(markup.indexOf("data-section-decoration")).toBeLessThan(markup.indexOf("Our Story"));
+    }
+  });
+
   it.each(["classic", "modern"] as const)("uses safe viewport height for %s immersive Hero on every semantic viewport", (template) => {
     for (const viewport of ["desktop", "tablet", "mobile"] as const) {
       const markup = render(template, [hero()], viewport);
@@ -208,22 +227,18 @@ describe("Section renderer boundary", () => {
     expect(markup.indexOf('data-preview-section="second"')).toBeLessThan(markup.indexOf('data-preview-section="first"'));
   });
 
-  it("keeps Modern inherited appearance stable across persisted-order indices", () => {
+  it("keeps Modern inherited appearance independent of persisted order", () => {
     const library = { colors: [], fontFamilies: [], palettePresets: [], typographyPresets: [] } as never;
-    const first = resolveModernEditorialSectionAppearance("date", appearance, 0, library, []);
-    const second = resolveModernEditorialSectionAppearance("date", appearance, 1, library, []);
+    const first = resolveModernEditorialSectionAppearance("date", appearance, library, []);
     expect(first.sectionClass).toContain("bg-[var(--me-surface)]");
     expect(first.sectionClass).toContain("text-left");
-    expect(second.sectionClass).toContain("bg-[var(--me-surface)]");
-    expect(second.sectionClass).toContain("text-left");
   });
 
-  it("keeps Classic inherited background stable across reorder and neighboring visibility changes", () => {
+  it("keeps Classic inherited background independent of persisted order", () => {
     const library = { colors: [], fontFamilies: [], palettePresets: [], typographyPresets: [] } as never;
     const design = { colorTheme: "terracotta", fontSet: "editorial", artStyle: "clean", projectDefaults: {}, customColors: [] };
-    const before = resolveClassicFilipinianaSectionAppearance("date", design, appearance, 0, library, []);
-    const afterReorderOrVisibilityChange = resolveClassicFilipinianaSectionAppearance("date", design, appearance, 7, library, []);
-    expect(afterReorderOrVisibilityChange.sectionClass).toBe(before.sectionClass);
+    const before = resolveClassicFilipinianaSectionAppearance("date", design, appearance, library, []);
+    expect(before.sectionClass).toContain("bg-[color-mix(in_srgb,var(--cf-theme-surface)_58%,var(--cf-theme-page))]");
   });
 
   it.each(["classic", "modern"] as const)("keeps %s Date and Dress Code markup identical for absent and specialized-only child flow", (template) => {
@@ -327,8 +342,10 @@ describe("Section renderer boundary", () => {
         value.appearance = { ...appearance, headingAlignment: alignment, bodyAlignment: alignment };
         const markup = render(template, [value]);
         const surfaceTag = markup.match(/<section[^>]*data-preview-section[^>]*>/)?.[0] ?? "";
-        expect(surfaceTag).toContain(`[&amp;_[data-section-heading]]:text-${alignment}`);
-        expect(surfaceTag).toContain(`[&amp;_[data-section-body]]:text-${alignment}`);
+        expect(surfaceTag).toContain(`[&amp;_[data-section-specialized-content]_[data-section-heading]]:text-${alignment}`);
+        expect(surfaceTag).toContain(`[&amp;_[data-section-specialized-content]_[data-section-body]]:text-${alignment}`);
+        expect(surfaceTag).not.toContain('[&amp;_[data-section-heading]]');
+        expect(surfaceTag).not.toContain('[&amp;_[data-section-body]]');
       }
     }
   });
@@ -460,7 +477,7 @@ describe("Section renderer boundary", () => {
       value.appearance = { ...appearance, headingAlignment: alignment, bodyAlignment: alignment };
       const markup = render(template, [value]);
       const surface = markup.match(/<section[^>]*data-preview-section[^>]*>/)?.[0] ?? "";
-      expect(surface).toContain(`[&amp;_[data-section-heading]]:text-${alignment}`);
+      expect(surface).toContain(`[&amp;_[data-section-specialized-content]_[data-section-heading]]:text-${alignment}`);
       expect(markup).toContain("!text-left");
     }
   });
@@ -510,8 +527,8 @@ describe("Section renderer boundary", () => {
       value.appearance = { ...value.appearance, headingAlignment: alignment, bodyAlignment: alignment };
       const markup = render(template, [value], "tablet");
       const surface = markup.match(/<section[^>]*data-preview-section[^>]*>/)?.[0] ?? "";
-      expect(surface).toContain(`[&amp;_[data-section-heading]]:text-${alignment}`);
-      expect(surface).toContain(`[&amp;_[data-section-body]]:text-${alignment}`);
+      expect(surface).toContain(`[&amp;_[data-section-specialized-content]_[data-section-heading]]:text-${alignment}`);
+      expect(surface).toContain(`[&amp;_[data-section-specialized-content]_[data-section-body]]:text-${alignment}`);
       expect(markup.match(/<div data-venue-composition="split"[^>]*>/)?.[0]).not.toContain(`text-${alignment}`);
     }
   });
@@ -615,8 +632,8 @@ describe("Section renderer boundary", () => {
       const markup = render(template, [value], "tablet");
       const surface = markup.match(/<section[^>]*data-preview-section[^>]*>/)?.[0] ?? "";
       const grid = markup.match(/<div data-people-groups[^>]*>/)?.[0] ?? "";
-      expect(surface).toContain(`[&amp;_[data-section-heading]]:text-${alignment}`);
-      expect(surface).toContain(`[&amp;_[data-section-body]]:text-${alignment}`);
+      expect(surface).toContain(`[&amp;_[data-section-specialized-content]_[data-section-heading]]:text-${alignment}`);
+      expect(surface).toContain(`[&amp;_[data-section-specialized-content]_[data-section-body]]:text-${alignment}`);
       expect(grid).not.toContain(`text-${alignment}`);
     }
   });

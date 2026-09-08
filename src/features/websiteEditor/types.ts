@@ -26,11 +26,13 @@ export type PeopleContent = { heading: string; groups: PeopleGroup[] }
 export type GalleryContent = { heading: string; items: [] }
 export type FaqContent = { heading: string; items: Array<{ question: string; answer: string }> }
 export type RsvpContent = { heading: string; description: string; buttonLabel: string }
+export type BlankContent = { childFlow: SectionChildFlow }
 
 type SectionBase<TType extends string, TContent> = {
   id: string
   type: TType
   displayName: string
+  editorName: string | null
   sortOrder: number
   isEnabled: boolean
   content: TContent
@@ -45,7 +47,7 @@ type SectionBase<TType extends string, TContent> = {
 
 export type SectionAlignment = 'inherit' | 'left' | 'center' | 'right'
 export type BackgroundTreatment = 'inherit' | 'plain' | 'soft' | 'accent' | 'custom'
-export type StoryDecorativeAppearance = {
+export type SectionDecorativeAppearance = {
   background?: {
     texture?: 'none' | 'paper' | 'fabric' | 'grain'
     textureStrength?: number
@@ -74,7 +76,7 @@ export type WebsiteSectionAppearance = {
   headingAlignment: SectionAlignment
   bodyAlignment: SectionAlignment
   backgroundTreatment: BackgroundTreatment
-  decorativeAppearance?: StoryDecorativeAppearance
+  decorativeAppearance?: SectionDecorativeAppearance
   emphasis: SectionEmphasis
   presentation?: string
   mediaPlacement?: string
@@ -138,6 +140,7 @@ export type WebsiteSection =
   | SectionBase<'gallery', GalleryContent>
   | SectionBase<'faq', FaqContent>
   | SectionBase<'rsvp', RsvpContent>
+  | SectionBase<'blank', BlankContent>
   | SectionBase<string, Record<string, unknown>>
 
 export type ColorTheme = string

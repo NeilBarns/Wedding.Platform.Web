@@ -7,7 +7,7 @@ import { normalizeNarrativeBlock } from "../websiteElements/narrativeBlock";
 import { narrativeBlockElementSchema } from "../websiteElements/schemas";
 import { ClassicFilipinianaStoryBlock } from "./templates/classicFilipiniana/sections";
 import { ModernEditorialStoryBlock } from "./templates/modernEditorial/sections";
-import { StoryDecorativeLayers } from "./StoryDecorativeLayers";
+import { SectionDecorativeLayers } from "./SectionDecorativeLayers";
 import { ZoomedMediaImage } from "./ZoomedMediaImage";
 import { resolveEffectiveStorySequence } from "./storyEffectiveSequence";
 import { resolveStoryRenderItems } from "./storyRenderSequence";
@@ -377,9 +377,11 @@ describe("Story responsive safety", () => {
 
   it.each(["classic-filipiniana-v1", "modern-editorial-v1"] as const)("clips %s Story decorations to the Story surface", (templateKey) => {
     for (const viewport of ["mobile", "tablet", "desktop"] as const) {
-      const markup = renderToStaticMarkup(<StoryDecorativeLayers templateKey={templateKey} viewport={viewport} appearance={{}} />);
+      const markup = renderToStaticMarkup(<SectionDecorativeLayers templateKey={templateKey} viewport={viewport} appearance={{}} />);
       expect(markup).toContain("absolute inset-0 overflow-hidden");
       expect(markup).toContain("pointer-events-none");
+      expect(markup).toContain('aria-hidden="true"');
+      expect(markup).toContain("data-section-decoration");
     }
   });
 });

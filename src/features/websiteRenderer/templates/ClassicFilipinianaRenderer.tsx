@@ -44,7 +44,7 @@ import { resolveNarrativeMediaCornerStyle } from "../narrativeMediaAppearance";
 import type { ElementCapability } from "../../websiteCapabilities/types";
 import { resolveEffectiveStorySequence } from "../storyEffectiveSequence";
 import { resolveStoryRenderItems } from "../storyRenderSequence";
-import { StoryDecorativeLayers } from "../StoryDecorativeLayers";
+import { SectionDecorativeLayers } from "../SectionDecorativeLayers";
 import { SectionChildFlowRenderer } from "../SectionChildFlowRenderer";
 
 export function ClassicFilipinianaRenderer({
@@ -95,11 +95,10 @@ export function ClassicFilipinianaRenderer({
             : "Enabled sections will appear here."}
         </div>
       )}
-      {sections.map(({ section, index }, renderedIndex) => (
+      {sections.map(({ section }, renderedIndex) => (
         <ClassicSection
           key={section.id}
           section={section}
-          sectionIndex={index}
           showLeadingDivider={scope.kind === "full" && renderedIndex > 0}
           eventName={event.name}
           eventDate={event.eventDate}
@@ -125,7 +124,6 @@ export function ClassicFilipinianaRenderer({
 
 function ClassicSection({
   section,
-  sectionIndex,
   showLeadingDivider,
   eventName,
   eventDate,
@@ -145,7 +143,6 @@ function ClassicSection({
   onElementEdit,
 }: {
   section: WebsiteSection;
-  sectionIndex: number;
   showLeadingDivider: boolean;
   eventName: string;
   eventDate: string | null;
@@ -170,7 +167,6 @@ function ClassicSection({
     section.type,
     designSettings,
     section.appearance,
-    sectionIndex,
     library,
     designSettings.customColors,
   );
@@ -217,7 +213,7 @@ function ClassicSection({
       }
       tabIndex={mode === "editor" ? 0 : undefined}
     >
-      {section.type === "story" ? <><StoryDecorativeLayers templateKey={templateKey} appearance={section.appearance.decorativeAppearance} viewport={targetViewport} /><div className="relative z-10">{showLeadingDivider && <ClassicSectionDivider />}<Section
+      {section.type === "story" ? <><SectionDecorativeLayers templateKey={templateKey} appearance={section.appearance.decorativeAppearance} viewport={targetViewport} /><div className="relative z-10">{showLeadingDivider && <ClassicSectionDivider />}<Section
         section={section}
         eventName={eventName}
         eventDate={eventDate}

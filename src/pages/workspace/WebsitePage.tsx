@@ -851,7 +851,7 @@ function WebsitePageContent() {
       workingStory={selected?.type === "story" && workingContent ? { sectionId: selected.id, content: workingContent as import("../../features/websiteEditor/types").StoryContent } : null}
       workingChildFlow={selected && workingContent && (selected.type === "date" || selected.type === "dressCode") ? { sectionId: selected.id, flow: (workingContent as { childFlow?: SectionChildFlow }).childFlow } : null}
       selectedChild={selectedChild}
-      genericChildSectionIds={draft.template?.capabilities.sections.filter(({ elements }) => elements?.allowedTypes.includes("text")).map(({ id }) => id) ?? []}
+      genericChildSectionIds={draft.template?.capabilities.sections.filter(({ id, elements }) => (id === "date" || id === "dressCode") && elements?.allowedTypes.includes("text")).map(({ id }) => id) ?? []}
       pending={listPending}
       onSelect={selectSection}
       onNarrativeBlockSelect={selectNarrativeBlock}

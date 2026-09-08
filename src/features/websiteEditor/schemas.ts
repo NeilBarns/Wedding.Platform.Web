@@ -9,7 +9,7 @@ import { controlsForViewport, globalDesignCapability, presentationCapability, su
 import type { AppearanceControlCapability, SectionCapability } from '../websiteCapabilities/types'
 import { isCanonicalStoryStructure } from './storyStructure'
 import { projectColorsSchema } from '../websiteColors/projectColors'
-import { textSectionChildFlowSchema } from './sectionChildFlow'
+import { genericTextSectionChildFlowSchema, textSectionChildFlowSchema } from './sectionChildFlow'
 
 const text = z.string()
 const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Required')
@@ -113,6 +113,7 @@ export const faqContentSchema = z.object({
   items: z.array(z.object({ question: text, answer: text }).strict()),
 }).strict()
 export const rsvpContentSchema = z.object({ heading: text, description: text, buttonLabel: text }).strict()
+export const blankContentSchema = z.object({ childFlow: genericTextSectionChildFlowSchema }).strict()
 
 const contentSchemas: Record<string, z.ZodType> = {
   hero: heroContentSchema,
@@ -125,6 +126,7 @@ const contentSchemas: Record<string, z.ZodType> = {
   gallery: galleryContentSchema,
   faq: faqContentSchema,
   rsvp: rsvpContentSchema,
+  blank: blankContentSchema,
 }
 
 const capabilityBoundAppearanceFields = [
@@ -194,7 +196,7 @@ export function validateSectionContent(type: string, content: Record<string, unk
 }
 
 const sectionSchema = z.object({
-  id: z.string(), type: z.string(), displayName: z.string(), sortOrder: z.number(),
+  id: z.string(), type: z.string(), displayName: z.string(), editorName: z.string().min(1).max(80).nullable(), sortOrder: z.number(),
   isEnabled: z.boolean(), content: z.record(z.string(), z.unknown()),
   appearance: z.object({
     headingAlignment: z.enum(['inherit', 'left', 'center', 'right']),
@@ -284,7 +286,7 @@ const sectionSchema = z.object({
       }).strict().nullable(),
     }).strict()).min(1),
   }).strict().nullable(),
-})
+}).strict()
 
 const projectDesignDefaultOverridesSchema = z.object({
   headingFontId: nonEmptyString.optional(),

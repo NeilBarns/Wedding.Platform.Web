@@ -23,21 +23,33 @@ export const sectionChildReferenceSchema = z.discriminatedUnion("kind", [
   elementReferenceSchema,
 ]);
 
-export const sectionChildFlowSchema = z.object({
+const childFlowShapeSchema = z.object({
   elements: websiteElementTreeSchema.max(20),
   order: z.array(sectionChildReferenceSchema).max(21),
-}).strict().superRefine((flow, context) => {
+}).strict();
+
+function validateChildFlowReferences(flow: z.infer<typeof childFlowShapeSchema>, context: z.RefinementCtx, requiresSpecializedContent: boolean) {
   const specialized = flow.order.filter(({ kind }) => kind === "specialized");
-  if (specialized.length !== 1) context.addIssue({ code: "custom", path: ["order"], message: "Child flow must contain exactly one specialized content reference." });
+  const expected = requiresSpecializedContent ? 1 : 0;
+  if (specialized.length !== expected) context.addIssue({ code: "custom", path: ["order"], message: requiresSpecializedContent ? "Child flow must contain exactly one specialized content reference." : "Generic-only child flow cannot contain a specialized content reference." });
   const ids = flow.elements.map(({ id }) => id);
   const references = flow.order.flatMap((reference) => reference.kind === "element" ? [reference.id] : []);
   if (new Set(references).size !== references.length) context.addIssue({ code: "custom", path: ["order"], message: "Child flow element references must be unique." });
   if (references.length !== ids.length || references.some((id) => !ids.includes(id)) || ids.some((id) => !references.includes(id))) {
     context.addIssue({ code: "custom", path: ["order"], message: "Child flow order must reference every element exactly once." });
   }
-});
+}
+
+export const sectionChildFlowSchema = childFlowShapeSchema.superRefine((flow, context) => validateChildFlowReferences(flow, context, true));
+export const genericSectionChildFlowSchema = childFlowShapeSchema.superRefine((flow, context) => validateChildFlowReferences(flow, context, false));
 
 export const textSectionChildFlowSchema = sectionChildFlowSchema.superRefine((flow, context) => {
+  flow.elements.forEach((element, index) => {
+    if (element.type !== "text" && element.type !== "richText" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
+  });
+});
+
+export const genericTextSectionChildFlowSchema = genericSectionChildFlowSchema.superRefine((flow, context) => {
   flow.elements.forEach((element, index) => {
     if (element.type !== "text" && element.type !== "richText" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
   });

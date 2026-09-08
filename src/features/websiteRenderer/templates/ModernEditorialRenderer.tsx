@@ -40,7 +40,7 @@ import { resolveNarrativeMediaCornerStyle } from "../narrativeMediaAppearance";
 import type { ElementCapability } from "../../websiteCapabilities/types";
 import { resolveEffectiveStorySequence } from "../storyEffectiveSequence";
 import { resolveStoryRenderItems } from "../storyRenderSequence";
-import { StoryDecorativeLayers } from "../StoryDecorativeLayers";
+import { SectionDecorativeLayers } from "../SectionDecorativeLayers";
 import { SectionChildFlowRenderer } from "../SectionChildFlowRenderer";
 
 export function ModernEditorialRenderer({
@@ -90,11 +90,10 @@ export function ModernEditorialRenderer({
             : "Enabled sections will appear here."}
         </div>
       )}
-      {sections.map(({ section, index }) => (
+      {sections.map(({ section }) => (
         <ModernSection
           key={section.id}
           section={section}
-          sectionIndex={index}
           eventName={event.name}
           eventDate={event.eventDate}
           mode={mode}
@@ -119,7 +118,6 @@ export function ModernEditorialRenderer({
 
 function ModernSection({
   section,
-  sectionIndex,
   eventName,
   eventDate,
   mode,
@@ -138,7 +136,6 @@ function ModernSection({
   onElementEdit,
 }: {
   section: WebsiteSection;
-  sectionIndex: number;
   eventName: string;
   eventDate: string | null;
   mode: "editor" | "public";
@@ -161,7 +158,6 @@ function ModernSection({
   const appearance = resolveModernEditorialSectionAppearance(
     section.type,
     section.appearance,
-    sectionIndex,
     library,
     projectColors,
   );
@@ -208,7 +204,7 @@ function ModernSection({
       }
       tabIndex={mode === "editor" ? 0 : undefined}
     >
-      {section.type === "story" ? <><StoryDecorativeLayers templateKey={templateKey} appearance={section.appearance.decorativeAppearance} viewport={targetViewport} /><div className="relative z-10"><Section
+      {section.type === "story" ? <><SectionDecorativeLayers templateKey={templateKey} appearance={section.appearance.decorativeAppearance} viewport={targetViewport} /><div className="relative z-10"><Section
         section={section}
         eventName={eventName}
         eventDate={eventDate}

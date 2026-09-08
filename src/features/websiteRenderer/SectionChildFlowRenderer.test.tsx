@@ -20,6 +20,29 @@ const props = {
 };
 
 describe("SectionChildFlowRenderer canvas selection", () => {
+  it("omits empty and unresolved root Media frames publicly but keeps editor affordances", () => {
+    const flow = {
+      elements: [
+        { id: "before", type: "text" as const, editorName: "Text 1", text: "Before" },
+        { id: "empty", type: "media" as const, editorName: "Media 1", items: [] },
+        { id: "missing", type: "media" as const, editorName: "Media 2", items: [{ id: "image", type: "image" as const, mediaId: "01J00000000000000000000000", alt: "Missing" }] },
+        { id: "after", type: "text" as const, editorName: "Text 2", text: "After" },
+      ],
+      order: [{ kind: "element" as const, id: "before" }, { kind: "element" as const, id: "empty" }, { kind: "element" as const, id: "missing" }, { kind: "element" as const, id: "after" }],
+    };
+    const published = renderToStaticMarkup(<SectionChildFlowRenderer {...props} flow={flow} specialized={null} mode="public" />);
+    expect(published).toContain("Before");
+    expect(published).toContain("After");
+    expect(published).not.toContain('data-section-child-element="empty"');
+    expect(published).not.toContain('data-section-child-element="missing"');
+    expect(published).not.toContain("Media unavailable");
+
+    const editor = renderToStaticMarkup(<SectionChildFlowRenderer {...props} flow={flow} specialized={null} mode="editor" />);
+    expect(editor).toContain('data-section-child-element="empty"');
+    expect(editor).toContain("data-media-empty");
+    expect(editor).toContain("Media unavailable");
+  });
+
   it("uses the first click to select the element without entering edit mode", () => {
     const onElementSelect = vi.fn();
     const onElementEdit = vi.fn();

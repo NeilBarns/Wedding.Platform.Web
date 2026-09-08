@@ -25,7 +25,7 @@ export function GroupElementRenderer({ group, sectionId, mode, viewport, templat
 }) {
   useDecorativeSourceAvailability();
   const layout = resolveGroupLayout(group.layout, viewport);
-  const visibleChildren = group.children.filter((child) => isElementRenderable(child, templateKey, mode));
+  const visibleChildren = group.children.filter((child) => isElementRenderable(child, templateKey, mode, media ?? {}));
   const direction = layout.direction ?? "vertical";
   const alignment = layout.alignment ?? "stretch";
   const columnPreset = layout.columns ?? "equal-2";

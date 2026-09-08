@@ -52,7 +52,7 @@ export function collectRequiredFontIds(website: WebsiteDraft): string[] {
     if (section.designDefaults.bodyFontId) ids.add(section.designDefaults.bodyFontId);
     if (section.type === "story") for (const block of (section.content as StoryContent).elements) for (const slot of Object.values(block.slots)) if ("appearance" in slot && slot.appearance && "fontFamilyId" in slot.appearance && slot.appearance.fontFamilyId) ids.add(slot.appearance.fontFamilyId);
     const childFlow = (section.content as { childFlow?: SectionChildFlow }).childFlow;
-    if ((section.type === "date" || section.type === "dressCode") && childFlow) {
+    if (childFlow) {
       childFlow.elements.forEach((element) => collectElementFontIds(element, ids));
     }
   }

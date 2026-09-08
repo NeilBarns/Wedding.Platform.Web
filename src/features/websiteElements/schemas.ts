@@ -6,6 +6,7 @@ import {
 } from "./constants";
 import { normalizeTextContent, validateTextFontTuple } from "./text";
 import { normalizeEditorName } from "./blockIdentity";
+import { isUnsupportedVideoProviderUrl } from "./videoUrl";
 
 export const elementIdSchema = z
   .string()
@@ -128,15 +129,14 @@ const mediaImageItemSchema = z.object({
   if (!item.decorative && !item.alt?.trim()) context.addIssue({ code: "custom", path: ["alt"], message: "Alt text is required unless the image is decorative." });
 });
 const mediaVideoItemSchema = z.object({
-  id: elementIdSchema, type: z.literal("video"), url: z.string().max(WEBSITE_ELEMENT_LIMITS.externalUrl).url().refine((value) => new URL(value).protocol === "https:", "Video URLs must use HTTPS."),
+  id: elementIdSchema, type: z.literal("video"), url: z.string().max(WEBSITE_ELEMENT_LIMITS.externalUrl).url().refine((value) => new URL(value).protocol === "https:", "Video URLs must use HTTPS.").refine((value) => !isUnsupportedVideoProviderUrl(value), "Direct video file required. YouTube and Vimeo links aren't supported."),
   controls: z.boolean().optional(),
 }).strict();
 export const mediaItemSchema = z.discriminatedUnion("type", [mediaImageItemSchema, mediaVideoItemSchema]);
-const mediaResponsivePresentationSchema = z.object({ mode: z.enum(["single", "carousel", "stacked"]).optional(), width: z.enum(["small", "medium", "large", "full"]).optional(), aspectRatio: z.enum(["natural", "square", "portrait", "landscape", "wide"]).optional() }).strict();
+const mediaResponsivePresentationSchema = z.object({ mode: z.enum(["single", "carousel"]).optional(), width: z.enum(["small", "medium", "large", "full"]).optional(), aspectRatio: z.enum(["natural", "square", "portrait", "landscape", "wide"]).optional() }).strict();
 const mediaPresentationSchema = mediaResponsivePresentationSchema.extend({
   alignment: z.enum(["start", "center", "end"]).optional(), fit: z.enum(["cover", "contain"]).optional(),
-  carousel: z.object({ style: z.enum(["standard", "peek"]).optional(), autoplay: z.boolean().optional(), interval: z.number().int().min(2000).max(15000).optional(), arrows: z.boolean().optional(), dots: z.boolean().optional(), loop: z.boolean().optional() }).strict().optional(),
-  stacked: z.object({ style: z.enum(["polaroid", "soft-overlap", "editorial"]).optional() }).strict().optional(),
+  carousel: z.object({ autoplay: z.boolean().optional(), interval: z.number().int().min(2000).max(15000).optional(), arrows: z.boolean().optional(), dots: z.boolean().optional(), loop: z.boolean().optional() }).strict().optional(),
   responsive: z.object({ tablet: mediaResponsivePresentationSchema.optional(), mobile: mediaResponsivePresentationSchema.optional() }).strict().optional(),
 }).strict();
 const mediaAppearanceSchema = z.object({ corners: z.enum(["square", "soft", "rounded", "pill"]).optional(), frame: z.enum(["none", "line", "mat"]).optional(), shadow: z.enum(["none", "soft", "medium", "strong"]).optional() }).strict();
@@ -146,12 +146,10 @@ export const mediaElementSchema = z.object({ ...genericBlockShape, type: z.liter
   if (element.items.filter(({ type }) => type === "video").length > 1) context.addIssue({ code: "custom", path: ["items"], message: "Media supports only one video." });
   if (element.presentation?.mode === "single" && element.items.length !== 1) context.addIssue({ code: "custom", path: ["presentation", "mode"], message: "Single presentation requires exactly one item." });
   if (element.presentation?.mode === "carousel" && (element.items.length < 2 || element.items.some(({ type }) => type !== "image"))) context.addIssue({ code: "custom", path: ["presentation", "mode"], message: "Carousel presentation requires at least two images." });
-  if (element.presentation?.mode === "stacked" && (element.items.length < 2 || element.items.length > 5 || element.items.some(({ type }) => type !== "image"))) context.addIssue({ code: "custom", path: ["presentation", "mode"], message: "Stacked presentation requires two to five images." });
   for (const viewport of ["tablet", "mobile"] as const) {
     const mode = element.presentation?.responsive?.[viewport]?.mode;
     if (mode === "single" && element.items.length !== 1) context.addIssue({ code: "custom", path: ["presentation", "responsive", viewport, "mode"], message: "Single presentation requires exactly one item." });
     if (mode === "carousel" && (element.items.length < 2 || element.items.some(({ type }) => type !== "image"))) context.addIssue({ code: "custom", path: ["presentation", "responsive", viewport, "mode"], message: "Carousel presentation requires at least two images." });
-    if (mode === "stacked" && (element.items.length < 2 || element.items.length > 5 || element.items.some(({ type }) => type !== "image"))) context.addIssue({ code: "custom", path: ["presentation", "responsive", viewport, "mode"], message: "Stacked presentation requires two to five images." });
   }
 });
 

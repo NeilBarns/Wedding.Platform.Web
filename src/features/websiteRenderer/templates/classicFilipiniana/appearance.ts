@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import type { WebsiteDesignSettings, WebsiteSectionAppearance } from '../../../websiteEditor/types'
-import { resolveStoryCustomBackground } from '../../storyCustomBackground'
+import { resolveSectionCustomBackground } from '../../sectionSurface'
 import type { TemplateDesignLibrary } from '../../../websiteCapabilities/types'
 import type { ProjectColor } from '../../../websiteColors/projectColors'
 
@@ -10,28 +10,27 @@ export type ResolvedSectionAppearance = {
 }
 
 const headingAlignmentClasses = {
-  left: '[&_[data-section-heading]]:text-left [&_[data-section-heading]_*]:text-left',
-  center: '[&_[data-section-heading]]:text-center [&_[data-section-heading]_*]:text-center',
-  right: '[&_[data-section-heading]]:text-right [&_[data-section-heading]_*]:text-right',
+  left: '[&_[data-section-specialized-content]_[data-section-heading]]:text-left [&_[data-section-specialized-content]_[data-section-heading]_*]:text-left',
+  center: '[&_[data-section-specialized-content]_[data-section-heading]]:text-center [&_[data-section-specialized-content]_[data-section-heading]_*]:text-center',
+  right: '[&_[data-section-specialized-content]_[data-section-heading]]:text-right [&_[data-section-specialized-content]_[data-section-heading]_*]:text-right',
 } as const
 const bodyAlignmentClasses = {
-  left: '[&_[data-section-body]]:text-left [&_[data-section-body]_*]:text-left',
-  center: '[&_[data-section-body]]:text-center [&_[data-section-body]_*]:text-center',
-  right: '[&_[data-section-body]]:text-right [&_[data-section-body]_*]:text-right',
+  left: '[&_[data-section-specialized-content]_[data-section-body]]:text-left [&_[data-section-specialized-content]_[data-section-body]_*]:text-left',
+  center: '[&_[data-section-specialized-content]_[data-section-body]]:text-center [&_[data-section-specialized-content]_[data-section-body]_*]:text-center',
+  right: '[&_[data-section-specialized-content]_[data-section-body]]:text-right [&_[data-section-specialized-content]_[data-section-body]_*]:text-right',
 } as const
 
 export function resolveClassicFilipinianaSectionAppearance(
   sectionType: string,
   _design: WebsiteDesignSettings,
   appearance: WebsiteSectionAppearance,
-  _index: number,
   library: TemplateDesignLibrary,
   projectColors: readonly ProjectColor[],
 ): ResolvedSectionAppearance {
   const defaultBodyAlignment = sectionType === 'schedule' || sectionType === 'faq' ? 'left' : 'center'
   const heading = appearance.headingAlignment === 'inherit' ? 'center' : appearance.headingAlignment
   const body = appearance.bodyAlignment === 'inherit' ? defaultBodyAlignment : appearance.bodyAlignment
-  const customBackground = resolveStoryCustomBackground(sectionType, appearance, library, projectColors)
+  const customBackground = resolveSectionCustomBackground(appearance, library, projectColors)
   const background = appearance.backgroundTreatment === 'inherit' || appearance.backgroundTreatment === 'custom' ? classicBackgroundDefault(sectionType) : appearance.backgroundTreatment
   const emphasis = sectionType === 'story' || appearance.emphasis === 'inherit' ? 'standard' : appearance.emphasis
 

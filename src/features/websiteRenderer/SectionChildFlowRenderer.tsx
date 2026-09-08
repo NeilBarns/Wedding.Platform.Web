@@ -23,7 +23,7 @@ export function SectionChildFlowRenderer({ sectionId, flow, specialized, mode, v
   return <SectionRootFlow>{flow.order.map((reference) => {
     if (reference.kind === "specialized") return <div key="specialized:content">{specialized}</div>;
     const element = elements.get(reference.id);
-    if (!element || !isElementRenderable(element, templateKey, mode)) return null;
+    if (!element || !isElementRenderable(element, templateKey, mode, media)) return null;
     const selected = selectedElementId === element.id;
     return <WebsiteElementFrame key={element.id} mode={mode} sectionId={sectionId} elementId={element.id} elementType={element.type === "compositionGroup" ? "Group" : element.type === "media" ? "Media" : element.type} selected={selected} onSelect={onElementSelect} onEdit={element.type === "text" ? onElementEdit : undefined}>
       {element.type === "compositionGroup" ? <GroupElementRenderer media={media} group={element} sectionId={sectionId} mode={mode} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} /> : <WebsiteLeafElementRenderer media={media} element={element} mode={mode} sectionId={sectionId} selected={selected} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} />}

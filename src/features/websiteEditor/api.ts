@@ -57,3 +57,28 @@ export function setWebsiteSectionEnabled(eventId: string, projectId: string, sec
 export function reorderWebsiteSections(eventId: string, projectId: string, sectionIds: string[]) {
   return mutation(eventId, projectId, '/sections/order', { sectionIds })
 }
+
+export function createWebsiteSection(eventId: string, projectId: string, type: 'blank') {
+  return ensureCsrfCookie().then(async () => {
+    const response = await apiRequest<ApiResource<unknown>>(`${projectPath(eventId, projectId)}/sections`, { method: 'POST', body: { type } })
+    return normalizeWebsiteDraftFromApi(response.data)
+  })
+}
+
+export function deleteWebsiteSection(eventId: string, projectId: string, sectionId: string) {
+  return ensureCsrfCookie().then(async () => {
+    const response = await apiRequest<ApiResource<unknown>>(`${projectPath(eventId, projectId)}/sections/${encodeURIComponent(sectionId)}`, { method: 'DELETE' })
+    return normalizeWebsiteDraftFromApi(response.data)
+  })
+}
+
+export function duplicateWebsiteSection(eventId: string, projectId: string, sectionId: string) {
+  return ensureCsrfCookie().then(async () => {
+    const response = await apiRequest<ApiResource<unknown>>(`${projectPath(eventId, projectId)}/sections/${encodeURIComponent(sectionId)}/duplicate`, { method: 'POST' })
+    return normalizeWebsiteDraftFromApi(response.data)
+  })
+}
+
+export function renameWebsiteSection(eventId: string, projectId: string, sectionId: string, editorName: string) {
+  return mutation(eventId, projectId, `/sections/${encodeURIComponent(sectionId)}/editor-name`, { editorName })
+}

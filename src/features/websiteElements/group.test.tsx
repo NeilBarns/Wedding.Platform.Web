@@ -12,6 +12,39 @@ const childJustification = { start: "flex-start", center: "center", end: "flex-e
 const group: CompositionGroup = { id: "group", type: "compositionGroup", editorName: "Group 1", children: [{ id: "a", type: "text", editorName: "Text 1", text: "First" }, { id: "b", type: "text", editorName: "Text 1", text: "Second" }], layout: { width: "narrow", direction: "horizontal", gap: "l", padding: { top: "s" }, alignment: "center", columns: "content-wide", responsive: { mobile: { direction: "vertical", gap: "s" } } } };
 
 describe("Group", () => {
+  it.each(["equal-2", "content-wide", "content-narrow", "equal-3"] as const)("removes unresolved Media before %s orphan geometry", (columns) => {
+    const candidate: CompositionGroup = {
+      id: `group-${columns}`, type: "compositionGroup", editorName: "Group 1",
+      children: [
+        { id: "text", type: "text", editorName: "Text 1", text: "Remaining" },
+        { id: "missing", type: "media", editorName: "Media 1", items: [{ id: "image", type: "image", mediaId: "01J00000000000000000000000", alt: "Missing" }] },
+      ],
+      layout: { direction: "horizontal", columns, gap: "l" },
+    };
+    const html = renderToStaticMarkup(<GroupElementRenderer group={candidate} sectionId="date" mode="public" viewport="desktop" templateKey="modern-editorial-v1" library={library} projectColors={[]} media={{}} />);
+    expect(html).toContain("Remaining");
+    expect(html).not.toContain('data-section-child-element="missing"');
+    expect(html).toContain("grid-column:1 / -1");
+    expect(html.match(/data-section-generic-child/g)).toHaveLength(1);
+  });
+
+  it("filters Media renderability recursively before nested Group slots are created", () => {
+    const candidate: CompositionGroup = {
+      id: "outer", type: "compositionGroup", editorName: "Group 1",
+      children: [
+        { id: "nested", type: "compositionGroup", editorName: "Group 2", children: [{ id: "empty", type: "media", editorName: "Media 1", items: [] }] },
+        { id: "text", type: "text", editorName: "Text 1", text: "Only public child" },
+      ],
+      layout: { direction: "vertical", gap: "l" },
+    };
+    const published = renderToStaticMarkup(<GroupElementRenderer group={candidate} sectionId="date" mode="public" viewport="desktop" templateKey="modern-editorial-v1" library={library} projectColors={[]} media={{}} />);
+    expect(published).toContain("Only public child");
+    expect(published).not.toContain('data-section-child-element="nested"');
+    const editor = renderToStaticMarkup(<GroupElementRenderer group={candidate} sectionId="date" mode="editor" viewport="desktop" templateKey="modern-editorial-v1" library={library} projectColors={[]} media={{}} />);
+    expect(editor).toContain('data-section-child-element="nested"');
+    expect(editor).toContain("data-media-empty");
+  });
+
   it("validates the focused layout contract and rejects the retired placeholder", () => {
     expect(compositionGroupSchema.safeParse(group).success).toBe(true);
     expect(compositionGroupSchema.safeParse({ id: "old", type: "compositionGroup", editorName: "Group 1", composition: "flow", children: [] }).success).toBe(false);
@@ -243,17 +276,18 @@ describe("Group", () => {
         layout: { direction: "horizontal", columns: "equal-2" },
         children: [
           { id: "rich", type: "richText", editorName: "Rich Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: token }] }] } },
-          { id: "media", type: "media", editorName: "Media 1", items: [] },
+          { id: "media", type: "media", editorName: "Media 1", items: [{ id: "photo", type: "image", mediaId: "01J00000000000000000000000", alt: "Photo" }] },
         ],
       }],
     };
 
-    const html = renderToStaticMarkup(<GroupElementRenderer group={nested} sectionId="date" mode="public" viewport="desktop" templateKey="modern-editorial-v1" library={library} projectColors={[]} />);
+    const media = { "01J00000000000000000000000": { id: "01J00000000000000000000000", originalFilename: "photo.jpg", width: 100, height: 100, web: { width: 100, height: 100, url: "/photo.jpg" } } };
+    const html = renderToStaticMarkup(<GroupElementRenderer group={nested} sectionId="date" mode="public" viewport="desktop" templateKey="modern-editorial-v1" library={library} projectColors={[]} media={media} />);
     expect(html).toContain("grid-template-columns:repeat(2,minmax(0,1fr))");
     expect(html.match(/class="min-w-0 max-w-full \[overflow-wrap:anywhere\]"/g)?.length).toBeGreaterThanOrEqual(3);
     expect(html).toContain(token);
     expect(html.indexOf(token)).toBeLessThan(html.indexOf('data-section-child-element="media"'));
-    expect(html).not.toContain("overflow-hidden");
+    expect(html).not.toMatch(/data-website-element="group"[^>]*overflow-hidden/);
   });
 
   it.each(["equal-2", "content-wide", "content-narrow"] as const)("spans the orphan child across both %s columns for 1, 3, and 5 children", (columns) => {

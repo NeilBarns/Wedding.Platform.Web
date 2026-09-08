@@ -454,7 +454,7 @@ export function resolveDecorativeOverlayStyle(
     ? (decorativeAssetRegistries[templateKey]?.overlays[semanticIntent] ?? null)
     : null;
 }
-export const STORY_DECORATIVE_LAYER_ORDER = [
+export const SECTION_DECORATIVE_LAYER_ORDER = [
   "base",
   "backgroundImage",
   "texture",

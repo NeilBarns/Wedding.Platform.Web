@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { resolveMediaCropGeometry } from '../websiteElements/mediaCrop'
 
 type Size = { width: number; height: number }
 
@@ -18,17 +19,13 @@ export function ZoomedMediaImage({ alt = '', className = '', fill = false, heigh
     return () => observer.disconnect()
   }, [])
 
-  const baseScale = container.width && container.height ? Math.max(container.width / width, container.height / height) : 0
-  const renderedWidth = width * baseScale * zoom
-  const renderedHeight = height * baseScale * zoom
-  const left = Math.max(container.width - renderedWidth, Math.min(0, container.width / 2 - point.x * renderedWidth))
-  const top = Math.max(container.height - renderedHeight, Math.min(0, container.height / 2 - point.y * renderedHeight))
+  const geometry = container.width && container.height ? resolveMediaCropGeometry(container, { width, height }, point, zoom) : null
 
-  return <span ref={containerRef} data-media-focal-x={point.x} data-media-focal-y={point.y} data-media-zoom={zoom} className={`${fill ? 'absolute inset-0' : 'relative'} block overflow-hidden ${className}`}>
+  return <span ref={containerRef} data-media-focal-x={geometry?.point.x ?? point.x} data-media-focal-y={geometry?.point.y ?? point.y} data-media-zoom={geometry?.zoom ?? zoom} className={`${fill ? 'absolute inset-0' : 'relative'} block overflow-hidden ${className}`}>
     <img className="invisible block h-full w-full object-cover" src={src} alt="" aria-hidden="true" />
     <img
-      className={baseScale ? 'absolute max-w-none' : 'absolute inset-0 h-full w-full object-cover object-center'}
-      style={baseScale ? { height: renderedHeight, left, top, width: renderedWidth } : undefined}
+      className={geometry ? 'absolute max-w-none' : 'absolute inset-0 h-full w-full object-cover object-center'}
+      style={geometry ? { height: geometry.height, left: geometry.left, top: geometry.top, width: geometry.width } : undefined}
       src={src}
       alt={alt}
     />
