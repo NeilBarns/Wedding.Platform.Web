@@ -3,6 +3,8 @@ import { createSemanticId } from "./createSemanticId";
 import { websiteElementTreeSchema } from "../websiteElements/schemas";
 import type { CompositionGroup, DividerElement, MediaElement, RichTextElement, TextElement, WebsiteElement } from "../websiteElements/types";
 import { canonicalizeRichTextDocument } from "../websiteElements/richText";
+import { normalizeTextContent } from "../websiteElements/text";
+import { GENERIC_BLOCK_LABELS, isGenericBlock, normalizeEditorName, type GenericBlockType } from "../websiteElements/blockIdentity";
 
 export const SECTION_SPECIALIZED_REFERENCE = { kind: "specialized", key: "content" } as const;
 
@@ -43,29 +45,85 @@ export const textSectionChildFlowSchema = sectionChildFlowSchema.superRefine((fl
 
 export type SectionChildReference = z.infer<typeof sectionChildReferenceSchema>;
 export type SectionChildFlow = z.infer<typeof sectionChildFlowSchema>;
+export type SectionElementDestination = { parentId: string | null; index: number };
+export type SectionElementMoveResult =
+  | { ok: true; flow: SectionChildFlow }
+  | { ok: false; reason: "source-not-found" | "destination-not-found" | "cycle" | "invalid-destination" };
+export type SectionElementMoveDestination = {
+  parentId: string | null;
+  index: number;
+  label: string;
+  revealGroupIds: string[];
+};
 
 export function resolveSectionChildOrder(flow?: SectionChildFlow): SectionChildReference[] {
   return flow ? flow.order : [SECTION_SPECIALIZED_REFERENCE];
 }
 
-export function createTextElement(): TextElement {
-  return { id: createSemanticId("text"), type: "text", text: "" };
+/**
+ * Remove transient browser/editor fields from Rich Text before it crosses the
+ * API boundary. This also applies to Rich Text nested within Groups.
+ */
+export function canonicalizeSectionChildFlowRichText(flow: SectionChildFlow): SectionChildFlow {
+  const canonicalize = (element: WebsiteElement): WebsiteElement => element.type === "richText"
+    ? { ...element, document: canonicalizeRichTextDocument(element.document) }
+    : element.type === "compositionGroup"
+      ? { ...element, children: element.children.map(canonicalize) } as WebsiteElement
+      : element;
+  return { ...flow, elements: flow.elements.map(canonicalize) };
 }
 
-export function createRichTextElement(): RichTextElement {
-  return { id: createSemanticId("rich-text"), type: "richText", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "" }] }] } };
+export function visitGenericBlocks(elements: readonly WebsiteElement[], visitor: (element: WebsiteElement & { type: GenericBlockType; editorName: string }) => void): void {
+  const visit = (element: WebsiteElement) => {
+    if (!isGenericBlock(element)) return;
+    visitor(element);
+    if (element.type === "compositionGroup") element.children.forEach(visit);
+  };
+  elements.forEach(visit);
 }
 
-export function createDividerElement(): DividerElement {
-  return { id: createSemanticId("divider"), type: "divider" };
+function automaticNameState(flow?: SectionChildFlow): Record<GenericBlockType, number> {
+  const state = { text: 0, richText: 0, media: 0, divider: 0, compositionGroup: 0 };
+  if (!flow) return state;
+  visitGenericBlocks(flow.elements, (element) => {
+    const match = new RegExp(`^${GENERIC_BLOCK_LABELS[element.type].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} ([1-9]\\d*)$`).exec(element.editorName);
+    if (match) state[element.type] = Math.max(state[element.type], Number(match[1]));
+  });
+  return state;
 }
 
-export function createMediaElement(mediaId?: string): MediaElement {
-  return { id: createSemanticId("media"), type: "media", items: mediaId ? [{ id: createSemanticId("media-item"), type: "image", mediaId, alt: "Image" }] : [] };
+function nextAutomaticName(type: GenericBlockType, state: Record<GenericBlockType, number>): string {
+  state[type] += 1;
+  return `${GENERIC_BLOCK_LABELS[type]} ${state[type]}`;
 }
 
-export function createGroupElement(): CompositionGroup {
-  return { id: createSemanticId("group"), type: "compositionGroup", children: [] };
+export function createTextElement(editorName: string): TextElement {
+  return { id: createSemanticId("text"), type: "text", editorName, text: "" };
+}
+
+export function createRichTextElement(editorName: string): RichTextElement {
+  return { id: createSemanticId("rich-text"), type: "richText", editorName, document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "" }] }] } };
+}
+
+export function createDividerElement(editorName: string): DividerElement {
+  return { id: createSemanticId("divider"), type: "divider", editorName };
+}
+
+export function createMediaElement(editorName: string, mediaId?: string): MediaElement {
+  return { id: createSemanticId("media"), type: "media", editorName, items: mediaId ? [{ id: createSemanticId("media-item"), type: "image", mediaId, alt: "Image" }] : [] };
+}
+
+export function createGroupElement(editorName: string): CompositionGroup {
+  return { id: createSemanticId("group"), type: "compositionGroup", editorName, children: [] };
+}
+
+export function createSectionElement(flow: SectionChildFlow | undefined, type: GenericBlockType, mediaId?: string): WebsiteElement & { editorName: string } {
+  const editorName = nextAutomaticName(type, automaticNameState(flow));
+  if (type === "text") return createTextElement(editorName);
+  if (type === "richText") return createRichTextElement(editorName);
+  if (type === "divider") return createDividerElement(editorName);
+  if (type === "media") return createMediaElement(editorName, mediaId);
+  return createGroupElement(editorName);
 }
 
 export function insertSectionElement(flow: SectionChildFlow | undefined, element: WebsiteElement, after?: SectionChildReference): SectionChildFlow {
@@ -89,13 +147,13 @@ export function setSectionElementHidden(flow: SectionChildFlow, elementId: strin
   return updateSectionElement(flow, next);
 }
 
-export function canonicalizeSectionChildFlowRichText(flow: SectionChildFlow): SectionChildFlow {
-  const canonicalize = (element: WebsiteElement): WebsiteElement => element.type === "richText"
-    ? { ...element, document: canonicalizeRichTextDocument(element.document) }
-    : element.type === "compositionGroup"
-      ? { ...element, children: element.children.map(canonicalize) } as WebsiteElement
-      : element;
-  return { ...flow, elements: flow.elements.map(canonicalize) };
+export function renameSectionElement(flow: SectionChildFlow, elementId: string, requestedName: string): SectionChildFlow {
+  const current = findSectionElement(flow, elementId);
+  if (!current || !isGenericBlock(current)) return flow;
+  const normalized = normalizeEditorName(requestedName);
+  if (Array.from(normalized).length > 80) return flow;
+  const editorName = normalized || nextAutomaticName(current.type, automaticNameState(flow));
+  return updateSectionElement(flow, { ...current, editorName });
 }
 
 function updateElementTree(current: WebsiteElement, replacement: WebsiteElement): WebsiteElement {
@@ -111,7 +169,7 @@ export function findSectionElement(flow: SectionChildFlow | undefined, id: strin
 
 export function updateSectionTextElement(flow: SectionChildFlow, elementId: string, text: string): SectionChildFlow | null {
   const element = findSectionElement(flow, elementId);
-  return element?.type === "text" ? updateSectionElement(flow, { ...element, text }) : null;
+  return element?.type === "text" ? updateSectionElement(flow, { ...element, text: normalizeTextContent(text) }) : null;
 }
 
 export function updateSectionRichTextAppearance(flow: SectionChildFlow, elementId: string, appearance: RichTextElement["appearance"]): SectionChildFlow | null {
@@ -121,6 +179,11 @@ export function updateSectionRichTextAppearance(flow: SectionChildFlow, elementI
   if (appearance === undefined) delete next.appearance;
   else next.appearance = appearance;
   return updateSectionElement(flow, next);
+}
+
+export function updateSectionRichTextDocument(flow: SectionChildFlow, elementId: string, document: RichTextElement["document"]): SectionChildFlow | null {
+  const current = findSectionElement(flow, elementId);
+  return current?.type === "richText" ? updateSectionElement(flow, { ...current, document }) : null;
 }
 
 export function addGroupChild(flow: SectionChildFlow, groupId: string, child: WebsiteElement): SectionChildFlow {
@@ -156,7 +219,7 @@ export function deleteSectionElement(flow: SectionChildFlow, elementId: string):
 export function duplicateSectionElement(flow: SectionChildFlow, elementId: string): { flow: SectionChildFlow; elementId: string } | null {
   const source = flow.elements.find(({ id }) => id === elementId);
   if (!source || flow.elements.length >= 20) return null;
-  const duplicate = regenerateElementIds(structuredClone(source));
+  const duplicate = regenerateElementIdentities(structuredClone(source), automaticNameState(flow));
   return { flow: insertSectionElement(flow, duplicate, { kind: "element", id: elementId }), elementId: duplicate.id };
 }
 
@@ -176,17 +239,138 @@ export function moveSectionChild(flow: SectionChildFlow, reference: SectionChild
   return index < 0 || target < 0 || target >= flow.order.length ? flow : reorderSectionChild(flow, reference, flow.order[target]);
 }
 
+export function moveSectionElement(
+  flow: SectionChildFlow,
+  elementId: string,
+  destination: SectionElementDestination,
+): SectionElementMoveResult {
+  const source = findSectionElement(flow, elementId);
+  if (!source || !isGenericBlock(source)) return { ok: false, reason: "source-not-found" };
+  if (destination.parentId === elementId) return { ok: false, reason: "cycle" };
+  if (destination.parentId && elementContainsId(source, destination.parentId)) return { ok: false, reason: "cycle" };
+  if (destination.parentId) {
+    const destinationParent = findSectionElement(flow, destination.parentId);
+    if (destinationParent?.type !== "compositionGroup") return { ok: false, reason: "destination-not-found" };
+  }
+
+  const candidate = structuredClone(flow);
+  const detached = detachSectionElement(candidate, elementId);
+  if (!detached) return { ok: false, reason: "source-not-found" };
+  const inserted = insertMovedSectionElement(detached.flow, detached.element, destination);
+  if (!inserted || !sectionChildFlowSchema.safeParse(inserted).success) {
+    return { ok: false, reason: "invalid-destination" };
+  }
+  return { ok: true, flow: inserted };
+}
+
+export function getValidSectionElementMoveDestinations(
+  flow: SectionChildFlow,
+  elementId: string,
+): SectionElementMoveDestination[] {
+  const sourceParentId = findSectionElementParentId(flow, elementId);
+  if (sourceParentId === undefined) return [];
+  const candidates: Array<SectionElementMoveDestination & { baseLabel: string }> = [];
+  if (sourceParentId !== null) {
+    const lastGenericIndex = flow.order.findLastIndex(({ kind }) => kind === "element");
+    candidates.push({ parentId: null, index: lastGenericIndex >= 0 ? lastGenericIndex + 1 : flow.order.length, label: "Section root", baseLabel: "Section root", revealGroupIds: [] });
+  }
+  const visit = (element: WebsiteElement, path: string[], groupIds: string[]) => {
+    if (element.type !== "compositionGroup") return;
+    const nextPath = [...path, element.editorName];
+    const nextGroupIds = [...groupIds, element.id];
+    if (element.id !== sourceParentId) {
+      const label = nextPath.join(" / ");
+      candidates.push({ parentId: element.id, index: element.children.length, label, baseLabel: label, revealGroupIds: nextGroupIds });
+    }
+    element.children.forEach((child) => visit(child, nextPath, nextGroupIds));
+  };
+  flow.elements.forEach((element) => visit(element, [], []));
+  const valid = candidates.filter(({ parentId, index }) => moveSectionElement(flow, elementId, { parentId, index }).ok);
+  const totals = valid.reduce<Record<string, number>>((counts, destination) => {
+    counts[destination.baseLabel] = (counts[destination.baseLabel] ?? 0) + 1;
+    return counts;
+  }, {});
+  const occurrences: Record<string, number> = {};
+  return valid.map(({ baseLabel, ...destination }) => {
+    occurrences[baseLabel] = (occurrences[baseLabel] ?? 0) + 1;
+    return {
+      ...destination,
+      label: totals[baseLabel] > 1 ? `${baseLabel} (${occurrences[baseLabel]})` : destination.label,
+    };
+  });
+}
+
+function findSectionElementParentId(flow: SectionChildFlow, elementId: string): string | null | undefined {
+  if (flow.elements.some(({ id }) => id === elementId)) return null;
+  let parentId: string | undefined;
+  const visit = (element: WebsiteElement) => {
+    if (parentId || element.type !== "compositionGroup") return;
+    if (element.children.some(({ id }) => id === elementId)) {
+      parentId = element.id;
+      return;
+    }
+    element.children.forEach(visit);
+  };
+  flow.elements.forEach(visit);
+  return parentId;
+}
+
+function elementContainsId(element: WebsiteElement, id: string): boolean {
+  return element.id === id || (element.type === "compositionGroup" && element.children.some((child) => elementContainsId(child, id)));
+}
+
+function detachSectionElement(flow: SectionChildFlow, elementId: string): { flow: SectionChildFlow; element: WebsiteElement } | null {
+  const rootIndex = flow.elements.findIndex(({ id }) => id === elementId);
+  if (rootIndex >= 0) {
+    const [element] = flow.elements.splice(rootIndex, 1);
+    flow.order = flow.order.filter((reference) => reference.kind !== "element" || reference.id !== elementId);
+    return { flow, element };
+  }
+  let detached: WebsiteElement | undefined;
+  const visit = (element: WebsiteElement): void => {
+    if (detached || element.type !== "compositionGroup") return;
+    const index = element.children.findIndex(({ id }) => id === elementId);
+    if (index >= 0) {
+      [detached] = element.children.splice(index, 1);
+      return;
+    }
+    element.children.forEach(visit);
+  };
+  flow.elements.forEach(visit);
+  return detached ? { flow, element: detached } : null;
+}
+
+function insertMovedSectionElement(
+  flow: SectionChildFlow,
+  element: WebsiteElement,
+  destination: SectionElementDestination,
+): SectionChildFlow | null {
+  if (!Number.isInteger(destination.index) || destination.index < 0) return null;
+  if (destination.parentId === null) {
+    if (destination.index > flow.order.length) return null;
+    const elementIndex = flow.order.slice(0, destination.index).filter(({ kind }) => kind === "element").length;
+    flow.elements.splice(elementIndex, 0, element);
+    flow.order.splice(destination.index, 0, { kind: "element", id: element.id });
+    return flow;
+  }
+  const parent = findSectionElement(flow, destination.parentId);
+  if (parent?.type !== "compositionGroup" || destination.index > parent.children.length) return null;
+  parent.children.splice(destination.index, 0, element as CompositionGroup["children"][number]);
+  return flow;
+}
+
 function sameReference(first: SectionChildReference, second: SectionChildReference) {
   return first.kind === second.kind && (first.kind === "specialized" ? second.kind === "specialized" : second.kind === "element" && first.id === second.id);
 }
 
-function regenerateElementIds(element: WebsiteElement): WebsiteElement {
+function regenerateElementIdentities(element: WebsiteElement, names: Record<GenericBlockType, number>): WebsiteElement {
   element.id = createSemanticId(element.type === "compositionGroup" ? "group" : element.type);
+  if (isGenericBlock(element)) element.editorName = nextAutomaticName(element.type, names);
   if (element.type === "mediaCollection" || element.type === "media") element.items.forEach((item) => { item.id = createSemanticId("media-item"); });
-  if (element.type === "compositionGroup") element.children.forEach((child) => regenerateElementIds(child));
+  if (element.type === "compositionGroup") element.children.forEach((child) => regenerateElementIdentities(child, names));
   return element;
 }
 
-export function duplicateWebsiteElement<T extends { id: string; type: string }>(element: T): T {
-  return regenerateElementIds(structuredClone(element) as WebsiteElement) as T;
+export function duplicateWebsiteElement<T extends WebsiteElement>(flow: SectionChildFlow, element: T): T {
+  return regenerateElementIdentities(structuredClone(element), automaticNameState(flow)) as T;
 }

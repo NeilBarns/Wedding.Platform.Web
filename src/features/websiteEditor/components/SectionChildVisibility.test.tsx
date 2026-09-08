@@ -17,25 +17,28 @@ describe("generic element visibility action", () => {
   it("keeps hidden elements visible and clearly marked in Structure", () => {
     const html = renderToStaticMarkup(<SectionChildList
       sectionLabel="Date"
-      flow={{ elements: [{ id: "hidden-text", type: "text", text: "Hidden copy", isHidden: true }], order: [{ kind: "specialized", key: "content" }, { kind: "element", id: "hidden-text" }] }}
+      flow={{ elements: [{ id: "hidden-text", type: "text", editorName: "Text 1", text: "Hidden copy", isHidden: true }], order: [{ kind: "specialized", key: "content" }, { kind: "element", id: "hidden-text" }] }}
       selected={null}
       onSelect={vi.fn()}
       onChange={vi.fn()}
+      onRenameSave={vi.fn(async () => null)}
       onDuplicate={vi.fn()}
       onDelete={vi.fn()}
     />);
     expect(html).toContain('data-element-hidden="true"');
     expect(html).toContain("opacity-60");
-    expect(html).toContain("Hidden copy");
-    expect(html).toContain('role="img" aria-label="Hidden" title="Hidden"');
-    expect(html).not.toContain(">Hidden</span>");
+    expect(html).toContain("Text 1");
+    expect(html).not.toContain("Hidden copy");
+    expect(html).not.toContain('role="img" aria-label="Hidden"');
+    expect(html).toContain("text-foreground-muted opacity-50");
     const hiddenRowOpeningTag = html.match(/<div[^>]*data-element-hidden="true"[^>]*>/)?.[0];
     expect(hiddenRowOpeningTag).not.toContain("opacity-");
-    expect(html).toContain('aria-label="Hidden copy actions"');
+    expect(html).toContain('aria-label="Text block: Text 1, hidden"');
+    expect(html).toContain('aria-label="Text block: Text 1, hidden actions"');
   });
 
   it("keeps hidden-row menu actions enabled and reserves disabled state for unavailable actions", () => {
-    const show = renderToStaticMarkup(<ElementVisibilityAction element={{ id: "hidden", type: "text", text: "Hidden", isHidden: true }} onToggle={vi.fn()} />);
+    const show = renderToStaticMarkup(<ElementVisibilityAction element={{ id: "hidden", type: "text", editorName: "Text 1", text: "Hidden", isHidden: true }} onToggle={vi.fn()} />);
     const enabled = renderToStaticMarkup(<StructureMenuAction icon={<span />} onClick={vi.fn()}>Duplicate</StructureMenuAction>);
     const disabled = renderToStaticMarkup(<StructureMenuAction icon={<span />} disabled onClick={vi.fn()}>Move up</StructureMenuAction>);
     expect(show).toContain("Show");

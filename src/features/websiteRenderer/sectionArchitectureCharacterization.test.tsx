@@ -241,8 +241,8 @@ describe("Section renderer boundary", () => {
   it.each(["classic", "modern"] as const)("uses a gapless %s root flow and authoritative Text/specialized/Text order", (template) => {
     const childFlow = {
       elements: [
-        { id: "before", type: "text", text: "Before content", appearance: {} },
-        { id: "after", type: "text", text: "After content", appearance: {} },
+        { id: "before", type: "text", editorName: "Text 1", text: "Before content", appearance: {} },
+        { id: "after", type: "text", editorName: "Text 1", text: "After content", appearance: {} },
       ],
       order: [
         { kind: "element", id: "before" },
@@ -260,7 +260,7 @@ describe("Section renderer boundary", () => {
   });
 
   it.each(["classic", "modern"] as const)("isolates %s emphasis spacing from Date generic children", (template) => {
-    const childFlow = { elements: [{ id: "group", type: "compositionGroup", children: [], layout: { width: "full", padding: { top: "none", right: "none", bottom: "none", left: "none" } } }], order: [{ kind: "specialized", key: "content" }, { kind: "element", id: "group" }] };
+    const childFlow = { elements: [{ id: "group", type: "compositionGroup", editorName: "Group 1", children: [], layout: { width: "full", padding: { top: "none", right: "none", bottom: "none", left: "none" } } }], order: [{ kind: "specialized", key: "content" }, { kind: "element", id: "group" }] };
     const emphasized = { ...section("date", "date", { heading: "Date", description: "At noon", childFlow }), appearance: { ...appearance, emphasis: "featured" as const } };
     const markup = render(template, [emphasized]);
     expect(markup).toContain("data-section-specialized-content");
@@ -286,7 +286,7 @@ describe("Section renderer boundary", () => {
             heading: "Specialized",
             description: "Formal",
             childFlow: {
-              elements: [{ id: "a", type: "text", text: "First", appearance: {} }, { id: "b", type: "text", text: "Second", appearance: {} }],
+              elements: [{ id: "a", type: "text", editorName: "Text 1", text: "First", appearance: {} }, { id: "b", type: "text", editorName: "Text 1", text: "Second", appearance: {} }],
               order,
             },
           })], viewport);
@@ -302,7 +302,7 @@ describe("Section renderer boundary", () => {
       const childFlow = {
         elements: [{
           id: "group",
-          type: "compositionGroup",
+          type: "compositionGroup", editorName: "Group 1",
           children: [],
           layout: { width: "full", gap: "l", padding: { top: "l", right: "s", bottom: "m", left: "xs" } },
         }],
@@ -335,11 +335,11 @@ describe("Section renderer boundary", () => {
 
   it.each(["classic", "modern"] as const)("isolates every supported %s Date and Dress Code generic child kind", (template) => {
     const elements = [
-      { id: "text", type: "text", text: "Plain text", appearance: {} },
-      { id: "rich", type: "richText", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "Rich text" }] }] }, appearance: {} },
-      { id: "divider", type: "divider", appearance: {} },
-      { id: "media", type: "media", items: [], presentation: { width: "full" }, appearance: {} },
-      { id: "group", type: "compositionGroup", children: [], layout: { width: "full" } },
+      { id: "text", type: "text", editorName: "Text 1", text: "Plain text", appearance: {} },
+      { id: "rich", type: "richText", editorName: "Rich Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "Rich text" }] }] }, appearance: {} },
+      { id: "divider", type: "divider", editorName: "Divider 1", appearance: {} },
+      { id: "media", type: "media", editorName: "Media 1", items: [], presentation: { width: "full" }, appearance: {} },
+      { id: "group", type: "compositionGroup", editorName: "Group 1", children: [], layout: { width: "full" } },
     ];
     const order = [
       { kind: "element", id: "text" },
@@ -374,7 +374,7 @@ describe("Section renderer boundary", () => {
   it.each(["classic", "modern"] as const)("preserves %s Date and Dress Code flow structure between editor and public output", (template) => {
     for (const type of ["date", "dressCode"] as const) {
       const childFlow = {
-        elements: [{ id: "before", type: "text", text: "Before", appearance: {} }, { id: "after", type: "text", text: "After", appearance: {} }],
+        elements: [{ id: "before", type: "text", editorName: "Text 1", text: "Before", appearance: {} }, { id: "after", type: "text", editorName: "Text 1", text: "After", appearance: {} }],
         order: [{ kind: "element", id: "before" }, { kind: "specialized", key: "content" }, { kind: "element", id: "after" }],
       };
       for (const viewport of ["mobile", "tablet", "desktop"] as const) {

@@ -1,5 +1,28 @@
 const REVEAL_COMFORT = 24;
 
+type VerticalBounds = Pick<DOMRect, "top" | "bottom" | "height">;
+
+export function revealScrollDelta(
+  target: VerticalBounds,
+  viewport: Pick<VerticalBounds, "top" | "bottom">,
+  comfort: number,
+  clientToScrollScale = 1,
+) {
+  if (viewport.bottom <= viewport.top || target.height <= 0) return 0;
+  const visibleTop = viewport.top + comfort;
+  const visibleBottom = viewport.bottom - comfort;
+  const clientDelta = target.top < visibleTop
+    ? target.top - visibleTop
+    : target.bottom > visibleBottom
+      ? target.bottom - visibleBottom
+      : 0;
+  return clientDelta / (clientToScrollScale > 0 ? clientToScrollScale : 1);
+}
+
+function transformedScrollScale(container: HTMLElement, bounds: DOMRect) {
+  return container.clientHeight > 0 ? bounds.height / container.clientHeight : 1;
+}
+
 export function revealEditorTarget(
   target: HTMLElement,
   comfort = REVEAL_COMFORT,
@@ -14,17 +37,14 @@ export function revealEditorTarget(
 
   const targetBounds = target.getBoundingClientRect();
   const containerBounds = markedContainer?.getBoundingClientRect();
-  const top = containerBounds?.top ?? 0;
-  const bottom = containerBounds?.bottom ?? ownerDocument.documentElement.clientHeight;
-  if (bottom <= top || targetBounds.height <= 0) return false;
-
-  const visibleTop = top + comfort;
-  const visibleBottom = bottom - comfort;
-  const delta = targetBounds.top < visibleTop
-    ? targetBounds.top - visibleTop
-    : targetBounds.bottom > visibleBottom
-      ? targetBounds.bottom - visibleBottom
-      : 0;
+  const viewportBounds = containerBounds ?? {
+    top: 0,
+    bottom: ownerDocument.documentElement.clientHeight,
+  };
+  const scale = markedContainer && containerBounds
+    ? transformedScrollScale(markedContainer, containerBounds)
+    : 1;
+  const delta = revealScrollDelta(targetBounds, viewportBounds, comfort, scale);
   if (delta === 0) return false;
 
   const behavior = ownerWindow.matchMedia("(prefers-reduced-motion: reduce)").matches

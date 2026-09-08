@@ -1,4 +1,5 @@
 import { EditorSelectionFrame } from "./EditorSelectionFrame";
+import { nearestEditorHitFrame } from "./editorHitTarget";
 
 export function WebsiteElementFrame({
   mode,
@@ -50,6 +51,7 @@ export function WebsiteElementFrame({
       data-section-generic-child
       data-section-child-element={elementId}
       data-editor-website-element={elementId}
+      data-editor-section-id={sectionId}
       data-editor-selected={selected ? "true" : undefined}
       aria-label={`Edit ${label}`}
       onPointerDown={(event) => {
@@ -65,6 +67,20 @@ export function WebsiteElementFrame({
       }}
       onClick={(event) => event.stopPropagation()}
     >
+      {elementType === "divider" && <span
+        aria-hidden="true"
+        data-editor-divider-hit-area
+        className="editor-divider-hit-area"
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          const frame = event.currentTarget.parentElement!;
+          const target = nearestEditorHitFrame(frame, frame.ownerDocument.elementsFromPoint(event.clientX, event.clientY), event.clientX, event.clientY);
+          const targetId = target.dataset.editorWebsiteElement!;
+          const targetSection = target.dataset.editorSectionId ?? sectionId;
+          if (target === frame && selected) onEdit?.(sectionId, elementId);
+          else onSelect?.(targetSection, targetId);
+        }}
+      />}
       <button
         type="button"
         className="editor-element-badge"

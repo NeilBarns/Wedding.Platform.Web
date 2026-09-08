@@ -1,14 +1,15 @@
 import type { ResolvedDesignContext, TemplateDesignLibrary } from "../websiteCapabilities/types";
 import { platformFont } from "../websiteFonts/platformFonts";
-import type { TextAppearance } from "./text";
+import { textFontCapabilities, type TextAppearance } from "./text";
 import type { TextElement } from "./types";
 
 export const TEXT_STYLE_IDS = ["heading", "subheading", "eyebrow", "body", "caption"] as const;
 export type TextStyleId = typeof TEXT_STYLE_IDS[number];
 export type TextStyleChoice = TextStyleId | "custom";
 
-export const friendlyFontWeightOptions = (fontId?: string) => (platformFont(fontId ?? "")?.weights ?? [])
-  .filter((weight): weight is 400 | 600 | 700 => weight === 400 || weight === 600 || weight === 700)
+const TEXT_STYLE_APPEARANCE_KEYS = ["fontSize", "fontWeight", "lineHeight", "letterSpacing", "alignment", "colorId", "textTransform"] as const;
+
+export const friendlyFontWeightOptions = (fontId?: string) => textFontCapabilities(fontId).weights
   .map((weight) => ({ value: String(weight), label: weight === 400 ? "Normal" : weight === 600 ? "Semi-bold" : "Bold" }));
 
 export function withTextAppearance(element: TextElement, appearance: TextAppearance): TextElement {
@@ -47,6 +48,16 @@ export function textStylePreset(
   }
 }
 
+export function applyTextStylePreset(appearance: TextAppearance, preset: TextAppearance): TextAppearance {
+  const next = { ...appearance };
+  for (const key of TEXT_STYLE_APPEARANCE_KEYS) {
+    const value = preset[key];
+    if (value === undefined) delete next[key];
+    else Object.assign(next, { [key]: value });
+  }
+  return next;
+}
+
 export function resolveTextStyle(
   appearance: TextAppearance,
   templateKey: string,
@@ -54,7 +65,8 @@ export function resolveTextStyle(
   context?: ResolvedDesignContext | null,
   allowedColorIds?: readonly string[],
 ): TextStyleChoice {
-  return TEXT_STYLE_IDS.find((style) => equalAppearance(appearance, textStylePreset(style, templateKey, library, context, allowedColorIds))) ?? "custom";
+  const ownedAppearance = pickTextStyleAppearance(appearance);
+  return TEXT_STYLE_IDS.find((style) => equalAppearance(ownedAppearance, pickTextStyleAppearance(textStylePreset(style, templateKey, library, context, allowedColorIds)))) ?? "custom";
 }
 
 export function curatedTextColors(
@@ -98,6 +110,10 @@ function compact(appearance: TextAppearance): TextAppearance {
 
 function equalAppearance(left: TextAppearance, right: TextAppearance) {
   return JSON.stringify(sorted(left)) === JSON.stringify(sorted(right));
+}
+
+function pickTextStyleAppearance(appearance: TextAppearance): TextAppearance {
+  return Object.fromEntries(TEXT_STYLE_APPEARANCE_KEYS.flatMap((key) => appearance[key] === undefined ? [] : [[key, appearance[key]]])) as TextAppearance;
 }
 
 function sorted(value: unknown): unknown {

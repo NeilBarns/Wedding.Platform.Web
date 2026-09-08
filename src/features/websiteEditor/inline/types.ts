@@ -20,3 +20,7 @@ export function inlineTargetKey(target: InlineEditingTarget) {
       ? `${target.sectionId}:element:${target.elementId}`
     : `${target.sectionId}:${target.path.join('.')}`
 }
+
+export function isStandaloneTextEditingTarget(target: InlineEditingTarget | null) {
+  return Boolean(target?.elementId)
+}

@@ -1,3 +1,4 @@
+import { isDividerAssetForTemplate } from "../websiteElements/divider";
 import { z } from 'zod'
 import type { WebsiteDraft, WebsiteSection, WebsiteSectionAppearance } from './types'
 import { CURRENT_WEBSITE_SCHEMA_VERSION } from './schema'
@@ -176,9 +177,20 @@ function validateCapabilityBoundAppearance(capability: SectionCapability, appear
   }
 }
 
-export function validateSectionContent(type: string, content: Record<string, unknown>) {
+export function validateSectionContent(type: string, content: Record<string, unknown>, templateKey?: string) {
   const schema = contentSchemas[type]
-  return schema ? schema.safeParse(content) : { success: false as const, error: null }
+  return schema ? schema.superRefine((value, context) => {
+    if (!templateKey || typeof value !== "object" || value === null || !("childFlow" in value)) return;
+    const flow = textSectionChildFlowSchema.safeParse(value.childFlow);
+    if (!flow.success) return;
+    const visit = (element: import("../websiteElements/types").WebsiteElement, path: (string | number)[]) => {
+      if (element.type === "divider" && element.appearance?.assetId !== undefined && !isDividerAssetForTemplate(templateKey, element.appearance.assetId)) {
+        context.addIssue({ code: "custom", message: "The selected Divider asset is not supported by this Template.", path: [...path, "appearance", "assetId"] });
+      }
+      if (element.type === "compositionGroup") element.children.forEach((child, index) => visit(child, [...path, "children", index]));
+    };
+    flow.data.elements.forEach((element, index) => visit(element, ["childFlow", "elements", index]));
+  }).safeParse(content) : { success: false as const, error: null }
 }
 
 const sectionSchema = z.object({

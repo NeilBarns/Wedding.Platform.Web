@@ -208,7 +208,7 @@ export function GroupElementEditor({
         <InspectorSection title="Background">
           <div>
             <p className="mb-1.5 text-xs font-medium">Background Color</p>
-            <WebsiteColorSwatchControl
+            <WebsiteColorSwatchControl key={group.id} previewTarget={`${group.id}:backgroundColor`}
               label="Group background color"
               inheritLabel="No Background"
               colorId={group.appearance?.backgroundColorId}

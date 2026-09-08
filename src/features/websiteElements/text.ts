@@ -6,9 +6,11 @@ export const TEXT_LINE_HEIGHTS = ["tight", "normal", "relaxed"] as const;
 export const TEXT_LETTER_SPACINGS = ["tight", "normal", "wide"] as const;
 export const TEXT_ALIGNMENTS = ["start", "center", "end"] as const;
 export const TEXT_TRANSFORMS = ["none", "uppercase", "lowercase", "capitalize"] as const;
+export const TEXT_FONT_WEIGHTS = [400, 600, 700] as const;
 
 export type TextSize = typeof TEXT_SIZES[number];
 export type TextAlignment = typeof TEXT_ALIGNMENTS[number];
+export type TextFontWeight = typeof TEXT_FONT_WEIGHTS[number];
 export type TextResponsiveAppearance = { fontSize?: TextSize; alignment?: TextAlignment };
 export type TextAppearance = {
   fontFamilyId?: string; fontSize?: TextSize; fontWeight?: 400 | 600 | 700;
@@ -19,6 +21,18 @@ export type TextAppearance = {
   textTransform?: typeof TEXT_TRANSFORMS[number];
   responsive?: { tablet?: TextResponsiveAppearance; mobile?: TextResponsiveAppearance };
 };
+
+export function selectTextGlobalAppearanceProperty<K extends keyof TextAppearance>(
+  appearance: TextAppearance,
+  key: K,
+  value: TextAppearance[K],
+  inheritedValue: TextAppearance[K],
+): TextAppearance {
+  const next = { ...appearance };
+  if (value === inheritedValue || value === undefined) delete next[key];
+  else Object.assign(next, { [key]: value });
+  return next;
+}
 
 export function normalizeTextContent(value: string): string {
   return value.replace(/(?:\r\n|[\r\n\u2028\u2029])+/gu, " ");
@@ -56,6 +70,18 @@ export function setTextResponsiveProperty(
   return next;
 }
 
+export function selectTextResponsiveProperty(
+  appearance: TextAppearance,
+  viewport: ResponsiveViewport,
+  key: keyof TextResponsiveAppearance,
+  value: TextResponsiveAppearance[keyof TextResponsiveAppearance],
+  inherited: Required<Pick<TextAppearance, "fontSize" | "alignment">> = { fontSize: "m", alignment: "start" },
+): TextAppearance {
+  if (viewport === "desktop") return setTextResponsiveProperty(appearance, viewport, key, value);
+  const desktopValue = appearance[key] ?? inherited[key];
+  return setTextResponsiveProperty(appearance, viewport, key, value === desktopValue ? undefined : value);
+}
+
 export function resetTextResponsiveDevice(appearance: TextAppearance, viewport: Exclude<ResponsiveViewport, "desktop">): TextAppearance {
   const responsive = { ...appearance.responsive };
   delete responsive[viewport];
@@ -73,14 +99,55 @@ export function validateTextFontTuple(appearance: TextAppearance): string | unde
   return undefined;
 }
 
+export function textFontCapabilities(fontFamilyId?: string) {
+  const font = platformFont(fontFamilyId ?? "");
+  return {
+    weights: TEXT_FONT_WEIGHTS.filter((weight) => font?.weights.includes(weight)),
+    italic: font?.styles.includes("italic") === true,
+  };
+}
+
+export function setTextFontWeight(
+  appearance: TextAppearance,
+  effectiveFontFamilyId: string | undefined,
+  weight: TextFontWeight,
+): TextAppearance {
+  if (!textFontCapabilities(effectiveFontFamilyId).weights.includes(weight)) return appearance;
+  const next = weight === 400 ? { ...appearance } : pinEffectiveTextFont(appearance, effectiveFontFamilyId);
+  if (weight === 400) delete next.fontWeight;
+  else next.fontWeight = weight;
+  return next;
+}
+
+export function toggleTextBold(appearance: TextAppearance, effectiveFontFamilyId?: string): TextAppearance {
+  if (!textFontCapabilities(effectiveFontFamilyId).weights.includes(700)) return appearance;
+  return setTextFontWeight(appearance, effectiveFontFamilyId, appearance.fontWeight === 700 ? 400 : 700);
+}
+
+export function toggleTextItalic(appearance: TextAppearance, effectiveFontFamilyId?: string): TextAppearance {
+  if (!textFontCapabilities(effectiveFontFamilyId).italic) return appearance;
+  const next = appearance.italic ? { ...appearance } : pinEffectiveTextFont(appearance, effectiveFontFamilyId);
+  if (next.italic) delete next.italic;
+  else next.italic = true;
+  return next;
+}
+
+function pinEffectiveTextFont(appearance: TextAppearance, effectiveFontFamilyId?: string): TextAppearance {
+  return !appearance.fontFamilyId && effectiveFontFamilyId
+    ? { ...appearance, fontFamilyId: effectiveFontFamilyId }
+    : { ...appearance };
+}
+
+export function normalizeTextAppearanceForFont(appearance: TextAppearance, effectiveFontFamilyId?: string): TextAppearance {
+  const capabilities = textFontCapabilities(effectiveFontFamilyId);
+  const next = { ...appearance };
+  if (next.fontWeight !== undefined && !capabilities.weights.includes(next.fontWeight)) delete next.fontWeight;
+  if (next.italic && !capabilities.italic) delete next.italic;
+  return next;
+}
+
 export function changeTextFontFamily(appearance: TextAppearance, fontFamilyId: string | undefined, inheritedFontFamilyId?: string): TextAppearance {
   const next = { ...appearance };
   if (fontFamilyId) next.fontFamilyId = fontFamilyId; else delete next.fontFamilyId;
-  const font = platformFont(fontFamilyId ?? inheritedFontFamilyId ?? "");
-  if (font && next.fontWeight !== undefined && !font.weights.includes(next.fontWeight)) {
-    const replacement = font.weights.find((weight): weight is 400 | 600 | 700 => weight === 400 || weight === 600 || weight === 700);
-    if (replacement) next.fontWeight = replacement; else delete next.fontWeight;
-  }
-  if (font && next.italic && !font.styles.includes("italic")) delete next.italic;
-  return next;
+  return normalizeTextAppearanceForFont(next, fontFamilyId ?? inheritedFontFamilyId);
 }

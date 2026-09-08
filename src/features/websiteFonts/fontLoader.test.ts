@@ -27,7 +27,7 @@ describe("fontStylesheetUrl", () => {
         designDefaults: {},
         content: {
           childFlow: {
-            elements: [{ id: "text-1", type: "text", text: "Details", appearance: { fontFamilyId: "inter" } }],
+            elements: [{ id: "text-1", type: "text", editorName: "Text 1", text: "Details", appearance: { fontFamilyId: "inter" } }],
             order: [{ kind: "specialized", key: "content" }, { kind: "element", id: "text-1" }],
           },
         },

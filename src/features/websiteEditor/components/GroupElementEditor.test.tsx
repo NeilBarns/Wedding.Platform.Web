@@ -4,7 +4,7 @@ import { selectGroupLayoutProperty } from "../../websiteElements/group";
 import type { CompositionGroup } from "../../websiteElements/types";
 import { GroupElementEditor } from "./GroupElementEditor";
 
-const group: CompositionGroup = { id: "group", type: "compositionGroup", children: [], layout: { width: "wide", direction: "horizontal", gap: "m", alignment: "start", columns: "equal-2" } };
+const group: CompositionGroup = { id: "group", type: "compositionGroup", editorName: "Group 1", children: [], layout: { width: "wide", direction: "horizontal", gap: "m", alignment: "start", columns: "equal-2" } };
 
 describe("GroupElementEditor", () => {
   it("groups and orders size, spacing, and layout controls", () => {

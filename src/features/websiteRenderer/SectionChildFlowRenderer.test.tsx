@@ -4,9 +4,16 @@ import { describe, expect, it, vi } from "vitest";
 import { SectionChildFlowRenderer } from "./SectionChildFlowRenderer";
 import { WebsiteElementFrame } from "./WebsiteElementFrame";
 
+// These callback tests inspect the returned element tree without mounting React.
+// Source subscriptions are exercised separately by the availability tests.
+vi.mock("./decorativeSourceAvailability", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./decorativeSourceAvailability")>(),
+  useDecorativeSourceAvailability: () => undefined,
+}));
+
 const props = {
   sectionId: "date-section",
-  flow: { elements: [{ id: "text-1", type: "text" as const, text: "Click me" }], order: [{ kind: "specialized" as const, key: "content" as const }, { kind: "element" as const, id: "text-1" }] },
+  flow: { elements: [{ id: "text-1", type: "text" as const, editorName: "Text 1", text: "Click me" }], order: [{ kind: "specialized" as const, key: "content" as const }, { kind: "element" as const, id: "text-1" }] },
   specialized: <div>Date</div>, viewport: "desktop" as const, templateKey: "classic-filipiniana-v1",
   library: { colors: [], fontFamilies: [], fontRecommendations: { heading: [], body: [], accent: [] }, palettePresets: [], typographyPresets: [] } as never,
   projectColors: [], context: null,

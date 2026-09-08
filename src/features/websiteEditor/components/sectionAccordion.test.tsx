@@ -11,8 +11,8 @@ import {
 const childFlow = (groupId: string, childId: string) => ({
   elements: [{
     id: groupId,
-    type: "compositionGroup" as const,
-    children: [{ id: childId, type: "text" as const, text: childId }],
+    type: "compositionGroup" as const, editorName: "Group 1",
+    children: [{ id: childId, type: "text" as const, editorName: "Text 1", text: childId }],
   }],
   order: [
     { kind: "specialized" as const, key: "content" as const },
@@ -41,6 +41,7 @@ const renderNavigator = (selectedId: string, childSectionId?: string, childId?: 
     onStoryHeaderSelect={vi.fn()}
     onStoryChange={vi.fn(() => true)}
     onChildFlowChange={vi.fn(() => true)}
+    onChildRenameSave={vi.fn(async () => null)}
     onChildSelect={vi.fn()}
     onToggle={vi.fn()}
     onMove={vi.fn()}
@@ -67,7 +68,8 @@ describe("Section Structure accordion", () => {
     expect(owner).toBe("section-b");
     const html = renderNavigator(owner!, "section-b", "nested-child-b");
     expect(html).toContain('aria-label="Collapse Section B" aria-expanded="true"');
-    expect(html).toContain("nested-child-b");
+    expect(html).toContain('aria-label="Text block: Text 1"');
+    expect(html).toContain('aria-current="true"');
     expect(html).toContain('aria-label="Collapse Group"');
   });
 

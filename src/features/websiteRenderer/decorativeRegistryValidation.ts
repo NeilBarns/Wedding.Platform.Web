@@ -35,6 +35,8 @@ export function validateDecorativeAssetDefinition(asset: TemplateDecorativeAsset
   if (asset.execution.renderMode === 'mask' && !asset.execution.tintToken) errors.push(`Mask tint token missing: ${asset.id}`)
   if (asset.execution.renderMode === 'image' && asset.execution.tintToken) errors.push(`Image cannot declare tint token: ${asset.id}`)
   if (asset.execution.position === 'fourCorners' && asset.execution.size !== 'corners') errors.push(`Four-corner size mismatch: ${asset.id}`)
+  if (asset.kind === 'divider' && (!Number.isFinite(asset.intrinsicWidth) || (asset.intrinsicWidth ?? 0) <= 0 || !Number.isFinite(asset.intrinsicHeight) || (asset.intrinsicHeight ?? 0) <= 0)) errors.push(`Invalid intrinsic dimensions: ${asset.id}`)
+  if (asset.kind === 'divider' && (asset.execution.size !== 'contain' || asset.responsiveVariants)) errors.push(`Divider requires global contained artwork: ${asset.id}`)
   const strength = asset.execution.strength
   if (strength && (!Number.isInteger(strength.default) || strength.default < 10 || strength.default > 100 || strength.minOpacity < 0 || strength.minOpacity > 1 || strength.maxOpacity < 0 || strength.maxOpacity > 1 || strength.minOpacity > strength.maxOpacity)) errors.push(`Invalid texture strength metadata: ${asset.id}`)
   if (strength && asset.kind !== 'texture' && asset.kind !== 'pattern') errors.push(`Strength metadata requires a texture or pattern: ${asset.id}`)

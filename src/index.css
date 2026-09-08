@@ -138,6 +138,14 @@ select {
   transition: box-shadow 180ms ease;
 }
 
+.editor-divider-hit-area {
+  position: absolute;
+  inset-inline: 0;
+  top: -6px;
+  bottom: -6px;
+  cursor: pointer;
+}
+
 .editor-element-badge {
   position: absolute;
   left: 4px;

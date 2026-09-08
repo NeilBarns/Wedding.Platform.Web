@@ -8,7 +8,7 @@ const props = { templateKey: "classic-filipiniana-v1", library, allowedColorIds:
 
 describe("DividerElementEditor", () => {
   it("always offers color and the locked appearance controls", () => {
-    const html = renderToStaticMarkup(<DividerElementEditor {...props} element={{ id: "divider", type: "divider" }} />);
+    const html = renderToStaticMarkup(<DividerElementEditor {...props} element={{ id: "divider", type: "divider", editorName: "Divider 1" }} />);
     expect(html).toContain("Style");
     expect(html).toContain("Botanical");
     expect(html).not.toContain("Use template");
@@ -16,18 +16,18 @@ describe("DividerElementEditor", () => {
     expect(html).toContain("Width");
     expect(html).toContain("Alignment");
     expect(html).toContain("Opacity");
-    expect(html.match(/type="range"/g)).toHaveLength(2);
+    expect(html.match(/type="range"/g)).toHaveLength(1);
   });
 
-  it("uses a continuous Small-to-Large width range and keeps alignment available", () => {
-    const html = renderToStaticMarkup(<DividerElementEditor {...props} element={{ id: "divider", type: "divider", appearance: { width: 37 } }} />);
-    expect(html).toContain('aria-valuetext="37% between Small and Large"');
+  it("uses semantic width choices and keeps alignment available", () => {
+    const html = renderToStaticMarkup(<DividerElementEditor {...props} element={{ id: "divider", type: "divider", editorName: "Divider 1", appearance: { width: "full" } }} />);
+    expect(html).not.toContain('aria-label="Divider width"');
     expect(html).toContain("Alignment");
-    expect(html).not.toContain(">Full<");
+    expect(html).toContain("Full");
   });
 
   it("supports every integer opacity between 25 and 100", () => {
-    const html = renderToStaticMarkup(<DividerElementEditor {...props} element={{ id: "divider", type: "divider", appearance: { opacity: 63 } }} />);
+    const html = renderToStaticMarkup(<DividerElementEditor {...props} element={{ id: "divider", type: "divider", editorName: "Divider 1", appearance: { opacity: 63 } }} />);
     expect(html).toContain('aria-label="Divider opacity"');
     expect(html).toContain('min="25"');
     expect(html).toContain('max="100"');

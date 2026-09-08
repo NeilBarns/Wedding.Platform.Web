@@ -1,3 +1,5 @@
+import { ColorPreviewScopeContext } from "../../features/websiteEditor/colorPreview";
+import { ColorPreviewProvider } from "../../features/websiteEditor/ColorPreviewProvider";
 import {
   ArrowLeft,
   ChevronDown,
@@ -5,15 +7,18 @@ import {
   FileWarning,
   ExternalLink,
   LayoutTemplate,
+  Minus,
   Monitor,
+  Plus,
   RefreshCw,
   Smartphone,
   Tablet,
 } from "lucide-react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Link, useParams } from "react-router-dom";
 import { Heading } from "../../components/ui/Heading";
+import { Select } from "../../components/ui/Select";
 import { SegmentedControl } from "../../components/ui/SegmentedControl";
 import { Text } from "../../components/ui/Text";
 import { useEventWorkspace } from "../../features/events/workspace/EventWorkspaceContext";
@@ -47,6 +52,7 @@ import type {
   InlineFieldPath,
   InlineEditingTarget,
 } from "../../features/websiteEditor/inline/types";
+import { isStandaloneTextEditingTarget } from "../../features/websiteEditor/inline/types";
 import type {
   ResponsiveViewport,
   StoryHeaderField,
@@ -79,16 +85,30 @@ import {
 } from "../../features/websiteCapabilities/lookup";
 import type { TemplateCapabilities } from "../../features/websiteCapabilities/types";
 import { ApiError } from "../../lib/api";
-import { findSectionElement, ungroupSectionElement, updateSectionElement, updateSectionRichTextAppearance, updateSectionTextElement, type SectionChildFlow, type SectionChildReference } from "../../features/websiteEditor/sectionChildFlow";
+import { findSectionElement, ungroupSectionElement, updateSectionElement, updateSectionRichTextAppearance, updateSectionRichTextDocument, updateSectionTextElement, type SectionChildFlow, type SectionChildReference } from "../../features/websiteEditor/sectionChildFlow";
 import { syncEditorPreviewTheme } from "../../features/websiteEditor/editorPreviewTheme";
 import type { WebsiteElement } from "../../features/websiteElements/types";
 import { findEditorTarget, revealEditorTarget } from "../../features/websiteEditor/canvasReveal";
+import { DESKTOP_EDITOR_GRID_COLUMNS } from "../../features/websiteEditor/editorLayout";
+import {
+  EDITOR_ZOOM_STEPS,
+  browserEditorZoomStorage,
+  computeFitScale,
+  loadEditorZoomPreferences,
+  saveEditorZoomPreferences,
+  stepEditorZoom,
+  type EditorZoomPreference,
+  type EditorZoomPreferences,
+} from "../../features/websiteEditor/editorZoom";
 
 type BuilderMode = "content" | "design";
 type SectionPanelMode = "content" | "appearance";
 type DrawerMode = "sections" | "content" | "appearance" | "design";
 type MobileDrawerSnap = "hidden" | "medium" | "tall";
 type EditorMode = "edit" | "preview";
+const desktopEditorGridStyle = {
+  "--desktop-editor-grid-columns": DESKTOP_EDITOR_GRID_COLUMNS,
+} as CSSProperties;
 type CanvasSelectionRequest =
   | { kind: "section"; id: string; requestId: number }
   | { kind: "storyField"; id: StoryHeaderField; sectionId: string; requestId: number }
@@ -134,6 +154,10 @@ function messageFor(error: unknown): string {
 }
 
 export function WebsitePage() {
+  return <ColorPreviewProvider><WebsitePageContent /></ColorPreviewProvider>;
+}
+
+function WebsitePageContent() {
   const event = useEventWorkspace();
   const { projectId = "" } = useParams();
   const { draft, setDraft, error, isLoading, isUninitialized, retry } =
@@ -289,7 +313,12 @@ export function WebsitePage() {
   function applyDrawerMode(next: DrawerMode) {
     setDrawerMode(next);
     if (next === "content" || next === "appearance") setSectionPanelMode(next);
-    if (next === "appearance") setInlineEditingTarget(null);
+    if ((next === "content" || next === "appearance") && isStandaloneTextEditingTarget(inlineEditingTarget)) setInlineEditingTarget(null);
+  }
+
+  function changePreviewMode(next: ResponsiveViewport) {
+    if (isStandaloneTextEditingTarget(inlineEditingTarget)) setInlineEditingTarget(null);
+    setPreviewMode(next);
   }
 
   function changeMode(
@@ -510,6 +539,38 @@ export function WebsitePage() {
     return true;
   }
 
+  async function saveChildRename(sectionId: string, flow: SectionChildFlow): Promise<string | null> {
+    const section = workingSections.find(({ id }) => id === sectionId);
+    if (!section) return "Unable to find this section. Please try again.";
+    const content = structuredClone(
+      sectionId === effectiveSelectedId && workingContent
+        ? workingContent
+        : section.content as Record<string, unknown>,
+    );
+    content.childFlow = flow;
+    const parsed = validateSectionContent(section.type, content, draft?.template?.key);
+    if (!parsed.success) return "Review this section and enter valid content before saving the block name.";
+    setListPending(true);
+    setContentError(null);
+    try {
+      const updated = await updateWebsiteSectionContent(
+        event.id,
+        projectId,
+        sectionId,
+        parsed.data as Record<string, unknown>,
+      );
+      if (sectionId === effectiveSelectedId) contentSaved(updated);
+      else setDraft(updated);
+      return null;
+    } catch (saveError) {
+      return saveError instanceof ApiError
+        ? saveError.validationErrors.content?.[0] ?? saveError.message
+        : "Unable to save the block name. Please try again.";
+    } finally {
+      setListPending(false);
+    }
+  }
+
   function requestInlineEdit(target: InlineEditingTarget) {
     if (target.sectionId !== effectiveSelectedId) return;
     setInlineEditingTarget(target);
@@ -659,11 +720,11 @@ export function WebsitePage() {
 
       if (contentDirty && selected && workingContent) {
         domain = "content";
-        const parsed = validateSectionContent(selected.type, workingContent);
+        const parsed = validateSectionContent(selected.type, workingContent, draft?.template?.key);
         if (!parsed.success) {
-          setContentError(
-            "Review this section and enter valid content before saving.",
-          );
+          const issue = parsed.error?.issues[0];
+          const field = issue?.path.length ? issue.path.join(".") : "content";
+          setContentError(issue ? `${field}: ${issue.message}` : "Review this section and enter valid content before saving.");
           return;
         }
         latestDraft = await updateWebsiteSectionContent(
@@ -812,6 +873,7 @@ export function WebsitePage() {
       }}
       onChildSelect={(sectionId, reference) => selectChild(sectionId, reference, true)}
       onChildFlowChange={changeChildFlow}
+      onChildRenameSave={saveChildRename}
       onToggle={toggle}
       onMove={move}
       onReorder={reorderSections}
@@ -1004,7 +1066,7 @@ export function WebsitePage() {
                   ),
               }))}
               label="Preview and editing viewport"
-              onChange={setPreviewMode}
+              onChange={changePreviewMode}
             />
           </div>
         )}
@@ -1037,7 +1099,10 @@ export function WebsitePage() {
       {workingSections.length === 0 ? (
         <EmptyEditor />
       ) : (
-        <div className="flex h-0 min-h-0 flex-1 overflow-hidden xl:grid xl:grid-cols-[240px_minmax(0,1fr)_390px] xl:grid-rows-[minmax(0,1fr)]">
+        <div
+          className="flex h-0 min-h-0 flex-1 overflow-hidden xl:grid xl:grid-cols-[var(--desktop-editor-grid-columns)] xl:grid-rows-[minmax(0,1fr)]"
+          style={desktopEditorGridStyle}
+        >
           <aside
             className="hidden min-h-0 overflow-y-auto border-r border-border bg-background p-3 xl:block"
             aria-label="Builder Section rail"
@@ -1336,7 +1401,7 @@ function MobileBuilderDrawer({
             >
               {tabs.map(([key, label]) => (
                 <button
-                  className={`min-h-9 rounded-lg px-1 text-[11px] font-medium sm:text-xs ${mode === key ? "bg-accent text-accent-foreground" : "text-foreground-muted hover:bg-surface-muted hover:text-foreground"}`}
+                  className={`min-h-9 rounded-lg px-1 text-[11px] font-medium text-sm lg:text-xs ${mode === key ? "bg-accent text-accent-foreground" : "text-foreground-muted hover:bg-surface-muted hover:text-foreground"}`}
                   id={`builder-drawer-tab-${key}`}
                   key={key}
                   type="button"
@@ -1410,6 +1475,33 @@ function PreviewCanvas({
   onNarrativeSlotSelect: (blockId: string, slot: NarrativeSlotKey) => void;
   onSectionSelect: (id: string) => void;
 }) {
+  const previewAreaRef = useRef<HTMLDivElement>(null);
+  const [availableWidth, setAvailableWidth] = useState(0);
+  const [zoomPreferences, setZoomPreferences] = useState<EditorZoomPreferences>(() =>
+    loadEditorZoomPreferences(browserEditorZoomStorage()),
+  );
+  const zoomPreference = zoomPreferences[previewMode];
+  const semanticWidth = previewMode === "desktop" ? 1280 : PREVIEW_WIDTHS[previewMode];
+  const fitScale = computeFitScale(availableWidth || semanticWidth, semanticWidth);
+  const effectiveScale = zoomPreference.type === "fit" ? fitScale : zoomPreference.scale;
+
+  useLayoutEffect(() => {
+    const element = previewAreaRef.current;
+    if (!element) return;
+    const measure = () => setAvailableWidth(element.clientWidth);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  function setZoomPreference(preference: EditorZoomPreference) {
+    const next = { ...zoomPreferences, [previewMode]: preference };
+    setZoomPreferences(next);
+    saveEditorZoomPreferences(next, browserEditorZoomStorage());
+  }
+
   useLayoutEffect(() => {
     if (editorMode !== "edit" || !selectionRequest) return;
     const selector =
@@ -1457,13 +1549,53 @@ function PreviewCanvas({
               : "All enabled sections · non-editable"}
           </p>
         </div>
+        <div className="ml-auto flex shrink-0 items-center gap-1" aria-label="Canvas zoom controls">
+          <button
+            type="button"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-border bg-background text-foreground hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Zoom out"
+            disabled={zoomPreference.type === "custom" && zoomPreference.scale === EDITOR_ZOOM_STEPS[0]}
+            onClick={() => setZoomPreference(stepEditorZoom(zoomPreference, effectiveScale, -1))}
+          >
+            <Minus size={14} aria-hidden="true" />
+          </button>
+          <Select
+            className="w-[76px]"
+            aria-label="Canvas zoom"
+            value={zoomPreference.type === "fit" ? "fit" : String(zoomPreference.scale)}
+            options={[
+              { value: "fit", label: "Fit" },
+              ...EDITOR_ZOOM_STEPS.map((scale) => ({ value: String(scale), label: `${Math.round(scale * 100)}%` })),
+            ]}
+            onChange={(value) => setZoomPreference(value === "fit" ? { type: "fit" } : { type: "custom", scale: Number(value) })}
+          />
+          <button
+            type="button"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-border bg-background text-foreground hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Zoom in"
+            disabled={zoomPreference.type === "custom" && zoomPreference.scale === EDITOR_ZOOM_STEPS.at(-1)}
+            onClick={() => setZoomPreference(stepEditorZoom(zoomPreference, effectiveScale, 1))}
+          >
+            <Plus size={14} aria-hidden="true" />
+          </button>
+        </div>
         {unsaved && (
           <span className="rounded-full bg-danger-muted px-2 py-1 text-[10px] font-medium text-danger">
             Unsaved preview
           </span>
         )}
       </div>
-      <div className="min-h-0 flex-1 overflow-x-auto rounded-xl bg-background/45 p-2">
+      <div ref={previewAreaRef} className="min-h-0 flex-1 overflow-auto rounded-xl bg-background/45 p-2">
+        <div
+          className="relative mx-auto h-full shrink-0"
+          data-editor-zoom-viewport={previewMode}
+          data-editor-zoom-mode={zoomPreference.type}
+          style={{ width: semanticWidth * effectiveScale }}
+        >
+        <div
+          className="absolute left-0 top-0"
+          style={{ width: semanticWidth, height: `${100 / effectiveScale}%`, transform: `scale(${effectiveScale})`, transformOrigin: "top left" }}
+        >
         <PreviewViewport viewport={previewMode}>
           <InlineEditProvider
             value={editorMode === "edit" ? inlineValue : null}
@@ -1511,6 +1643,17 @@ function PreviewCanvas({
                     }
                   : undefined
               }
+              onRichTextDocumentChange={
+                editorMode === "edit"
+                  ? (sectionId, elementId, document) => {
+                      const section = draft.sections.find(({ id }) => id === sectionId);
+                      const flow = (section?.content as { childFlow?: SectionChildFlow } | undefined)?.childFlow;
+                      if (!flow) return;
+                      const next = updateSectionRichTextDocument(flow, elementId, document);
+                      if (next) onChildFlowChange(sectionId, next, { kind: "element", id: elementId });
+                    }
+                  : undefined
+              }
               targetViewport={previewMode}
               scope={
                 editorMode === "edit" && selectedId
@@ -1522,6 +1665,8 @@ function PreviewCanvas({
             </EditorSelectionContext.Provider>
           </InlineEditProvider>
         </PreviewViewport>
+        </div>
+        </div>
       </div>
     </main>
   );
@@ -1549,15 +1694,14 @@ function PreviewViewport({
 
   if (viewport === "desktop")
     return (
-      <div data-editor-preview-scroll className="mx-auto h-full min-h-0 w-[1280px] max-w-none shrink-0 overflow-y-auto rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)]">
+      <div data-editor-preview-scroll className="h-full min-h-0 w-full overflow-y-auto rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)]">
         {children}
       </div>
     );
 
   return (
     <div
-      className="mx-auto h-full max-w-full overflow-hidden rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)]"
-      style={{ width: PREVIEW_WIDTHS[viewport] }}
+      className="h-full w-full overflow-hidden rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)]"
     >
       <iframe
         ref={frameRef}
@@ -1709,15 +1853,15 @@ function SectionInspector({
         </Text>}
       </div>
       {selectedRichText && childFlow && capabilities ? (
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><RichTextElementEditor element={selectedRichText} viewport={targetViewport} library={capabilities.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onAppearanceChange={(appearance) => { const next = updateSectionRichTextAppearance(childFlow, selectedRichText.id, appearance); if (next) onContentChange({ ...workingContent, childFlow: next }); }} /></div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><ColorPreviewScopeContext key={selected.id} value={selected.id}><RichTextElementEditor element={selectedRichText} viewport={targetViewport} library={capabilities.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onAppearanceChange={(appearance) => { const next = updateSectionRichTextAppearance(childFlow, selectedRichText.id, appearance); if (next) onContentChange({ ...workingContent, childFlow: next }); }} /></ColorPreviewScopeContext></div>
       ) : selectedText && childFlow && capabilities ? (
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><TextElementEditor element={selectedText} viewport={targetViewport} templateKey={templateKey} library={capabilities.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><ColorPreviewScopeContext key={selected.id} value={selected.id}><TextElementEditor element={selectedText} viewport={targetViewport} templateKey={templateKey} library={capabilities.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></ColorPreviewScopeContext></div>
       ) : selectedDivider && childFlow && capabilities ? (
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><DividerElementEditor element={selectedDivider} templateKey={templateKey} library={capabilities.designLibrary} allowedColorIds={textColorIds} projectColors={projectColors} onAddColor={onAddColor} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><ColorPreviewScopeContext key={selected.id} value={selected.id}><DividerElementEditor context={selected.resolvedDesignContext} element={selectedDivider} templateKey={templateKey} library={capabilities.designLibrary} allowedColorIds={textColorIds} projectColors={projectColors} onAddColor={onAddColor} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></ColorPreviewScopeContext></div>
       ) : selectedMedia && childFlow ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><MediaElementEditor element={selectedMedia} eventId={eventId} viewport={targetViewport} mode={panelMode} resolvedMedia={resolvedMedia} onMediaResolved={onMediaResolved} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></div>
       ) : selectedGroup && childFlow ? (
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><GroupElementEditor group={selectedGroup} viewport={targetViewport} templateKey={templateKey} capability={narrativeCapability?.narrativeBlock ?? undefined} library={capabilities?.designLibrary} projectColors={projectColors} onAddColor={onAddColor} onChange={(group) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, group) })} onUngroup={() => { const next = ungroupSectionElement(childFlow, selectedGroup.id); onContentChange({ ...workingContent, childFlow: next }); }} /></div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><ColorPreviewScopeContext key={selected.id} value={selected.id}><GroupElementEditor group={selectedGroup} viewport={targetViewport} templateKey={templateKey} capability={narrativeCapability?.narrativeBlock ?? undefined} library={capabilities?.designLibrary} projectColors={projectColors} onAddColor={onAddColor} onChange={(group) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, group) })} onUngroup={() => { const next = ungroupSectionElement(childFlow, selectedGroup.id); onContentChange({ ...workingContent, childFlow: next }); }} /></ColorPreviewScopeContext></div>
       ) : panelMode === "content" ? (
         narrativeBlock && selected.type === "story" ? (
           <NarrativeBlockContentPanel
@@ -1823,7 +1967,10 @@ function EditorLoading({ eventId }: { eventId: string }) {
         </Link>
         <div className="h-8 w-52 animate-pulse rounded-lg bg-surface-muted" />
       </div>
-      <div className="grid min-h-0 flex-1 animate-pulse xl:grid-cols-[240px_1fr_390px]">
+      <div
+        className="grid min-h-0 flex-1 animate-pulse xl:grid-cols-[var(--desktop-editor-grid-columns)]"
+        style={desktopEditorGridStyle}
+      >
         <div className="hidden border-r border-border bg-surface-muted xl:block" />
         <div className="m-3 rounded-xl bg-surface-muted" />
         <div className="hidden border-l border-border bg-surface-muted xl:block" />

@@ -1,10 +1,7 @@
 import type { CompositionGroup } from "../../websiteElements/types";
 import {
-  createDividerElement,
-  createGroupElement,
-  createMediaElement,
-  createRichTextElement,
-  createTextElement,
+  createSectionElement,
+  moveSectionElement,
   updateGroupChildren,
   type SectionChildFlow,
   type SectionChildReference,
@@ -23,11 +20,7 @@ export function addToGroup(
   onChange: (flow: SectionChildFlow) => void,
   onSelect: (reference: SectionChildReference) => void,
 ) {
-  const child = kind === "text" ? createTextElement()
-    : kind === "richText" ? createRichTextElement()
-      : kind === "divider" ? createDividerElement()
-        : kind === "media" ? createMediaElement()
-          : createGroupElement();
+  const child = createSectionElement(flow, kind === "group" ? "compositionGroup" : kind);
   onChange(updateGroupChildren(flow, group.id, [...group.children, child as typeof group.children[number]]));
   onSelect({ kind: "element", id: child.id });
 }
@@ -38,4 +31,18 @@ export function reorderGroupChildren(group: CompositionGroup, from: number, to: 
   const [moved] = children.splice(from, 1);
   children.splice(to, 0, moved);
   return children;
+}
+
+export function applyStructureElementDrop(
+  flow: SectionChildFlow,
+  elementId: string,
+  destination: { parentId: string | null; index: number },
+  onChange: (flow: SectionChildFlow) => void,
+  onSelect: (reference: SectionChildReference) => void,
+): boolean {
+  const moved = moveSectionElement(flow, elementId, destination);
+  if (!moved.ok) return false;
+  onChange(moved.flow);
+  onSelect({ kind: "element", id: elementId });
+  return true;
 }

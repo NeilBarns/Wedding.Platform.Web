@@ -1,3 +1,6 @@
+import { scopedColorPreviewTarget, useEditorColorPreview } from "../websiteEditor/colorPreview";
+import { isElementRenderable } from "./elementRenderability";
+import { useDecorativeSourceAvailability } from "./decorativeSourceAvailability";
 import type { CSSProperties } from "react";
 import type { ResolvedDesignContext, TemplateDesignLibrary } from "../websiteCapabilities/types";
 import type { ProjectColor } from "../websiteColors/projectColors";
@@ -8,7 +11,7 @@ import { WebsiteElementFrame } from "./WebsiteElementFrame";
 import { WebsiteLeafElementRenderer } from "./WebsiteLeafElementRenderer";
 import { DecorativeBackgroundLayers } from "./DecorativeBackgroundLayers";
 import { resolveNarrativeBackgroundColor } from "./narrativeBackground";
-import { elementInlineAlignmentOverride } from "./elementInlineAlignment";
+import { elementInlineAlignmentOverride, resetElementInlineAlignment } from "./elementInlineAlignment";
 
 const spaces = { none: "0", xs: "0.25rem", s: "0.5rem", m: "1rem", l: "1.5rem", xl: "2rem" } as const;
 const widths = { full: "100%", wide: "72rem", medium: "48rem", narrow: "32rem" } as const;
@@ -20,8 +23,9 @@ const childAlignment = { start: "flex-start", center: "center", end: "flex-end",
 export function GroupElementRenderer({ group, sectionId, mode, viewport, templateKey, library, projectColors, media = {}, context, selectedElementId, onElementSelect, onElementEdit }: {
   group: CompositionGroup; sectionId: string; mode: "editor" | "public"; viewport: ResponsiveViewport; templateKey: string; library: TemplateDesignLibrary; projectColors: readonly ProjectColor[]; media?: import("../websiteEditor/types").WebsiteDraft["media"]; context?: ResolvedDesignContext | null; selectedElementId?: string | null; onElementSelect?: (sectionId: string, elementId: string) => void; onElementEdit?: (sectionId: string, elementId: string) => void;
 }) {
+  useDecorativeSourceAvailability();
   const layout = resolveGroupLayout(group.layout, viewport);
-  const visibleChildren = group.children.filter((child) => !child.isHidden);
+  const visibleChildren = group.children.filter((child) => isElementRenderable(child, templateKey, mode));
   const direction = layout.direction ?? "vertical";
   const alignment = layout.alignment ?? "stretch";
   const columnPreset = layout.columns ?? "equal-2";
@@ -35,9 +39,11 @@ export function GroupElementRenderer({ group, sectionId, mode, viewport, templat
     return { gridColumn: "span 2" };
   };
   const padding = layout.padding ?? {};
-  const backgroundColor = resolveNarrativeBackgroundColor(group.appearance?.backgroundColorId, library, projectColors);
+  const previewColor = useEditorColorPreview(scopedColorPreviewTarget(sectionId, `${group.id}:backgroundColor`), mode === "editor");
+  const backgroundColor = previewColor ?? resolveNarrativeBackgroundColor(group.appearance?.backgroundColorId, library, projectColors);
   const hasDecoration = Boolean(group.appearance?.decorativeAppearance?.background);
   const style: CSSProperties = {
+    ...resetElementInlineAlignment(),
     display: direction === "horizontal" ? "grid" : "flex", flexDirection: "column",
     gridTemplateColumns: direction === "horizontal" ? columns[columnPreset] : undefined,
     gap: spaces[layout.gap ?? "none"], alignItems: direction === "horizontal" ? alignment : "stretch",

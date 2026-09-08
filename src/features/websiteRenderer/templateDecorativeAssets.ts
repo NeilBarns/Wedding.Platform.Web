@@ -62,6 +62,9 @@ export type TemplateDecorativeAssetDefinition = {
   status: "pending" | "active";
   kind: DecorativeAssetKind;
   semanticIntent: string;
+  label?: string;
+  intrinsicWidth?: number;
+  intrinsicHeight?: number;
   sourcePath: string;
   responsiveVariants?: Partial<Record<ResponsiveViewport, string>>;
   execution: DecorativeAssetExecution;
@@ -74,6 +77,7 @@ export type TemplateDecorativeAssetRegistry = {
   templateKey: string;
   assetRoot: string;
   tintTokens: Readonly<Record<DecorativeTintToken, string>>;
+  defaultAssetIds?: Partial<Record<DecorativeAssetKind, string>>;
   assets: readonly TemplateDecorativeAssetDefinition[];
   mappings: {
     texture: Readonly<Record<string, DecorativeSemanticMapping>>;
@@ -86,6 +90,8 @@ export type TemplateDecorativeAssetRegistry = {
 export type ResolvedDecorativeAsset = {
   type: "asset";
   source: string;
+  intrinsicWidth?: number;
+  intrinsicHeight?: number;
   execution: DecorativeAssetExecution;
   tint: string | null;
 };
@@ -99,6 +105,7 @@ const pending = (
 
 export const classicDecorativeAssets: TemplateDecorativeAssetRegistry = {
   templateKey: "classic-filipiniana-v1",
+  defaultAssetIds: { divider: "classic-divider-botanical-vine" },
   assetRoot: "/template-assets/classic-filipiniana/",
   tintTokens: {
     accent: "var(--cf-section-accent)",
@@ -108,6 +115,10 @@ export const classicDecorativeAssets: TemplateDecorativeAssetRegistry = {
     decorative: "var(--cf-secondary)",
   },
   assets: [
+    { id: "classic-divider-botanical-vine", label: "Botanical", status: "active", kind: "divider", semanticIntent: "ornament", sourcePath: "/template-assets/classic-filipiniana/dividers/botanical-vine.png", intrinsicWidth: 2116, intrinsicHeight: 328, execution: { renderMode: "mask", size: "contain", position: "center", tintToken: "accent" } },
+    { id: "classic-divider-filigree-center", label: "Filigree", status: "active", kind: "divider", semanticIntent: "ornament", sourcePath: "/template-assets/classic-filipiniana/dividers/filigree-center.png", intrinsicWidth: 2134, intrinsicHeight: 340, execution: { renderMode: "mask", size: "contain", position: "center", tintToken: "accent" } },
+    { id: "classic-divider-floral-silhouette", label: "Floral Flourish", status: "active", kind: "divider", semanticIntent: "ornament", sourcePath: "/template-assets/classic-filipiniana/dividers/floral-silhouette.png", intrinsicWidth: 2095, intrinsicHeight: 284, execution: { renderMode: "mask", size: "contain", position: "center", tintToken: "accent" } },
+    { id: "classic-divider-ornamental-flourish", label: "Ornamental Centerpiece", status: "active", kind: "divider", semanticIntent: "ornament", sourcePath: "/template-assets/classic-filipiniana/dividers/ornamental-flourish.png", intrinsicWidth: 2154, intrinsicHeight: 345, execution: { renderMode: "mask", size: "contain", position: "center", tintToken: "accent" } },
     {
       id: "classic-paper-01",
       status: "active",
@@ -379,7 +390,12 @@ export function resolveDecorativeExecution(
       execution: mapping.execution,
       tint: registry.tintTokens[mapping.execution.tintToken],
     };
-  const asset = registry.assets.find(({ id }) => id === mapping.assetId);
+  return resolveDecorativeExecutionById(templateKey, mapping.assetId, viewport, authoredStrength);
+}
+
+export function resolveDecorativeExecutionById(templateKey: string, assetId: string, viewport: ResponsiveViewport = "desktop", authoredStrength?: number, tintTokens?: Partial<Record<DecorativeTintToken, string>>): ResolvedDecorativeAsset | null {
+  const registry = decorativeAssetRegistries[templateKey];
+  const asset = registry?.assets.find(({ id }) => id === assetId);
   if (!asset || asset.status !== "active") return null;
   const execution = asset.execution.strength
     ? {
@@ -393,8 +409,10 @@ export function resolveDecorativeExecution(
   return {
     type: "asset",
     source: resolveResponsiveDecorativeSource(asset, viewport),
+    intrinsicWidth: asset.intrinsicWidth,
+    intrinsicHeight: asset.intrinsicHeight,
     execution,
-    tint: execution.tintToken ? registry.tintTokens[execution.tintToken] : null,
+    tint: execution.tintToken ? tintTokens?.[execution.tintToken] ?? registry.tintTokens[execution.tintToken] : null,
   };
 }
 

@@ -14,33 +14,33 @@ const images = [{ id: "one", type: "image" as const, mediaId: first, alt: "First
 
 describe("Media element", () => {
   it("creates the sparse empty canonical shape", () => {
-    const element = createMediaElement();
-    expect(element).toEqual({ id: expect.any(String), type: "media", items: [] });
+    const element = createMediaElement("Media 1");
+    expect(element).toEqual({ id: expect.any(String), type: "media", editorName: "Media 1", items: [] });
     expect(mediaElementSchema.parse(element)).toEqual(element);
   });
 
   it("accepts only one video or up to eight images and rejects gallery-scale state", () => {
-    expect(mediaElementSchema.parse({ id: "media", type: "media", items: [{ id: "video", type: "video", url: "https://example.com/video.mp4", controls: true }] })).toBeTruthy();
-    expect(() => mediaElementSchema.parse({ id: "media", type: "media", items: [...images, { id: "video", type: "video", url: "https://example.com/a.mp4" }] })).toThrow(/Mixed/);
-    expect(() => mediaElementSchema.parse({ id: "media", type: "media", items: Array.from({ length: 9 }, (_, index) => ({ id: `i-${index}`, type: "image", mediaId: first, alt: "Photo" })) })).toThrow();
-    for (const mode of ["grid", "masonry", "stack"]) expect(() => mediaElementSchema.parse({ id: "media", type: "media", items: images, presentation: { mode } })).toThrow();
-    expect(() => mediaElementSchema.parse({ id: "media", type: "media", items: images, presentation: { mode: "carousel", columns: 3 } })).toThrow();
-    expect(() => mediaElementSchema.parse({ id: "media", type: "media", items: images, motion: { type: "fade" } })).toThrow();
+    expect(mediaElementSchema.parse({ id: "media", type: "media", editorName: "Media 1", items: [{ id: "video", type: "video", url: "https://example.com/video.mp4", controls: true }] })).toBeTruthy();
+    expect(() => mediaElementSchema.parse({ id: "media", type: "media", editorName: "Media 1", items: [...images, { id: "video", type: "video", url: "https://example.com/a.mp4" }] })).toThrow(/Mixed/);
+    expect(() => mediaElementSchema.parse({ id: "media", type: "media", editorName: "Media 1", items: Array.from({ length: 9 }, (_, index) => ({ id: `i-${index}`, type: "image", mediaId: first, alt: "Photo" })) })).toThrow();
+    for (const mode of ["grid", "masonry", "stack"]) expect(() => mediaElementSchema.parse({ id: "media", type: "media", editorName: "Media 1", items: images, presentation: { mode } })).toThrow();
+    expect(() => mediaElementSchema.parse({ id: "media", type: "media", editorName: "Media 1", items: images, presentation: { mode: "carousel", columns: 3 } })).toThrow();
+    expect(() => mediaElementSchema.parse({ id: "media", type: "media", editorName: "Media 1", items: images, motion: { type: "fade" } })).toThrow();
   });
 
   it("accepts stacked for two to five images and rejects invalid content", () => {
     const makeImages = (count: number) => Array.from({ length: count }, (_, index) => ({ id: `item-${index}`, type: "image" as const, mediaId: first, alt: `Photo ${index + 1}` }));
-    for (let count = 2; count <= 5; count++) expect(mediaElementSchema.safeParse({ id: "media", type: "media", items: makeImages(count), presentation: { mode: "stacked", stacked: { style: "editorial" } } }).success).toBe(true);
-    expect(mediaElementSchema.safeParse({ id: "media", type: "media", items: makeImages(6), presentation: { mode: "stacked" } }).success).toBe(false);
-    expect(mediaElementSchema.safeParse({ id: "media", type: "media", items: [{ id: "video", type: "video", url: "https://example.com/video.mp4" }], presentation: { mode: "stacked" } }).success).toBe(false);
-    expect(mediaElementSchema.safeParse({ id: "media", type: "media", items: makeImages(8), presentation: { mode: "carousel" } }).success).toBe(true);
-    const stacked = mediaElementSchema.parse({ id: "media", type: "media", items: images, presentation: { mode: "stacked", responsive: { mobile: { mode: "stacked" } } } });
+    for (let count = 2; count <= 5; count++) expect(mediaElementSchema.safeParse({ id: "media", type: "media", editorName: "Media 1", items: makeImages(count), presentation: { mode: "stacked", stacked: { style: "editorial" } } }).success).toBe(true);
+    expect(mediaElementSchema.safeParse({ id: "media", type: "media", editorName: "Media 1", items: makeImages(6), presentation: { mode: "stacked" } }).success).toBe(false);
+    expect(mediaElementSchema.safeParse({ id: "media", type: "media", editorName: "Media 1", items: [{ id: "video", type: "video", url: "https://example.com/video.mp4" }], presentation: { mode: "stacked" } }).success).toBe(false);
+    expect(mediaElementSchema.safeParse({ id: "media", type: "media", editorName: "Media 1", items: makeImages(8), presentation: { mode: "carousel" } }).success).toBe(true);
+    const stacked = mediaElementSchema.parse({ id: "media", type: "media", editorName: "Media 1", items: images, presentation: { mode: "stacked", responsive: { mobile: { mode: "stacked" } } } });
     expect(setMediaItems(stacked, [images[0]]).presentation).toMatchObject({ mode: "single", responsive: { mobile: { mode: "single" } } });
   });
 
   it("accepts Peek, rejects unknown carousel styles, and defaults a missing style to Standard", () => {
-    expect(mediaElementSchema.safeParse({ id: "media", type: "media", items: images, presentation: { mode: "carousel", carousel: { style: "peek" } } }).success).toBe(true);
-    expect(mediaElementSchema.safeParse({ id: "media", type: "media", items: images, presentation: { mode: "carousel", carousel: { style: "cinematic" } } }).success).toBe(false);
+    expect(mediaElementSchema.safeParse({ id: "media", type: "media", editorName: "Media 1", items: images, presentation: { mode: "carousel", carousel: { style: "peek" } } }).success).toBe(true);
+    expect(mediaElementSchema.safeParse({ id: "media", type: "media", editorName: "Media 1", items: images, presentation: { mode: "carousel", carousel: { style: "cinematic" } } }).success).toBe(false);
     expect(resolveCarouselStyle()).toBe("standard");
     expect(resolveCarouselStyle("peek")).toBe("peek");
   });
@@ -63,7 +63,7 @@ describe("Media element", () => {
   });
 
   it("renders stacked images in source order and suppresses a second Polaroid frame", () => {
-    const element = mediaElementSchema.parse({ id: "media", type: "media", items: images, presentation: { mode: "stacked", stacked: { style: "polaroid" }, responsive: { mobile: { mode: "stacked" } } }, appearance: { frame: "line", shadow: "strong" } });
+    const element = mediaElementSchema.parse({ id: "media", type: "media", editorName: "Media 1", items: images, presentation: { mode: "stacked", stacked: { style: "polaroid" }, responsive: { mobile: { mode: "stacked" } } }, appearance: { frame: "line", shadow: "strong" } });
     const asset = (id: string, url: string) => ({ id, originalFilename: `${id}.jpg`, width: 100, height: 100, web: { width: 100, height: 100, url } });
     const html = renderToStaticMarkup(<MediaElementRenderer element={element} viewport="mobile" media={{ [first]: asset(first, "/first.jpg"), [second]: asset(second, "/second.jpg") }} />);
     expect(html).toContain('data-media-presentation="stacked"');
@@ -74,7 +74,7 @@ describe("Media element", () => {
   });
 
   it("uses independent viewport overrides while keeping alignment and fit global", () => {
-    let element = mediaElementSchema.parse({ id: "media", type: "media", items: images, presentation: { mode: "carousel", width: "medium", alignment: "start", fit: "contain", responsive: { tablet: { width: "small" }, mobile: { aspectRatio: "square" } } } });
+    let element = mediaElementSchema.parse({ id: "media", type: "media", editorName: "Media 1", items: images, presentation: { mode: "carousel", width: "medium", alignment: "start", fit: "contain", responsive: { tablet: { width: "small" }, mobile: { aspectRatio: "square" } } } });
     expect(resolveMediaPresentation(element, "mobile")).toMatchObject({ width: "medium", aspectRatio: "square", alignment: "start", fit: "contain" });
     element = setMediaPresentationProperty(element, "mobile", "alignment", "end");
     expect(element.presentation?.alignment).toBe("end");
@@ -82,7 +82,7 @@ describe("Media element", () => {
   });
 
   it("renders an accessible carousel without an autoplay live region", () => {
-    const element = mediaElementSchema.parse({ id: "media", type: "media", items: images, presentation: { mode: "carousel", carousel: { arrows: true, dots: true, loop: false } } });
+    const element = mediaElementSchema.parse({ id: "media", type: "media", editorName: "Media 1", items: images, presentation: { mode: "carousel", carousel: { arrows: true, dots: true, loop: false } } });
     const asset = (id: string, url: string) => ({ id, originalFilename: `${id}.jpg`, width: 100, height: 100, web: { width: 100, height: 100, url } });
     const html = renderToStaticMarkup(<MediaElementRenderer element={element} viewport="desktop" media={{ [first]: asset(first, "/first.jpg"), [second]: asset(second, "/second.jpg") }} />);
     expect(html).toContain('aria-roledescription="carousel"');
@@ -108,7 +108,7 @@ describe("Media element", () => {
   it("renders Peek in stable source order with only the active item exposed as current", () => {
     const third = "01J00000000000000000000002";
     const items = [...images, { id: "three", type: "image" as const, mediaId: third, alt: "Third" }];
-    const element = mediaElementSchema.parse({ id: "media", type: "media", items, presentation: { mode: "carousel", carousel: { style: "peek", loop: true } } });
+    const element = mediaElementSchema.parse({ id: "media", type: "media", editorName: "Media 1", items, presentation: { mode: "carousel", carousel: { style: "peek", loop: true } } });
     const asset = (id: string, url: string) => ({ id, originalFilename: `${id}.jpg`, width: 100, height: 100, web: { width: 100, height: 100, url } });
     const html = renderToStaticMarkup(<MediaElementRenderer element={element} viewport="mobile" media={{ [first]: asset(first, "/first.jpg"), [second]: asset(second, "/second.jpg"), [third]: asset(third, "/third.jpg") }} />);
     expect(html).toContain('data-carousel-style="peek"');
@@ -143,7 +143,7 @@ describe("Media element", () => {
   });
 
   it("uses unique focal zoom IDs", () => {
-    const element = mediaElementSchema.parse({ id: "media", type: "media", items: images });
+    const element = mediaElementSchema.parse({ id: "media", type: "media", editorName: "Media 1", items: images });
     const asset = (id: string) => ({ id, originalFilename: `${id}.jpg`, width: 100, height: 100, web: { width: 100, height: 100, url: `/${id}.jpg` } });
     const html = renderToStaticMarkup(<MemoryRouter><MediaElementEditor element={element} eventId="event" viewport="desktop" mode="content" resolvedMedia={{ [first]: asset(first), [second]: asset(second) }} onMediaResolved={() => undefined} onChange={() => undefined} /></MemoryRouter>);
     expect(html).toContain('id="media-one-zoom"');

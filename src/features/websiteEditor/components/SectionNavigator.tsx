@@ -42,7 +42,7 @@ import type { StoryStructureReference } from "../types";
 import { narrativeIdFromStoryReference, narrativeStoryReference, storyFieldFromReference } from "../storyStructure";
 import { StoryBlockList } from "./StoryBlockList";
 import { SectionChildList } from "./SectionChildList";
-import { SECTION_SPECIALIZED_REFERENCE, createDividerElement, createGroupElement, createMediaElement, createRichTextElement, createTextElement, deleteSectionElement, duplicateSectionElement, insertSectionElement, type SectionChildFlow, type SectionChildReference } from "../sectionChildFlow";
+import { SECTION_SPECIALIZED_REFERENCE, createSectionElement, deleteSectionElement, duplicateSectionElement, insertSectionElement, type SectionChildFlow, type SectionChildReference } from "../sectionChildFlow";
 import {
   StructureActionMenu,
   StructureMenuAction,
@@ -65,6 +65,7 @@ type Props = {
   onStoryHeaderSelect: (sectionId: string, field: StoryHeaderField, requestCanvasScroll?: boolean) => void;
   onStoryChange: (sectionId: string, content: StoryContent) => boolean;
   onChildFlowChange: (sectionId: string, flow: SectionChildFlow | undefined, selection?: SectionChildReference) => boolean;
+  onChildRenameSave: (sectionId: string, flow: SectionChildFlow) => Promise<string | null>;
   onChildSelect: (sectionId: string, reference: SectionChildReference, requestCanvasScroll?: boolean) => void;
   onToggle: (section: WebsiteSection) => void;
   onMove: (index: number, direction: -1 | 1) => void;
@@ -293,7 +294,7 @@ function SortableSection(
             }}
           />
         )}
-        {supportsGenericChildren && <ElementAddControl triggerLabel={`Add to ${section.displayName}`} disabled={resolvedChildFlow.elements.length >= 20} onOpen={() => { if (props.selectedId !== section.id) props.onSelect(section.id); }} items={[{ label: "Text", onAdd: () => addGeneric(createTextElement()) }, { label: "Rich Text", onAdd: () => addGeneric(createRichTextElement()) }, { label: "Divider", onAdd: () => addGeneric(createDividerElement()) }, { label: "Media", onAdd: () => addGeneric(createMediaElement()) }, { label: "Group", onAdd: () => addGeneric(createGroupElement()) }]} />}
+        {supportsGenericChildren && <ElementAddControl triggerLabel={`Add to ${section.displayName}`} disabled={resolvedChildFlow.elements.length >= 20} onOpen={() => { if (props.selectedId !== section.id) props.onSelect(section.id); }} items={[{ label: "Text", onAdd: () => addGeneric("text") }, { label: "Rich Text", onAdd: () => addGeneric("richText") }, { label: "Divider", onAdd: () => addGeneric("divider") }, { label: "Media", onAdd: () => addGeneric("media") }, { label: "Group", onAdd: () => addGeneric("compositionGroup") }]} />}
         {(isStory || supportsGenericChildren) && (
           <IconButton
             size="sm"
@@ -382,12 +383,13 @@ function SortableSection(
         </div>
       )}
       {supportsGenericChildren && props.expanded && (
-        <div className="ml-5 mt-0.5"><SectionChildList sectionLabel={section.displayName} flow={resolvedChildFlow} selected={props.selectedChild?.sectionId === section.id ? props.selectedChild.reference : null} onSelect={(reference) => props.onChildSelect(section.id, reference, true)} onChange={(flow) => { props.onChildFlowChange(section.id, flow, props.selectedChild?.sectionId === section.id ? props.selectedChild.reference : undefined); }} onDuplicate={(elementId) => { const result = duplicateSectionElement(resolvedChildFlow, elementId); if (result) props.onChildFlowChange(section.id, result.flow, { kind: "element", id: result.elementId }); }} onDelete={(elementId) => { const result = deleteSectionElement(resolvedChildFlow, elementId); props.onChildFlowChange(section.id, result.flow, result.selection); }} /></div>
+        <div className="mt-0.5 min-w-0 pl-5"><SectionChildList sectionLabel={section.displayName} flow={resolvedChildFlow} selected={props.selectedChild?.sectionId === section.id ? props.selectedChild.reference : null} onSelect={(reference) => props.onChildSelect(section.id, reference, true)} onChange={(flow) => { props.onChildFlowChange(section.id, flow, props.selectedChild?.sectionId === section.id ? props.selectedChild.reference : undefined); }} onRenameSave={(flow) => props.onChildRenameSave(section.id, flow)} onDuplicate={(elementId) => { const result = duplicateSectionElement(resolvedChildFlow, elementId); if (result) props.onChildFlowChange(section.id, result.flow, { kind: "element", id: result.elementId }); }} onDelete={(elementId) => { const result = deleteSectionElement(resolvedChildFlow, elementId); props.onChildFlowChange(section.id, result.flow, result.selection); }} /></div>
       )}
     </div>
   );
 
-  function addGeneric(element: ReturnType<typeof createTextElement> | ReturnType<typeof createRichTextElement> | ReturnType<typeof createDividerElement> | ReturnType<typeof createMediaElement> | ReturnType<typeof createGroupElement>) {
+  function addGeneric(type: "text" | "richText" | "divider" | "media" | "compositionGroup") {
+    const element = createSectionElement(resolvedChildFlow, type);
     const after = props.selectedChild?.sectionId === section.id ? props.selectedChild.reference : SECTION_SPECIALIZED_REFERENCE;
     const flow = insertSectionElement(childFlow, element, after);
     props.onExpandedChange(true);

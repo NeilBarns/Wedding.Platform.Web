@@ -11,6 +11,7 @@ export type DialogProps = {
   closeDisabled?: boolean;
   size?: "sm" | "lg" | "xl";
   className?: string;
+  initialFocusRef?: React.RefObject<HTMLElement | null>;
 };
 
 const sizes = {
@@ -28,15 +29,19 @@ export function Dialog({
   closeDisabled = false,
   size = "lg",
   className = "",
+  initialFocusRef,
 }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
+    if (open && !dialog.open) {
+      dialog.showModal();
+      initialFocusRef?.current?.focus();
+    }
     if (!open && dialog.open) dialog.close();
-  }, [open]);
+  }, [initialFocusRef, open]);
 
   return (
     <dialog
@@ -60,7 +65,18 @@ export function Dialog({
   );
 }
 
-export function DialogHeader({ title, titleId, description, descriptionId, eyebrow, onClose, closeDisabled = false, closeLabel = "Close dialog", className = "", titleClassName = "" }: {
+export function DialogHeader({
+  title,
+  titleId,
+  description,
+  descriptionId,
+  eyebrow,
+  onClose,
+  closeDisabled = false,
+  closeLabel = "Close dialog",
+  className = "",
+  titleClassName = "",
+}: {
   title: React.ReactNode;
   titleId: string;
   description?: React.ReactNode;
@@ -72,16 +88,54 @@ export function DialogHeader({ title, titleId, description, descriptionId, eyebr
   className?: string;
   titleClassName?: string;
 }) {
-  return <header className={`flex items-start justify-between gap-4 ${className}`}>
-    <div>
-      {eyebrow && <div className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">{eyebrow}</div>}
-      <h2 className={`text-lg font-semibold ${eyebrow ? "mt-0.5" : ""} ${titleClassName}`} id={titleId}>{title}</h2>
-      {description && <div className="mt-1 text-sm text-foreground-muted" id={descriptionId}>{description}</div>}
-    </div>
-    {onClose && <IconButton type="button" size="sm" disabled={closeDisabled} onClick={onClose} aria-label={closeLabel}><X aria-hidden="true" size={20} /></IconButton>}
-  </header>;
+  return (
+    <header className={`flex items-start justify-between gap-4 ${className}`}>
+      <div>
+        {eyebrow && (
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+            {eyebrow}
+          </div>
+        )}
+        <h2
+          className={`text-lg font-semibold ${eyebrow ? "mt-0.5" : ""} ${titleClassName}`}
+          id={titleId}
+        >
+          {title}
+        </h2>
+        {description && (
+          <div
+            className="mt-1 text-sm text-foreground-muted"
+            id={descriptionId}
+          >
+            {description}
+          </div>
+        )}
+      </div>
+      {onClose && (
+        <IconButton
+          type="button"
+          size="sm"
+          disabled={closeDisabled}
+          onClick={onClose}
+          aria-label={closeLabel}
+        >
+          <X aria-hidden="true" size={20} />
+        </IconButton>
+      )}
+    </header>
+  );
 }
 
-export function DialogFooter({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <footer className={`flex justify-end gap-2 ${className}`}>{children}</footer>;
+export function DialogFooter({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <footer className={`flex justify-end gap-2 ${className}`}>
+      {children}
+    </footer>
+  );
 }

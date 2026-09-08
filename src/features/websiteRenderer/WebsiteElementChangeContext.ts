@@ -1,6 +1,9 @@
 import { createContext, useContext } from "react";
-import type { WebsiteElement } from "../websiteElements/types";
+import type { RichTextDocument, WebsiteElement } from "../websiteElements/types";
 
-type WebsiteElementChange = (sectionId: string, element: WebsiteElement) => void;
-export const WebsiteElementChangeContext = createContext<WebsiteElementChange | null>(null);
+type WebsiteElementChangeContextValue = {
+  onElementChange?: (sectionId: string, element: WebsiteElement) => void;
+  onRichTextDocumentChange?: (sectionId: string, elementId: string, document: RichTextDocument) => void;
+};
+export const WebsiteElementChangeContext = createContext<WebsiteElementChangeContextValue>({});
 export const useWebsiteElementChange = () => useContext(WebsiteElementChangeContext);

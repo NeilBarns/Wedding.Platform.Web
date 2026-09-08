@@ -1,83 +1,57 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { richTextDocumentSchema, richTextElementSchema } from "./schemas";
-import { richTextDocumentFromElement, richTextDocumentToHtml, richTextPlainText, safeLink } from "./richText";
+import { richTextDocumentSchema } from "./schemas";
+import { richTextDocumentFromPasteElement, richTextDocumentToHtml } from "./richText";
 import { RichTextElementRenderer } from "../websiteRenderer/RichTextElementRenderer";
 import type { TemplateDesignLibrary } from "../websiteCapabilities/types";
 
-const document = { type: "doc" as const, children: [
-  { type: "paragraph" as const, children: [{ text: "Hello ", marks: { bold: true } }, { text: "world", marks: { link: "https://example.com" } }] },
-  { type: "bulletList" as const, items: [[{ text: "One", marks: { italic: true, underline: true, strikethrough: true } }]] },
-] };
 const library = { colors: [], fontFamilies: [], fontRecommendations: { heading: [], body: [], accent: [] }, palettePresets: [], typographyPresets: [] } as unknown as TemplateDesignLibrary;
+const richTextDocument = { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "First", marks: { bold: true, italic: true, underline: true, strikethrough: true } }] }, { type: "paragraph" as const, children: [{ text: "Second" }] }] };
+type ForeignNode = { nodeType: number; textContent?: string; tagName?: string; childNodes: ForeignNode[]; children: ForeignNode[]; querySelectorAll(): ForeignNode[] };
+const text = (textContent: string): ForeignNode => ({ nodeType: 3, textContent, childNodes: [], children: [], querySelectorAll: () => [] });
+const element = (tagName: string, childNodes: ForeignNode[]): ForeignNode => ({ nodeType: 1, tagName: tagName.toUpperCase(), childNodes, children: childNodes.filter((node) => node.nodeType === 1), querySelectorAll: () => [] });
 
-type ForeignNode = {
-  nodeType: number;
-  textContent?: string;
-  tagName?: string;
-  childNodes: ForeignNode[];
-  children: ForeignNode[];
-  getAttribute(name: string): string | null;
-};
-
-const foreignText = (textContent: string): ForeignNode => ({ nodeType: 3, textContent, childNodes: [], children: [], getAttribute: () => null });
-const foreignElement = (tagName: string, childNodes: ForeignNode[], attributes: Record<string, string> = {}): ForeignNode => ({
-  nodeType: 1,
-  tagName: tagName.toUpperCase(),
-  childNodes,
-  children: childNodes.filter(({ nodeType }) => nodeType === 1),
-  getAttribute: (name) => attributes[name] ?? null,
-});
-
-describe("Rich Text", () => {
-  it("accepts structured paragraphs, lists, marks, and safe links", () => {
-    expect(richTextDocumentSchema.safeParse(document).success).toBe(true);
-    expect(richTextElementSchema.safeParse({ id: "rich-1", type: "richText", document }).success).toBe(true);
-    expect(safeLink("https://example.com")).toBe(true);
-    expect(safeLink("javascript:alert(1)")).toBe(false);
+describe("Rich Text canonical document", () => {
+  it("allows only paragraphs and emphasis marks", () => {
+    expect(richTextDocumentSchema.safeParse(richTextDocument).success).toBe(true);
+    expect(richTextDocumentSchema.safeParse({ type: "doc", children: [{ type: "bulletList", items: [[{ text: "No" }]] }] }).success).toBe(false);
+    expect(richTextDocumentSchema.safeParse({ type: "doc", children: [{ type: "paragraph", children: [{ text: "No", marks: { link: "https://example.com" } }] }] }).success).toBe(false);
   });
 
-  it("serializes only the bounded canonical markup used by the editor", () => {
-    expect(richTextDocumentToHtml(document)).toBe('<p><strong>Hello </strong><a href="https://example.com">world</a></p><ul><li><s><u><em>One</em></u></s></li></ul>');
-    expect(richTextPlainText(document)).toBe("Hello world One");
+  it("normalizes pasted lists and links into paragraph text while retaining emphasis", () => {
+    const root = element("div", [element("ul", [element("li", [element("strong", [text("One")])]), element("li", [element("a", [element("em", [text("Two")])])])])]);
+    expect(richTextDocumentFromPasteElement(root as unknown as HTMLElement)).toEqual({ type: "doc", children: [{ type: "paragraph", children: [{ text: "One", marks: { bold: true } }] }, { type: "paragraph", children: [{ text: "Two", marks: { italic: true } }] }] });
   });
 
-  it.each([
-    ["Bold", foreignElement("p", [foreignElement("b", [foreignText("Keep me")])]), { type: "paragraph", children: [{ text: "Keep me", marks: { bold: true } }] }],
-    ["Italic", foreignElement("p", [foreignElement("i", [foreignText("Keep me")])]), { type: "paragraph", children: [{ text: "Keep me", marks: { italic: true } }] }],
-    ["Underline", foreignElement("p", [foreignElement("u", [foreignText("Keep me")])]), { type: "paragraph", children: [{ text: "Keep me", marks: { underline: true } }] }],
-    ["Strikethrough", foreignElement("p", [foreignElement("strike", [foreignText("Keep me")])]), { type: "paragraph", children: [{ text: "Keep me", marks: { strikethrough: true } }] }],
-    ["Link", foreignElement("p", [foreignElement("a", [foreignText("Keep me")], { href: "https://example.com" })]), { type: "paragraph", children: [{ text: "Keep me", marks: { link: "https://example.com" } }] }],
-    ["Bulleted list", foreignElement("ul", [foreignElement("li", [foreignText("Keep me")])]), { type: "bulletList", items: [[{ text: "Keep me" }]] }],
-    ["Numbered list", foreignElement("ol", [foreignElement("li", [foreignText("Keep me")])]), { type: "orderedList", items: [[{ text: "Keep me" }]] }],
-  ])("serializes Tablet iframe %s DOM without parent-realm instanceof checks", (_command, formatted, expected) => {
-    const root = foreignElement("div", [formatted]);
-    expect(richTextDocumentFromElement(root as unknown as HTMLElement)).toEqual({ type: "doc", children: [expected] });
+  it("serializes and renders only paragraphs and supported inline emphasis", () => {
+    expect(richTextDocumentToHtml(richTextDocument)).toBe('<p><s><u><em><strong>First</strong></em></u></s></p><p>Second</p>');
+    const html = renderToStaticMarkup(<RichTextElementRenderer element={{ id: "rich-1", type: "richText", editorName: "Rich Text 1", document: richTextDocument }} viewport="desktop" templateKey="modern-editorial-v1" library={library} />);
+    expect(html).toContain("<strong");
+    expect(html).not.toMatch(/<(?:ul|ol|li|a)(?:\s|>)/);
   });
 
-  it("renders semantic long-form content without injecting stored HTML", () => {
-    const html = renderToStaticMarkup(<RichTextElementRenderer element={{ id: "rich-1", type: "richText", document, appearance: { textTransform: "uppercase" } }} viewport="desktop" templateKey="modern-editorial-v1" library={library} />);
-    expect(html).toContain("<strong>");
-    expect(html).toContain("<ul");
-    expect(html).toContain('rel="noopener noreferrer"');
-    expect(html).toContain("text-transform:uppercase");
-    expect(html).toContain("width:100%");
+  it("owns a visible one-and-a-half-em gap only between three public paragraphs", () => {
+    const document = { type: "doc" as const, children: ["First", "Second", "Third"].map((text) => ({ type: "paragraph" as const, children: [{ text }] })) };
+    const html = renderToStaticMarkup(<RichTextElementRenderer element={{ id: "rich-1", type: "richText", editorName: "Rich Text 1", document }} viewport="desktop" templateKey="modern-editorial-v1" library={library} />);
+    expect(html).toContain("[&amp;&gt;p+p]:mt-[1.5em]");
+    expect(html).toContain('<p class="m-0 whitespace-pre-wrap"><span>First</span></p><p class="m-0 whitespace-pre-wrap"><span>Second</span></p><p class="m-0 whitespace-pre-wrap"><span>Third</span></p>');
+    expect(html).not.toContain("space-y-");
   });
 
-  it("moves content authoring into the selected canvas element", () => {
-    const selected = renderToStaticMarkup(<RichTextElementRenderer element={{ id: "rich-1", type: "richText", document }} viewport="desktop" templateKey="modern-editorial-v1" library={library} editor={{ onChange: () => undefined }} />);
-    const published = renderToStaticMarkup(<RichTextElementRenderer element={{ id: "rich-1", type: "richText", document }} viewport="desktop" templateKey="modern-editorial-v1" library={library} />);
-    expect(selected).toContain('aria-label="Rich Text formatting"');
-    expect(selected).not.toContain("Font size:");
-    expect(selected).not.toContain("Line height:");
-    expect(selected).not.toContain("Letter spacing:");
-    expect(selected).not.toContain("Alignment:");
-    expect(selected).toContain('contentEditable="true"');
-    expect(selected).toContain("[&amp;&gt;*]:m-0");
-    expect(selected).toContain("[&amp;&gt;*+*]:mt-[0.75em]");
-    expect(published).not.toContain('contentEditable="true"');
-    const mobile = renderToStaticMarkup(<RichTextElementRenderer element={{ id: "rich-1", type: "richText", document }} viewport="mobile" templateKey="modern-editorial-v1" library={library} editor={{ onChange: () => undefined }} />);
-    expect(mobile).not.toContain('aria-label="Rich Text formatting"');
-    expect(mobile).toContain('contentEditable="true"');
+  it("uses the same internal paragraph rhythm in the editor without outer paragraph margins", async () => {
+    const { RichTextCanvasEditor } = await import("../websiteEditor/components/RichTextCanvasEditor");
+    const html = renderToStaticMarkup(<RichTextCanvasEditor element={{ id: "rich-1", type: "richText", editorName: "Rich Text 1", document: richTextDocument }} viewport="desktop" onDocumentChange={() => undefined} />);
+    expect(html).toContain("[&amp;&gt;*]:m-0");
+    expect(html).toContain("[&amp;&gt;p+p]:mt-[1.5em]");
+    expect(html).not.toContain("space-y-");
+  });
+
+  it("keeps a trailing empty paragraph from creating external bottom space", () => {
+    const document = { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Visible" }] }, { type: "paragraph" as const, children: [{ text: "" }] }] };
+    expect(richTextDocumentToHtml(document)).toBe('<p>Visible</p><p data-rich-text-empty-paragraph></p>');
+    const publicHtml = renderToStaticMarkup(<RichTextElementRenderer element={{ id: "rich-1", type: "richText", editorName: "Rich Text 1", document }} viewport="desktop" templateKey="modern-editorial-v1" library={library} />);
+    expect(publicHtml).toContain("m-0 min-h-0");
+    expect(publicHtml).toContain("p[data-rich-text-empty-paragraph]]:!mt-0");
+    expect(publicHtml).toContain('data-rich-text-empty-paragraph="true"');
   });
 });

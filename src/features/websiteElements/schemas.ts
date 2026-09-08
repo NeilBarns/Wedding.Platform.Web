@@ -1,9 +1,11 @@
+import { DIVIDER_WIDTHS } from "./divider";
 import { z } from "zod";
 import {
   WEBSITE_ELEMENT_LIMITS,
   WEBSITE_LEAF_ELEMENT_TYPES,
 } from "./constants";
 import { normalizeTextContent, validateTextFontTuple } from "./text";
+import { normalizeEditorName } from "./blockIdentity";
 
 export const elementIdSchema = z
   .string()
@@ -20,6 +22,11 @@ const mediaIdSchema = z
   );
 const shortTextSchema = z.string().max(WEBSITE_ELEMENT_LIMITS.shortText);
 const baseShape = { id: elementIdSchema, isHidden: z.boolean().optional() };
+export const editorNameSchema = z.string()
+  .transform(normalizeEditorName)
+  .refine((value) => value.length > 0, "Editor name is required.")
+  .refine((value) => Array.from(value).length <= 80, "Editor name cannot exceed 80 characters.");
+const genericBlockShape = { ...baseShape, editorName: editorNameSchema };
 export const elementFontSizeSchema = z.enum(["xs", "s", "m", "l", "xl"]);
 export const elementLineSpacingSchema = z.enum(["tight", "normal", "relaxed"]);
 export const elementLetterSpacingSchema = z.enum(["tight", "normal", "wide"]);
@@ -73,9 +80,9 @@ export const headingElementSchema = z
 
 export const textElementSchema = z
   .object({
-    ...baseShape,
+    ...genericBlockShape,
     type: z.literal("text"),
-    text: z.string().max(WEBSITE_ELEMENT_LIMITS.text).transform(normalizeTextContent),
+    text: z.string().refine((value) => Array.from(value).length <= WEBSITE_ELEMENT_LIMITS.text, `Text cannot exceed ${WEBSITE_ELEMENT_LIMITS.text} characters.`).transform(normalizeTextContent),
     appearance: textAppearanceSchema.optional(),
   })
   .strict()
@@ -89,18 +96,16 @@ const richTextMarksSchema = z.object({
   italic: z.boolean().optional(),
   underline: z.boolean().optional(),
   strikethrough: z.boolean().optional(),
-  link: z.string().max(WEBSITE_ELEMENT_LIMITS.externalUrl).url().refine((value) => ["http:", "https:", "mailto:"].includes(new URL(value).protocol), "Unsupported link protocol.").optional(),
 }).strict();
 export const richTextRunSchema = z.object({ text: z.string(), marks: richTextMarksSchema.optional() }).strict();
 const richTextParagraphSchema = z.object({ type: z.literal("paragraph"), children: z.array(richTextRunSchema).min(1) }).strict();
-const richTextListSchema = z.object({ type: z.enum(["bulletList", "orderedList"]), items: z.array(z.array(richTextRunSchema).min(1)).min(1) }).strict();
-export const richTextDocumentSchema = z.object({ type: z.literal("doc"), children: z.array(z.union([richTextParagraphSchema, richTextListSchema])).min(1).max(100) }).strict().superRefine((document, context) => {
-  const length = document.children.reduce((total, block) => total + (block.type === "paragraph" ? block.children : block.items.flat()).reduce((sum, run) => sum + run.text.length, 0), 0);
+export const richTextDocumentSchema = z.object({ type: z.literal("doc"), children: z.array(richTextParagraphSchema).min(1).max(100) }).strict().superRefine((document, context) => {
+  const length = document.children.reduce((total, block) => total + block.children.reduce((sum, run) => sum + run.text.length, 0), 0);
   if (length > WEBSITE_ELEMENT_LIMITS.richText) context.addIssue({ code: "custom", message: `Rich Text cannot exceed ${WEBSITE_ELEMENT_LIMITS.richText} characters.` });
 });
-export const richTextAppearanceSchema = textAppearanceSchema.pick({ fontFamilyId: true, fontSize: true, lineHeight: true, letterSpacing: true, alignment: true, colorId: true, textTransform: true, responsive: true }).strict();
+export const richTextAppearanceSchema = textAppearanceSchema.pick({ fontFamilyId: true, fontSize: true, fontWeight: true, lineHeight: true, letterSpacing: true, alignment: true, colorId: true, responsive: true }).strict();
 export const richTextElementSchema = z.object({
-  ...baseShape,
+  ...genericBlockShape,
   type: z.literal("richText"),
   document: richTextDocumentSchema,
   appearance: richTextAppearanceSchema.optional(),
@@ -135,7 +140,7 @@ const mediaPresentationSchema = mediaResponsivePresentationSchema.extend({
   responsive: z.object({ tablet: mediaResponsivePresentationSchema.optional(), mobile: mediaResponsivePresentationSchema.optional() }).strict().optional(),
 }).strict();
 const mediaAppearanceSchema = z.object({ corners: z.enum(["square", "soft", "rounded", "pill"]).optional(), frame: z.enum(["none", "line", "mat"]).optional(), shadow: z.enum(["none", "soft", "medium", "strong"]).optional() }).strict();
-export const mediaElementSchema = z.object({ ...baseShape, type: z.literal("media"), items: z.array(mediaItemSchema).max(8), presentation: mediaPresentationSchema.optional(), appearance: mediaAppearanceSchema.optional() }).strict().superRefine((element, context) => {
+export const mediaElementSchema = z.object({ ...genericBlockShape, type: z.literal("media"), items: z.array(mediaItemSchema).max(8), presentation: mediaPresentationSchema.optional(), appearance: mediaAppearanceSchema.optional() }).strict().superRefine((element, context) => {
   const kinds = new Set(element.items.map(({ type }) => type));
   if (kinds.size > 1) context.addIssue({ code: "custom", path: ["items"], message: "Mixed image and video collections are not supported yet." });
   if (element.items.filter(({ type }) => type === "video").length > 1) context.addIssue({ code: "custom", path: ["items"], message: "Media supports only one video." });
@@ -150,28 +155,17 @@ export const mediaElementSchema = z.object({ ...baseShape, type: z.literal("medi
   }
 });
 
-const dividerAppearanceSchema = z.preprocess((value) => {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
-  const appearance = { ...(value as Record<string, unknown>) };
-  if (appearance.assetId === undefined && typeof appearance.styleId === "string") appearance.assetId = appearance.styleId;
-  delete appearance.styleId;
-  if (typeof appearance.width === "string") {
-    const legacyWidths: Record<string, number> = { small: 0, medium: 50, large: 100, full: 100 };
-    appearance.width = legacyWidths[appearance.width] ?? appearance.width;
-  }
-  if (typeof appearance.opacity === "string" && /^\d+$/.test(appearance.opacity)) appearance.opacity = Number(appearance.opacity);
-  return appearance;
-}, z.object({
+const dividerAppearanceSchema = z.object({
   assetId: z.string().min(1).max(100).optional(),
-  width: z.number().int().min(0).max(100).optional(),
+  width: z.enum(DIVIDER_WIDTHS).optional(),
   alignment: textAlignmentSchema.optional(),
   colorId: z.string().min(1).optional(),
   opacity: z.number().int().min(25).max(100).optional(),
-}).strict());
+}).strict();
 
 export const dividerElementSchema = z
   .object({
-    ...baseShape,
+    ...genericBlockShape,
     type: z.literal("divider"),
     appearance: dividerAppearanceSchema.optional(),
   })
@@ -417,8 +411,8 @@ export const groupLayoutSchema = z.object({
 }).strict();
 
 const groupLeafElementSchema = z.discriminatedUnion("type", [textElementSchema, richTextElementSchema, dividerElementSchema, mediaElementSchema]);
-const nestedCompositionGroupSchema = z.object({ ...baseShape, type: z.literal("compositionGroup"), children: z.array(groupLeafElementSchema).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional() }).strict();
-export const compositionGroupSchema = z.object({ ...baseShape, type: z.literal("compositionGroup"), children: z.array(z.union([groupLeafElementSchema, nestedCompositionGroupSchema])).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional() }).strict().superRefine((group, context) => addDuplicateIdIssues([group], context));
+const nestedCompositionGroupSchema = z.object({ ...genericBlockShape, type: z.literal("compositionGroup"), children: z.array(groupLeafElementSchema).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional() }).strict();
+export const compositionGroupSchema = z.object({ ...genericBlockShape, type: z.literal("compositionGroup"), children: z.array(z.union([groupLeafElementSchema, nestedCompositionGroupSchema])).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional() }).strict().superRefine((group, context) => addDuplicateIdIssues([group], context));
 
 export const websiteElementSchema = z.union([
   websiteLeafElementSchema,

@@ -1,7 +1,7 @@
 import type { EventDetail } from '../events/types'
 import type { WebsiteDraft } from '../websiteEditor/types'
 import type { ResponsiveViewport } from '../websiteEditor/types'
-import type { WebsiteElement } from '../websiteElements/types'
+import type { RichTextDocument, WebsiteElement } from '../websiteElements/types'
 
 export type WebsiteRenderScope =
   | { kind: 'full' }
@@ -21,4 +21,5 @@ export type WebsiteRendererProps = {
   onElementSelect?: (sectionId: string, elementId: string) => void
   onElementEdit?: (sectionId: string, elementId: string) => void
   onElementChange?: (sectionId: string, element: WebsiteElement) => void
+  onRichTextDocumentChange?: (sectionId: string, elementId: string, document: RichTextDocument) => void
 }
