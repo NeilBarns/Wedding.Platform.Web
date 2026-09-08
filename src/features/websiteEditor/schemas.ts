@@ -89,7 +89,6 @@ export const scheduleContentSchema = z.object({
   items: z.array(z.object({ time: text, title: text, description: text }).strict()),
 }).strict()
 export const venueContentSchema = z.object({ heading: text, name: text, address: text, description: text, media: sectionMediaSchema }).strict()
-export const dressCodeContentSchema = z.object({ heading: text, description: text, childFlow: textSectionChildFlowSchema.optional() }).strict()
 const peoplePersonSchema = z.object({ id: semanticId, name: requiredLabel, role: text.max(255).nullable().optional(), media: sectionMediaSchema }).strict()
 const peopleGroupSchema = z.object({ id: semanticId, name: requiredLabel, people: z.array(peoplePersonSchema).max(100) }).strict()
 export const peopleContentSchema = z.object({
@@ -121,7 +120,6 @@ const contentSchemas: Record<string, z.ZodType> = {
   story: storyContentSchema,
   schedule: scheduleContentSchema,
   venue: venueContentSchema,
-  dressCode: dressCodeContentSchema,
   people: peopleContentSchema,
   gallery: galleryContentSchema,
   faq: faqContentSchema,

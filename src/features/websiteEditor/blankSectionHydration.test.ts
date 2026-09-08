@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeWebsiteDraftFromApi } from './schemas'
+import { normalizeWebsiteDraftFromApi, validateSectionContent } from './schemas'
 import { genericTextSectionChildFlowSchema, textSectionChildFlowSchema } from './sectionChildFlow'
 
 const appearance = { headingAlignment: 'inherit', bodyAlignment: 'inherit', backgroundTreatment: 'inherit', emphasis: 'inherit' }
@@ -36,5 +36,9 @@ describe('repeatable Blank Section hydration', () => {
     expect(genericTextSectionChildFlowSchema.safeParse({ elements: [], order: [{ kind: 'specialized', key: 'content' }] }).success).toBe(false)
     expect(textSectionChildFlowSchema.safeParse({ elements: [], order: [{ kind: 'specialized', key: 'content' }] }).success).toBe(true)
     expect(textSectionChildFlowSchema.safeParse({ elements: [], order: [] }).success).toBe(false)
+  })
+
+  it('does not recognize removed Dress Code content as a canonical Section contract', () => {
+    expect(validateSectionContent('dressCode', { heading: 'Attire', description: 'Formal' }).success).toBe(false)
   })
 })

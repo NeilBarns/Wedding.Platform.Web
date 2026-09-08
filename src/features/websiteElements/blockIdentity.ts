@@ -3,6 +3,7 @@ import type { WebsiteElement } from "./types";
 export const GENERIC_BLOCK_LABELS = {
   text: "Text",
   richText: "Rich Text",
+  date: "Date",
   media: "Media",
   divider: "Divider",
   compositionGroup: "Group",
@@ -17,4 +18,3 @@ export function normalizeEditorName(value: string): string {
 export function isGenericBlock(element: WebsiteElement): element is WebsiteElement & { type: GenericBlockType; editorName: string } {
   return element.type in GENERIC_BLOCK_LABELS;
 }
-

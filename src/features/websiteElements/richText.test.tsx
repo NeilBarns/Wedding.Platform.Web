@@ -46,6 +46,19 @@ describe("Rich Text canonical document", () => {
     expect(html).not.toContain("space-y-");
   });
 
+  it("shows an editor-only placeholder for an empty Rich Text document", async () => {
+    const { RichTextCanvasEditor } = await import("../websiteEditor/components/RichTextCanvasEditor");
+    const emptyDocument = { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "" }] }] };
+    const element = { id: "rich-empty", type: "richText" as const, editorName: "Rich Text 1", document: emptyDocument };
+
+    const editorHtml = renderToStaticMarkup(<RichTextCanvasEditor element={element} viewport="desktop" onDocumentChange={() => undefined} />);
+    const publicHtml = renderToStaticMarkup(<RichTextElementRenderer element={element} viewport="desktop" templateKey="modern-editorial-v1" library={library} />);
+
+    expect(editorHtml).toContain("Add rich text");
+    expect(editorHtml).toContain("inline-edit-placeholder");
+    expect(publicHtml).not.toContain("Add rich text");
+  });
+
   it("keeps a trailing empty paragraph from creating external bottom space", () => {
     const document = { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Visible" }] }, { type: "paragraph" as const, children: [{ text: "" }] }] };
     expect(richTextDocumentToHtml(document)).toBe('<p>Visible</p><p data-rich-text-empty-paragraph></p>');

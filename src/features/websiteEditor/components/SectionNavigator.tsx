@@ -18,14 +18,19 @@ import {
   ArrowDown,
   ArrowUp,
   ChevronDown,
+  Copy,
   Eye,
   EyeOff,
   GripVertical,
+  Pencil,
   Plus,
+  SquareDashed,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Heading } from "../../../components/ui/Heading";
+import { Button } from "../../../components/ui/Button";
 import { IconButton } from "../../../components/ui/IconButton";
 import { Text } from "../../../components/ui/Text";
 import { Tooltip } from "../../../components/ui/Tooltip";
@@ -39,16 +44,33 @@ import {
 } from "../storyBlockOperations";
 import type { StoryContent, StoryHeaderField, WebsiteSection } from "../types";
 import type { StoryStructureReference } from "../types";
-import { narrativeIdFromStoryReference, narrativeStoryReference, storyFieldFromReference } from "../storyStructure";
+import {
+  narrativeIdFromStoryReference,
+  narrativeStoryReference,
+  storyFieldFromReference,
+} from "../storyStructure";
 import { StoryBlockList } from "./StoryBlockList";
 import { SectionChildList } from "./SectionChildList";
-import { SECTION_SPECIALIZED_REFERENCE, createSectionElement, deleteSectionElement, duplicateSectionElement, insertSectionElement, type SectionChildFlow, type SectionChildReference } from "../sectionChildFlow";
+import {
+  SECTION_SPECIALIZED_REFERENCE,
+  createSectionElement,
+  deleteSectionElement,
+  duplicateSectionElement,
+  insertSectionElement,
+  type SectionChildFlow,
+  type SectionChildReference,
+} from "../sectionChildFlow";
 import {
   StructureActionMenu,
   StructureMenuAction,
 } from "./StructureActionMenu";
-import { resolveExpandedSectionId, resolveSelectionOwnerId, toggleExpandedSectionId } from "./sectionAccordion";
+import {
+  resolveExpandedSectionId,
+  resolveSelectionOwnerId,
+  toggleExpandedSectionId,
+} from "./sectionAccordion";
 import { revealStructureRow } from "./structureReveal";
+import type { GenericBlockType } from "../../websiteElements/blockIdentity";
 
 type Props = {
   sections: WebsiteSection[];
@@ -58,26 +80,56 @@ type Props = {
   workingStory: { sectionId: string; content: StoryContent } | null;
   workingChildFlow: { sectionId: string; flow?: SectionChildFlow } | null;
   selectedChild: { sectionId: string; reference: SectionChildReference } | null;
-  genericChildSectionIds: readonly string[];
+  genericChildTypesBySectionType: Readonly<
+    Record<string, readonly GenericBlockType[]>
+  >;
   pending: boolean;
   onSelect: (id: string, requestCanvasScroll?: boolean) => void;
-  onNarrativeBlockSelect: (blockId: string | null, requestCanvasScroll?: boolean) => void;
-  onStoryHeaderSelect: (sectionId: string, field: StoryHeaderField, requestCanvasScroll?: boolean) => void;
+  onNarrativeBlockSelect: (
+    blockId: string | null,
+    requestCanvasScroll?: boolean,
+  ) => void;
+  onStoryHeaderSelect: (
+    sectionId: string,
+    field: StoryHeaderField,
+    requestCanvasScroll?: boolean,
+  ) => void;
   onStoryChange: (sectionId: string, content: StoryContent) => boolean;
-  onChildFlowChange: (sectionId: string, flow: SectionChildFlow | undefined, selection?: SectionChildReference) => boolean;
-  onChildRenameSave: (sectionId: string, flow: SectionChildFlow) => Promise<string | null>;
-  onChildSelect: (sectionId: string, reference: SectionChildReference, requestCanvasScroll?: boolean) => void;
+  onChildFlowChange: (
+    sectionId: string,
+    flow: SectionChildFlow | undefined,
+    selection?: SectionChildReference,
+  ) => boolean;
+  onChildRenameSave: (
+    sectionId: string,
+    flow: SectionChildFlow,
+  ) => Promise<string | null>;
+  onChildSelect: (
+    sectionId: string,
+    reference: SectionChildReference,
+    requestCanvasScroll?: boolean,
+  ) => void;
   onToggle: (section: WebsiteSection) => void;
   onMove: (index: number, direction: -1 | 1) => void;
   onReorder: (sectionIds: string[]) => void;
+  onCreate?: () => void;
+  onRename?: (section: WebsiteSection) => void;
+  onDuplicate?: (section: WebsiteSection) => void;
+  onDelete?: (section: WebsiteSection) => void;
 };
 
 const sortableSectionId = (id: string) => `section:${id}`;
 
 export function SectionNavigator(props: Props) {
   const navigatorRef = useRef<HTMLElement>(null);
-  const sectionIds = useMemo(() => props.sections.map(({ id }) => id), [props.sections]);
-  const selectedOwnerId = resolveSelectionOwnerId(props.selectedId, props.selectedChild?.sectionId);
+  const sectionIds = useMemo(
+    () => props.sections.map(({ id }) => id),
+    [props.sections],
+  );
+  const selectedOwnerId = resolveSelectionOwnerId(
+    props.selectedId,
+    props.selectedChild?.sectionId,
+  );
   const selectionKey = props.selectedChild
     ? `${props.selectedChild.sectionId}:${props.selectedChild.reference.kind}:${props.selectedChild.reference.kind === "element" ? props.selectedChild.reference.id : props.selectedChild.reference.key}`
     : props.selectedNarrativeBlockId
@@ -85,20 +137,24 @@ export function SectionNavigator(props: Props) {
       : props.selectedStoryHeaderField
         ? `${props.selectedId}:story:${props.selectedStoryHeaderField}`
         : `${props.selectedId}:section`;
-  const [expandedSectionId, setExpandedSectionId] = useState<string | null>(() =>
-    resolveExpandedSectionId(sectionIds, selectedOwnerId),
+  const [expandedSectionId, setExpandedSectionId] = useState<string | null>(
+    () => resolveExpandedSectionId(sectionIds, selectedOwnerId),
   );
   const sectionIdsRef = useRef(sectionIds);
   useEffect(() => {
     sectionIdsRef.current = sectionIds;
   }, [sectionIds]);
   useLayoutEffect(() => {
-    setExpandedSectionId(resolveExpandedSectionId(sectionIdsRef.current, selectedOwnerId));
+    setExpandedSectionId(
+      resolveExpandedSectionId(sectionIdsRef.current, selectedOwnerId),
+    );
   }, [selectedOwnerId, selectionKey]);
   useLayoutEffect(() => {
     const navigator = navigatorRef.current;
     const row = navigator?.querySelector<HTMLElement>('[aria-current="true"]');
-    const container = navigator?.closest<HTMLElement>('[data-structure-scroll-container]');
+    const container = navigator?.closest<HTMLElement>(
+      "[data-structure-scroll-container]",
+    );
     if (row && container) revealStructureRow(container, row);
   }, [expandedSectionId, selectionKey]);
   const sensors = useSensors(
@@ -130,13 +186,25 @@ export function SectionNavigator(props: Props) {
       className="rounded-2xl border border-border bg-surface p-3 xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0"
       aria-label="Website sections"
     >
-      <div className="px-2 py-2">
-        <Heading level={2} variant="section">
-          Sections
-        </Heading>
-        <Text className="mt-0.5" variant="helper">
-          Select, reorder, or change visibility.
-        </Text>
+      <div className="flex items-start justify-between gap-3 px-2 py-2">
+        <div>
+          <Heading level={2} variant="section">
+            Sections
+          </Heading>
+          <Text className="mt-0.5" variant="helper">
+            Select, reorder, or change visibility.
+          </Text>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          disabled={props.pending || !props.onCreate}
+          onClick={props.onCreate}
+          className="shrink-0"
+        >
+          <Plus size={14} aria-hidden="true" /> Add Section
+        </Button>
       </div>
       <DndContext
         sensors={sensors}
@@ -178,6 +246,7 @@ function SortableSection(
   },
 ) {
   const { section, index } = props;
+  const sectionLabel = section.editorName ?? section.displayName;
   const {
     attributes,
     listeners,
@@ -190,7 +259,9 @@ function SortableSection(
     disabled: props.pending,
   });
   const isStory = section.type === "story";
-  const supportsGenericChildren = props.genericChildSectionIds.includes(section.type);
+  const allowedGenericTypes =
+    props.genericChildTypesBySectionType[section.type] ?? [];
+  const supportsGenericChildren = allowedGenericTypes.length > 0;
   const storyContent = isStory
     ? props.workingStory?.sectionId === section.id
       ? props.workingStory.content
@@ -201,7 +272,10 @@ function SortableSection(
       ? props.workingChildFlow.flow
       : (section.content as { childFlow?: SectionChildFlow }).childFlow
     : undefined;
-  const resolvedChildFlow: SectionChildFlow = childFlow ?? { elements: [], order: [SECTION_SPECIALIZED_REFERENCE] };
+  const resolvedChildFlow: SectionChildFlow = childFlow ?? {
+    elements: [],
+    order: section.type === "blank" ? [] : [SECTION_SPECIALIZED_REFERENCE],
+  };
   const hasSelectedChild = props.selectedChild?.sectionId === section.id;
   const mutateStory = (
     content: StoryContent,
@@ -210,14 +284,16 @@ function SortableSection(
     if (!props.onStoryChange(section.id, content)) return;
     if (nextSelection !== undefined) selectStoryReference(nextSelection);
   };
-  const selectedReference: StoryStructureReference | null = props.selectedId !== section.id
-    ? null
-    : props.selectedStoryHeaderField
-      ? `story:${props.selectedStoryHeaderField}`
-      : props.selectedNarrativeBlockId
-        ? narrativeStoryReference(props.selectedNarrativeBlockId)
-        : null;
-  const hasSelectedStoryChild = props.selectedId === section.id && Boolean(selectedReference);
+  const selectedReference: StoryStructureReference | null =
+    props.selectedId !== section.id
+      ? null
+      : props.selectedStoryHeaderField
+        ? `story:${props.selectedStoryHeaderField}`
+        : props.selectedNarrativeBlockId
+          ? narrativeStoryReference(props.selectedNarrativeBlockId)
+          : null;
+  const hasSelectedStoryChild =
+    props.selectedId === section.id && Boolean(selectedReference);
   const selectStoryReference = (
     reference: StoryStructureReference | null,
     requestCanvasScroll = false,
@@ -244,71 +320,109 @@ function SortableSection(
       className={isDragging ? "relative z-20 opacity-70 shadow-lg" : ""}
     >
       <div
-        className={`group flex min-w-0 items-center gap-0.5 rounded-lg border px-1 py-1 ${props.selectedId === section.id && !selectedReference && !hasSelectedChild ? "border-accent border-2 bg-surface-muted" : "border-transparent hover:bg-surface-muted"} ${section.isEnabled ? "" : "bg-surface-muted/60 text-foreground-muted"}`}
+        className={`group flex min-w-0 items-center gap-0.5 rounded-lg border px-1 py-1 ${props.selectedId === section.id && !selectedReference && !hasSelectedChild ? "border-accent border-2 bg-surface-muted" : "border-transparent hover:bg-surface-muted"}`}
       >
         <IconButton
           type="button"
           size="sm"
           className="touch-none cursor-grab active:cursor-grabbing"
           disabled={props.pending}
-          aria-label={`Drag ${section.displayName} section`}
+          aria-label={`Drag ${sectionLabel} section`}
           {...attributes}
           {...listeners}
         >
           <GripVertical size={15} />
         </IconButton>
         <button
-          className="min-w-0 flex-1 rounded px-1.5 py-1.5 text-left"
+          className="w-0 min-w-0 flex-1 rounded px-1.5 py-1.5 text-left"
           type="button"
           onClick={() => {
             props.onSelect(section.id, true);
             if (props.selectedId === section.id) props.onExpandedChange(true);
           }}
           aria-current={
-            props.selectedId === section.id && !selectedReference && !hasSelectedChild
+            props.selectedId === section.id &&
+            !selectedReference &&
+            !hasSelectedChild
               ? "true"
               : undefined
           }
         >
-          <span className="block truncate text-sm font-medium">
-            {section.displayName}
+          <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+            {section.type === "blank" && (
+              <SquareDashed
+                className={`shrink-0 ${section.isEnabled ? "" : "text-foreground-muted opacity-50"}`}
+                size={14}
+                aria-hidden="true"
+              />
+            )}
+            <span
+              className={`min-w-0 truncate ${section.isEnabled ? "" : "text-foreground-muted opacity-60"}`}
+            >
+              {sectionLabel}
+            </span>
           </span>
         </button>
-        {!section.isEnabled && (
-          <span className="shrink-0 rounded bg-surface-muted px-1.5 py-0.5 text-[9px] text-foreground-muted">
-            Hidden
-          </span>
-        )}
-        {(isStory && storyContent) && (
+        {isStory && storyContent && (
           <ElementAddControl
             triggerLabel="Add to Story"
-            items={[{ label: "Narrative Block", onAdd: () => {
-              const result = addStoryBlock(storyContent, selectedReference);
-              if (!result) return;
-              props.onExpandedChange(true);
-              mutateStory(result.content, narrativeStoryReference(result.blockId));
-            } }]}
+            items={[
+              {
+                label: "Narrative Block",
+                onAdd: () => {
+                  const result = addStoryBlock(storyContent, selectedReference);
+                  if (!result) return;
+                  props.onExpandedChange(true);
+                  mutateStory(
+                    result.content,
+                    narrativeStoryReference(result.blockId),
+                  );
+                },
+              },
+            ]}
             disabled={storyContent.elements.length >= STORY_BLOCK_LIMIT}
             onOpen={() => {
               if (props.selectedId !== section.id) props.onSelect(section.id);
             }}
           />
         )}
-        {supportsGenericChildren && <ElementAddControl triggerLabel={`Add to ${section.displayName}`} disabled={resolvedChildFlow.elements.length >= 20} onOpen={() => { if (props.selectedId !== section.id) props.onSelect(section.id); }} items={[{ label: "Text", onAdd: () => addGeneric("text") }, { label: "Rich Text", onAdd: () => addGeneric("richText") }, { label: "Divider", onAdd: () => addGeneric("divider") }, { label: "Media", onAdd: () => addGeneric("media") }, { label: "Group", onAdd: () => addGeneric("compositionGroup") }]} />}
+        {supportsGenericChildren && (
+          <ElementAddControl
+            triggerLabel={`Add to ${sectionLabel}`}
+            disabled={resolvedChildFlow.elements.length >= 20}
+            onOpen={() => {
+              if (props.selectedId !== section.id) props.onSelect(section.id);
+            }}
+            items={[
+              { type: "text" as const, label: "Text" },
+              { type: "richText" as const, label: "Rich Text" },
+              { type: "date" as const, label: "Date" },
+              { type: "divider" as const, label: "Divider" },
+              { type: "media" as const, label: "Media" },
+              { type: "compositionGroup" as const, label: "Group" },
+            ]
+              .filter(({ type }) => allowedGenericTypes.includes(type))
+              .map(({ type, label }) => ({
+                label,
+                onAdd: () => addGeneric(type),
+              }))}
+          />
+        )}
         {(isStory || supportsGenericChildren) && (
           <IconButton
             size="sm"
             type="button"
             onClick={() => {
               if (props.expanded) {
-                if (hasSelectedChild || hasSelectedStoryChild) props.onSelect(section.id);
+                if (hasSelectedChild || hasSelectedStoryChild)
+                  props.onSelect(section.id);
                 props.onExpandedChange(false);
                 return;
               }
               if (props.selectedId === section.id) props.onExpandedChange(true);
               else props.onSelect(section.id);
             }}
-            aria-label={`${props.expanded ? "Collapse" : "Expand"} ${section.displayName}`}
+            aria-label={`${props.expanded ? "Collapse" : "Expand"} ${sectionLabel}`}
             aria-expanded={props.expanded}
           >
             <ChevronDown
@@ -317,7 +431,25 @@ function SortableSection(
             />
           </IconButton>
         )}
-        <StructureActionMenu label={`${section.displayName} actions`}>
+        <StructureActionMenu label={`${sectionLabel} actions`}>
+          {section.type === "blank" && (
+            <StructureMenuAction
+              icon={<Pencil size={14} />}
+              disabled={props.pending || !props.onRename}
+              onClick={() => props.onRename?.(section)}
+            >
+              Rename
+            </StructureMenuAction>
+          )}
+          {section.type === "blank" && (
+            <StructureMenuAction
+              icon={<Copy size={14} />}
+              disabled={props.pending || !props.onDuplicate}
+              onClick={() => props.onDuplicate?.(section)}
+            >
+              Duplicate
+            </StructureMenuAction>
+          )}
           <StructureMenuAction
             icon={<ArrowUp size={14} />}
             disabled={props.pending || index === 0}
@@ -325,6 +457,16 @@ function SortableSection(
           >
             Move up
           </StructureMenuAction>
+          {section.type === "blank" && (
+            <StructureMenuAction
+              danger
+              icon={<Trash2 size={14} />}
+              disabled={props.pending || !props.onDelete}
+              onClick={() => props.onDelete?.(section)}
+            >
+              Delete
+            </StructureMenuAction>
+          )}
           <StructureMenuAction
             icon={<ArrowDown size={14} />}
             disabled={props.pending || index === props.sections.length - 1}
@@ -350,7 +492,11 @@ function SortableSection(
             onSelect={(reference) => selectStoryReference(reference, true)}
             onDuplicate={(blockId) => {
               const result = duplicateStoryBlock(storyContent, blockId);
-              if (result) mutateStory(result.content, narrativeStoryReference(result.blockId));
+              if (result)
+                mutateStory(
+                  result.content,
+                  narrativeStoryReference(result.blockId),
+                );
             }}
             onRemove={(blockId) => {
               const result = removeStoryBlock(storyContent, blockId);
@@ -365,13 +511,23 @@ function SortableSection(
             onToggleHidden={(reference) => {
               const field = storyFieldFromReference(reference);
               const blockId = narrativeIdFromStoryReference(reference);
-              mutateStory(field ? {
-                ...storyContent,
-                [`${field}IsHidden`]: storyContent[`${field}IsHidden`] !== true,
-              } : {
-                ...storyContent,
-                elements: storyContent.elements.map((block) => block.id === blockId ? { ...block, isHidden: !block.isHidden } : block),
-              }, reference);
+              mutateStory(
+                field
+                  ? {
+                      ...storyContent,
+                      [`${field}IsHidden`]:
+                        storyContent[`${field}IsHidden`] !== true,
+                    }
+                  : {
+                      ...storyContent,
+                      elements: storyContent.elements.map((block) =>
+                        block.id === blockId
+                          ? { ...block, isHidden: !block.isHidden }
+                          : block,
+                      ),
+                    },
+                reference,
+              );
             }}
             onReorder={(active, over) =>
               mutateStory(
@@ -383,17 +539,72 @@ function SortableSection(
         </div>
       )}
       {supportsGenericChildren && props.expanded && (
-        <div className="mt-0.5 min-w-0 pl-5"><SectionChildList sectionLabel={section.displayName} flow={resolvedChildFlow} selected={props.selectedChild?.sectionId === section.id ? props.selectedChild.reference : null} onSelect={(reference) => props.onChildSelect(section.id, reference, true)} onChange={(flow) => { props.onChildFlowChange(section.id, flow, props.selectedChild?.sectionId === section.id ? props.selectedChild.reference : undefined); }} onRenameSave={(flow) => props.onChildRenameSave(section.id, flow)} onDuplicate={(elementId) => { const result = duplicateSectionElement(resolvedChildFlow, elementId); if (result) props.onChildFlowChange(section.id, result.flow, { kind: "element", id: result.elementId }); }} onDelete={(elementId) => { const result = deleteSectionElement(resolvedChildFlow, elementId); props.onChildFlowChange(section.id, result.flow, result.selection); }} /></div>
+        <div className="mt-0.5 min-w-0 pl-5">
+          <SectionChildList
+            sectionLabel={sectionLabel}
+            flow={resolvedChildFlow}
+            selected={
+              props.selectedChild?.sectionId === section.id
+                ? props.selectedChild.reference
+                : null
+            }
+            onSelect={(reference) =>
+              props.onChildSelect(section.id, reference, true)
+            }
+            onChange={(flow) => {
+              props.onChildFlowChange(
+                section.id,
+                flow,
+                props.selectedChild?.sectionId === section.id
+                  ? props.selectedChild.reference
+                  : undefined,
+              );
+            }}
+            onRenameSave={(flow) => props.onChildRenameSave(section.id, flow)}
+            onDuplicate={(elementId) => {
+              const result = duplicateSectionElement(
+                resolvedChildFlow,
+                elementId,
+              );
+              if (result)
+                props.onChildFlowChange(section.id, result.flow, {
+                  kind: "element",
+                  id: result.elementId,
+                });
+            }}
+            onDelete={(elementId) => {
+              const result = deleteSectionElement(resolvedChildFlow, elementId);
+              props.onChildFlowChange(
+                section.id,
+                result.flow ??
+                  (section.type === "blank"
+                    ? { elements: [], order: [] }
+                    : undefined),
+                section.type === "blank" && !result.flow
+                  ? undefined
+                  : result.selection,
+              );
+            }}
+          />
+        </div>
       )}
     </div>
   );
 
-  function addGeneric(type: "text" | "richText" | "divider" | "media" | "compositionGroup") {
+  function addGeneric(
+    type: GenericBlockType,
+  ) {
     const element = createSectionElement(resolvedChildFlow, type);
-    const after = props.selectedChild?.sectionId === section.id ? props.selectedChild.reference : SECTION_SPECIALIZED_REFERENCE;
+    const after =
+      props.selectedChild?.sectionId === section.id
+        ? props.selectedChild.reference
+        : SECTION_SPECIALIZED_REFERENCE;
     const flow = insertSectionElement(childFlow, element, after);
     props.onExpandedChange(true);
-    props.onChildFlowChange(section.id, flow, { kind: "element", id: element.id });
+    props.onChildFlowChange(section.id, flow, {
+      kind: "element",
+      id: element.id,
+    });
   }
 }
 
@@ -497,7 +708,20 @@ function ElementAddControl({
             <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-foreground-muted">
               Add element
             </p>
-            {items.map((item) => <button key={item.label} type="button" role="menuitem" className="w-full rounded px-2 py-1.5 text-left text-xs hover:bg-surface-muted" onClick={() => { setOpen(false); item.onAdd(); }}>{item.label}</button>)}
+            {items.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                role="menuitem"
+                className="w-full rounded px-2 py-1.5 text-left text-xs hover:bg-surface-muted"
+                onClick={() => {
+                  setOpen(false);
+                  item.onAdd();
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
           </div>,
           document.body,
         )}

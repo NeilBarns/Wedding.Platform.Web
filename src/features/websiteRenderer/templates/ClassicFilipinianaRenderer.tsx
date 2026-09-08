@@ -1,6 +1,5 @@
 import type {
   DateContent,
-  DressCodeContent,
   FaqContent,
   GalleryContent,
   HeroContent,
@@ -20,7 +19,6 @@ import { ZoomedMediaImage } from "../ZoomedMediaImage";
 import { storyElementMedia } from "../../websiteEditor/storyMedia";
 import {
   ClassicFilipinianaDate,
-  ClassicFilipinianaDressCode,
   ClassicFilipinianaFaq,
   ClassicFilipinianaGallery,
   ClassicFilipinianaHero,
@@ -46,6 +44,8 @@ import { resolveEffectiveStorySequence } from "../storyEffectiveSequence";
 import { resolveStoryRenderItems } from "../storyRenderSequence";
 import { SectionDecorativeLayers } from "../SectionDecorativeLayers";
 import { SectionChildFlowRenderer } from "../SectionChildFlowRenderer";
+import { BlankSectionRenderer } from "../BlankSectionRenderer";
+import { isBlankSectionRenderable } from "../blankSectionRenderability";
 
 export function ClassicFilipinianaRenderer({
   event,
@@ -71,6 +71,7 @@ export function ClassicFilipinianaRenderer({
           .map((section, index) => ({ section, index }))
           .filter(({ section }) => section.isEnabled);
   const sections = candidates.filter(({ section }) => {
+    if (mode === "public" && section.type === "blank") return isBlankSectionRenderable(section, website.templateKey, website.media, event.eventDate);
     if (mode === "editor" || section.type !== "story") return true;
     const content = section.content as StoryContent;
     return resolveEffectiveStorySequence({
@@ -177,7 +178,7 @@ function ClassicSection({
   );
   return (
     <section
-      className={`${appearance.sectionClass} relative cursor-default font-[family-name:var(--cf-body-font)] transition-shadow ${section.type === "story" ? "isolate" : ""} ${selected ? "z-10" : ""}`}
+      className={`${appearance.sectionClass} relative cursor-default font-[family-name:var(--cf-body-font)] transition-shadow ${section.type === "story" || section.type === "blank" ? "isolate" : ""} ${selected ? "z-10" : ""}`}
       style={
         {
           ...appearance.sectionStyle,
@@ -209,11 +210,11 @@ function ClassicSection({
       }
       role={mode === "editor" ? "group" : undefined}
       aria-label={
-        mode === "editor" ? `${section.displayName} section` : undefined
+        mode === "editor" ? `${section.editorName ?? section.displayName} section` : undefined
       }
       tabIndex={mode === "editor" ? 0 : undefined}
     >
-      {section.type === "story" ? <><SectionDecorativeLayers templateKey={templateKey} appearance={section.appearance.decorativeAppearance} viewport={targetViewport} /><div className="relative z-10">{showLeadingDivider && <ClassicSectionDivider />}<Section
+      {section.type === "story" || section.type === "blank" ? <><SectionDecorativeLayers templateKey={templateKey} appearance={section.appearance.decorativeAppearance} viewport={targetViewport} /><div className="relative z-10">{showLeadingDivider && <ClassicSectionDivider />}<Section
         section={section}
         eventName={eventName}
         eventDate={eventDate}
@@ -278,10 +279,12 @@ function Section({
       {content}
     </ClassicMediaPresentation>
   );
-  const childFlow = (flow: DateContent["childFlow"] | DressCodeContent["childFlow"]) => flow?.elements.length
-    ? (specialized: React.ReactNode) => <SectionChildFlowRenderer media={media} sectionId={section.id} flow={flow} specialized={specialized} mode={mode} viewport={targetViewport} templateKey="classic-filipiniana-v1" library={library} projectColors={projectColors} context={section.resolvedDesignContext} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />
+  const childFlow = (flow: DateContent["childFlow"]) => flow?.elements.length
+    ? (specialized: React.ReactNode) => <SectionChildFlowRenderer media={media} eventDate={eventDate} sectionId={section.id} flow={flow} specialized={specialized} mode={mode} viewport={targetViewport} templateKey="classic-filipiniana-v1" library={library} projectColors={projectColors} context={section.resolvedDesignContext} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />
     : undefined;
   switch (section.type) {
+    case "blank":
+      return <BlankSectionRenderer section={section} mode={mode} viewport={targetViewport} templateKey="classic-filipiniana-v1" library={library} projectColors={projectColors} media={media} eventDate={eventDate} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />;
     case "hero":
       return present(
         <ClassicFilipinianaHero
@@ -399,16 +402,6 @@ function Section({
           content={section.content as VenueContent}
         />,
       );
-    case "dressCode": {
-      const content = section.content as DressCodeContent;
-      return (
-        <ClassicFilipinianaDressCode
-          sectionId={section.id}
-          content={content}
-          renderFlow={childFlow(content.childFlow)}
-        />
-      );
-    }
     case "people":
       return (
         <ClassicFilipinianaPeople

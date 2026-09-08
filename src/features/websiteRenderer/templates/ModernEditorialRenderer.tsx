@@ -1,6 +1,5 @@
 import type {
   DateContent,
-  DressCodeContent,
   FaqContent,
   GalleryContent,
   HeroContent,
@@ -22,7 +21,6 @@ import { resolveModernEditorialSectionAppearance } from "./modernEditorial/appea
 import { resolveModernEditorialDesign } from "./modernEditorial/design";
 import {
   ModernEditorialDate,
-  ModernEditorialDressCode,
   ModernEditorialFaq,
   ModernEditorialGallery,
   ModernEditorialHero,
@@ -42,6 +40,8 @@ import { resolveEffectiveStorySequence } from "../storyEffectiveSequence";
 import { resolveStoryRenderItems } from "../storyRenderSequence";
 import { SectionDecorativeLayers } from "../SectionDecorativeLayers";
 import { SectionChildFlowRenderer } from "../SectionChildFlowRenderer";
+import { BlankSectionRenderer } from "../BlankSectionRenderer";
+import { isBlankSectionRenderable } from "../blankSectionRenderability";
 
 export function ModernEditorialRenderer({
   event,
@@ -67,6 +67,7 @@ export function ModernEditorialRenderer({
           .map((section, index) => ({ section, index }))
           .filter(({ section }) => section.isEnabled);
   const sections = candidates.filter(({ section }) => {
+    if (mode === "public" && section.type === "blank") return isBlankSectionRenderable(section, website.templateKey, website.media, event.eventDate);
     if (mode === "editor" || section.type !== "story") return true;
     const content = section.content as StoryContent;
     return resolveEffectiveStorySequence({
@@ -168,7 +169,7 @@ function ModernSection({
   );
   return (
     <section
-      className={`${appearance.sectionClass} relative cursor-default border-b border-[var(--me-border)] font-[family-name:var(--me-body-font)] transition-shadow ${section.type === "story" ? "isolate" : ""} ${selected ? "z-10" : ""}`}
+      className={`${appearance.sectionClass} relative cursor-default border-b border-[var(--me-border)] font-[family-name:var(--me-body-font)] transition-shadow ${section.type === "story" || section.type === "blank" ? "isolate" : ""} ${selected ? "z-10" : ""}`}
       style={
         {
           ...appearance.sectionStyle,
@@ -200,11 +201,11 @@ function ModernSection({
       }
       role={mode === "editor" ? "group" : undefined}
       aria-label={
-        mode === "editor" ? `${section.displayName} section` : undefined
+        mode === "editor" ? `${section.editorName ?? section.displayName} section` : undefined
       }
       tabIndex={mode === "editor" ? 0 : undefined}
     >
-      {section.type === "story" ? <><SectionDecorativeLayers templateKey={templateKey} appearance={section.appearance.decorativeAppearance} viewport={targetViewport} /><div className="relative z-10"><Section
+      {section.type === "story" || section.type === "blank" ? <><SectionDecorativeLayers templateKey={templateKey} appearance={section.appearance.decorativeAppearance} viewport={targetViewport} /><div className="relative z-10"><Section
         section={section}
         eventName={eventName}
         eventDate={eventDate}
@@ -270,10 +271,12 @@ function Section({
       {content}
     </ModernMediaPresentation>
   );
-  const childFlow = (flow: DateContent["childFlow"] | DressCodeContent["childFlow"]) => flow?.elements.length
-    ? (specialized: React.ReactNode) => <SectionChildFlowRenderer media={media} sectionId={section.id} flow={flow} specialized={specialized} mode={mode} viewport={targetViewport} templateKey="modern-editorial-v1" library={library} projectColors={projectColors} context={section.resolvedDesignContext} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />
+  const childFlow = (flow: DateContent["childFlow"]) => flow?.elements.length
+    ? (specialized: React.ReactNode) => <SectionChildFlowRenderer media={media} eventDate={eventDate} sectionId={section.id} flow={flow} specialized={specialized} mode={mode} viewport={targetViewport} templateKey="modern-editorial-v1" library={library} projectColors={projectColors} context={section.resolvedDesignContext} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />
     : undefined;
   switch (section.type) {
+    case "blank":
+      return <BlankSectionRenderer section={section} mode={mode} viewport={targetViewport} templateKey="modern-editorial-v1" library={library} projectColors={projectColors} media={media} eventDate={eventDate} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />;
     case "hero":
       return present(
         <ModernEditorialHero
@@ -388,16 +391,6 @@ function Section({
           content={section.content as VenueContent}
         />,
       );
-    case "dressCode": {
-      const content = section.content as DressCodeContent;
-      return (
-        <ModernEditorialDressCode
-          sectionId={section.id}
-          content={content}
-          renderFlow={childFlow(content.childFlow)}
-        />
-      );
-    }
     case "people":
       return (
         <ModernEditorialPeople

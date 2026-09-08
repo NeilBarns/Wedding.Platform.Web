@@ -34,7 +34,7 @@ const renderNavigator = (selectedId: string, childSectionId?: string, childId?: 
     workingStory={null}
     workingChildFlow={null}
     selectedChild={childSectionId && childId ? { sectionId: childSectionId, reference: { kind: "element", id: childId } } : null}
-    genericChildSectionIds={["date"]}
+    genericChildTypesBySectionType={{ date: ["text", "richText", "date", "divider", "media", "compositionGroup"] }}
     pending={false}
     onSelect={vi.fn()}
     onNarrativeBlockSelect={vi.fn()}
@@ -50,6 +50,23 @@ const renderNavigator = (selectedId: string, childSectionId?: string, childId?: 
 );
 
 describe("Section Structure accordion", () => {
+  it("keeps repeated Blank rows distinct and labels them by persisted editor name", () => {
+    const blanks = [
+      { ...sections[0], id: "blank-1", type: "blank", displayName: "Section", editorName: "Section 1", content: { childFlow: { elements: [], order: [] } } },
+      { ...sections[0], id: "blank-2", type: "blank", displayName: "Section", editorName: "Travel notes", content: { childFlow: { elements: [], order: [] } } },
+    ] as unknown as WebsiteSection[];
+    const html = renderToStaticMarkup(<SectionNavigator {...{
+      sections: blanks, selectedId: "blank-2", selectedNarrativeBlockId: null, selectedStoryHeaderField: null,
+      workingStory: null, workingChildFlow: null, selectedChild: null, genericChildTypesBySectionType: { blank: ["text", "richText", "date", "divider", "media", "compositionGroup"] }, pending: false,
+      onSelect: vi.fn(), onNarrativeBlockSelect: vi.fn(), onStoryHeaderSelect: vi.fn(), onStoryChange: vi.fn(() => true),
+      onChildFlowChange: vi.fn(() => true), onChildRenameSave: vi.fn(async () => null), onChildSelect: vi.fn(), onToggle: vi.fn(), onMove: vi.fn(), onReorder: vi.fn(), onCreate: vi.fn(),
+    }} />);
+    expect(html).toContain("Section 1");
+    expect(html).toContain("Travel notes");
+    expect(html).toContain("Add Section");
+    expect(html).not.toContain(">blank<");
+  });
+
   it("expanding Section B collapses Section A", () => {
     expect(toggleExpandedSectionId("section-a", "section-b", true)).toBe("section-b");
   });

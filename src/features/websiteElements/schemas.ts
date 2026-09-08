@@ -112,6 +112,18 @@ export const richTextElementSchema = z.object({
   appearance: richTextAppearanceSchema.optional(),
 }).strict();
 
+export const dateElementSchema = z.object({
+  ...genericBlockShape,
+  type: z.literal("date"),
+  appearance: z.object({
+    format: z.enum(["long", "medium", "short", "numeric"]).optional(),
+    showWeekday: z.boolean().optional(),
+    alignment: textAlignmentSchema.optional(),
+    textStyle: z.enum(["display", "heading", "body"]).optional(),
+    colorId: z.string().min(1).optional(),
+  }).strict().optional(),
+}).strict();
+
 export const imageElementSchema = z
   .object({
     ...baseShape,
@@ -367,6 +379,7 @@ export const websiteLeafElementSchema = z.discriminatedUnion("type", [
   headingElementSchema,
   textElementSchema,
   richTextElementSchema,
+  dateElementSchema,
   imageElementSchema,
   mediaElementSchema,
   dividerElementSchema,
@@ -408,7 +421,7 @@ export const groupLayoutSchema = z.object({
   responsive: z.object({ tablet: groupLayoutOverrideSchema.optional(), mobile: groupLayoutOverrideSchema.optional() }).strict().optional(),
 }).strict();
 
-const groupLeafElementSchema = z.discriminatedUnion("type", [textElementSchema, richTextElementSchema, dividerElementSchema, mediaElementSchema]);
+const groupLeafElementSchema = z.discriminatedUnion("type", [textElementSchema, richTextElementSchema, dateElementSchema, dividerElementSchema, mediaElementSchema]);
 const nestedCompositionGroupSchema = z.object({ ...genericBlockShape, type: z.literal("compositionGroup"), children: z.array(groupLeafElementSchema).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional() }).strict();
 export const compositionGroupSchema = z.object({ ...genericBlockShape, type: z.literal("compositionGroup"), children: z.array(z.union([groupLeafElementSchema, nestedCompositionGroupSchema])).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional() }).strict().superRefine((group, context) => addDuplicateIdIssues([group], context));
 

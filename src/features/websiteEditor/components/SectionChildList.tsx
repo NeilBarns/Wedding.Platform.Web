@@ -18,6 +18,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowDown,
   ArrowUp,
+  CalendarDays,
   ChevronDown,
   Copy,
   Eye,
@@ -54,6 +55,7 @@ import type {
 } from "../../websiteElements/types";
 import {
   duplicateWebsiteElement,
+  findSectionElement,
   getValidSectionElementMoveDestinations,
   moveSectionChild,
   moveSectionElement,
@@ -69,6 +71,8 @@ import {
   addToGroup,
   applyStructureElementDrop,
   groupAddKinds,
+  reorderGroupChildInFlow,
+  reorderRootSectionElement,
   type GroupAddKind,
 } from "./sectionChildListHelpers";
 import {
@@ -83,6 +87,7 @@ const sortableId = (reference: SectionChildReference) =>
 const GENERIC_BLOCK_ICONS = {
   text: Type,
   richText: Pilcrow,
+  date: CalendarDays,
   media: Images,
   divider: Minus,
   compositionGroup: GroupIcon,
@@ -134,6 +139,51 @@ export function SectionChildList({
     if (!over || active.id === over.id) return;
     const activeData = active.data.current as DragElementData | undefined;
     const overData = over.data.current as DropDestinationData | undefined;
+    if (
+      activeData?.kind === "element" &&
+      activeData.parentId === null &&
+      overData?.parentId === null
+    ) {
+      const overReference =
+        overData.kind === "container"
+          ? flow.order.at(-1)
+          : flow.order.find((item) => sortableId(item) === over.id);
+      if (overReference) {
+        const reordered = reorderRootSectionElement(
+          flow,
+          activeData.elementId,
+          overReference,
+        );
+        if (reordered !== flow) {
+          onChange(reordered);
+          onSelect({ kind: "element", id: activeData.elementId });
+        }
+      }
+      return;
+    }
+    if (
+      activeData?.kind === "element" &&
+      activeData.parentId !== null &&
+      overData?.parentId === activeData.parentId
+    ) {
+      const group = findSectionElement(flow, activeData.parentId);
+      if (group?.type !== "compositionGroup") return;
+      const overIndex =
+        overData.kind === "container"
+          ? group.children.length - 1
+          : overData.index;
+      const reordered = reorderGroupChildInFlow(
+        flow,
+        activeData.parentId,
+        activeData.elementId,
+        overIndex,
+      );
+      if (reordered !== flow) {
+        onChange(reordered);
+        onSelect({ kind: "element", id: activeData.elementId });
+      }
+      return;
+    }
     if (activeData?.kind === "element" && overData && (overData.kind === "element" || overData.kind === "row" || overData.kind === "container")) {
       const index = overData.kind === "container" && activeData.parentId === overData.parentId
         ? Math.max(0, overData.index - 1)
@@ -368,8 +418,12 @@ function TopLevelRow({
   const [expanded, setExpanded] = useState(true);
   const { active } = useDndContext();
   const activeData = active?.data.current as DragElementData | undefined;
+  const rootReorder =
+    activeData?.kind === "element" && activeData.parentId === null;
   const rowDropDisabled = activeData?.kind === "element"
-    ? !moveSectionElement(flow, activeData.elementId, { parentId: null, index }).ok
+    ? rootReorder
+      ? false
+      : !moveSectionElement(flow, activeData.elementId, { parentId: null, index }).ok
     : false;
   const {
     attributes,
@@ -630,8 +684,12 @@ function NestedRow({
   const [expanded, setExpanded] = useState(true);
   const { active } = useDndContext();
   const activeData = active?.data.current as DragElementData | undefined;
+  const siblingReorder =
+    activeData?.kind === "element" && activeData.parentId === group.id;
   const rowDropDisabled = activeData?.kind === "element"
-    ? !moveSectionElement(flow, activeData.elementId, { parentId: group.id, index }).ok
+    ? siblingReorder
+      ? false
+      : !moveSectionElement(flow, activeData.elementId, { parentId: group.id, index }).ok
     : false;
   const {
     attributes,
@@ -809,7 +867,8 @@ function TreeDropTarget({ flow, parentId, index, label }: { flow: SectionChildFl
   const activeData = active?.data.current as DragElementData | undefined;
   const draggingElement = activeData?.kind === "element";
   const destinationIndex = activeData?.parentId === parentId ? Math.max(0, index - 1) : index;
-  const valid = draggingElement && moveSectionElement(flow, activeData.elementId, { parentId, index: destinationIndex }).ok;
+  const sameParentReorder = draggingElement && activeData.parentId === parentId;
+  const valid = draggingElement && (sameParentReorder || moveSectionElement(flow, activeData.elementId, { parentId, index: destinationIndex }).ok);
   const { isOver, setNodeRef } = useDroppable({
     id: `tree-container:${parentId ?? "root"}`,
     data: { kind: "container", parentId, index } satisfies DropDestinationData,
@@ -892,6 +951,7 @@ function GroupAddControl({
   const labels: Record<GroupAddKind, string> = {
     text: "Text",
     richText: "Rich Text",
+    date: "Date",
     divider: "Divider",
     media: "Media",
     group: "Group",

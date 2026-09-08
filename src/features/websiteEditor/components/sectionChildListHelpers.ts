@@ -1,17 +1,36 @@
 import type { CompositionGroup } from "../../websiteElements/types";
 import {
   createSectionElement,
+  findSectionElement,
   moveSectionElement,
+  reorderSectionChild,
   updateGroupChildren,
   type SectionChildFlow,
   type SectionChildReference,
 } from "../sectionChildFlow";
 
-export type GroupAddKind = "text" | "richText" | "divider" | "media" | "group";
+/**
+ * Applies a same-parent root drop through the canonical child-flow ordering
+ * operation. Root sorting must not relocate elements or depend on whether the
+ * flow contains specialized content.
+ */
+export function reorderRootSectionElement(
+  flow: SectionChildFlow,
+  activeElementId: string,
+  over: SectionChildReference,
+): SectionChildFlow {
+  const active = flow.order.find(
+    (reference) =>
+      reference.kind === "element" && reference.id === activeElementId,
+  );
+  return active ? reorderSectionChild(flow, active, over) : flow;
+}
+
+export type GroupAddKind = "text" | "richText" | "date" | "divider" | "media" | "group";
 
 export const groupAddKinds = (depth: number): readonly GroupAddKind[] => depth < 2
-  ? ["text", "richText", "divider", "media", "group"]
-  : ["text", "richText", "divider", "media"];
+  ? ["text", "richText", "date", "divider", "media", "group"]
+  : ["text", "richText", "date", "divider", "media"];
 
 export function addToGroup(
   group: CompositionGroup,
@@ -31,6 +50,22 @@ export function reorderGroupChildren(group: CompositionGroup, from: number, to: 
   const [moved] = children.splice(from, 1);
   children.splice(to, 0, moved);
   return children;
+}
+
+/** Reorders siblings in one owning Group without relocating their tree nodes. */
+export function reorderGroupChildInFlow(
+  flow: SectionChildFlow,
+  parentId: string,
+  activeElementId: string,
+  overIndex: number,
+): SectionChildFlow {
+  const group = findSectionElement(flow, parentId);
+  if (group?.type !== "compositionGroup") return flow;
+  const from = group.children.findIndex(({ id }) => id === activeElementId);
+  const children = reorderGroupChildren(group, from, overIndex);
+  return children === group.children
+    ? flow
+    : updateGroupChildren(flow, parentId, children);
 }
 
 export function applyStructureElementDrop(

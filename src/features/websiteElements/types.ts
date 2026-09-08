@@ -9,6 +9,7 @@ import type {
   richTextDocumentSchema,
   dividerElementSchema,
   mediaElementSchema,
+  dateElementSchema,
 } from './schemas'
 export type { NarrativeBlockElement } from './narrativeBlock'
 
@@ -21,3 +22,4 @@ export type RichTextElement = z.infer<typeof richTextElementSchema>
 export type RichTextDocument = z.infer<typeof richTextDocumentSchema>
 export type DividerElement = z.infer<typeof dividerElementSchema>
 export type MediaElement = z.infer<typeof mediaElementSchema>
+export type DateElement = z.infer<typeof dateElementSchema>

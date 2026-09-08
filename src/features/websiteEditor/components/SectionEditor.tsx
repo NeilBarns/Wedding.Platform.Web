@@ -441,6 +441,8 @@ function ItemActions({
 
 export function SectionEditor(props: EditorProps) {
   switch (props.section.type) {
+    case "blank":
+      return <div className="rounded-xl border border-dashed border-border bg-surface-muted p-4 text-sm text-foreground-muted">Add and arrange blocks from the Section row in Structure.</div>;
     case "hero":
       return (
         <SimpleEditor
@@ -478,16 +480,6 @@ export function SectionEditor(props: EditorProps) {
             { name: "heading", label: "Heading" },
             { name: "name", label: "Venue name" },
             { name: "address", label: "Address", multiline: true },
-            { name: "description", label: "Description", multiline: true },
-          ]}
-        />
-      );
-    case "dressCode":
-      return (
-        <SimpleEditor
-          {...props}
-          fields={[
-            { name: "heading", label: "Heading" },
             { name: "description", label: "Description", multiline: true },
           ]}
         />

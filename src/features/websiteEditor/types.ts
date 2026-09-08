@@ -19,7 +19,6 @@ export type StoryTextAppearance = NonNullable<NarrativeBlockElement['slots']['he
 export type StoryContent = { eyebrow?: string | null; eyebrowIsHidden?: boolean; heading: string; intro: string | null; headingIsHidden?: boolean; introIsHidden?: boolean; singletonAppearance?: Partial<Record<StoryHeaderField, StoryTextAppearance>>; elements: NarrativeBlockElement[]; mediaFraming: Record<string, StoryMediaFraming>; structureOrder?: StoryStructureReference[] }
 export type ScheduleContent = { heading: string; items: Array<{ time: string; title: string; description: string }> }
 export type VenueContent = { heading: string; name: string; address: string; description: string } & WithMedia
-export type DressCodeContent = { heading: string; description: string; childFlow?: SectionChildFlow }
 export type PeoplePerson = { id: string; name: string; role?: string | null; media?: SectionMedia }
 export type PeopleGroup = { id: string; name: string; people: PeoplePerson[] }
 export type PeopleContent = { heading: string; groups: PeopleGroup[] }
@@ -135,7 +134,6 @@ export type WebsiteSection =
   | SectionBase<'story', StoryContent>
   | SectionBase<'schedule', ScheduleContent>
   | SectionBase<'venue', VenueContent>
-  | SectionBase<'dressCode', DressCodeContent>
   | SectionBase<'people', PeopleContent>
   | SectionBase<'gallery', GalleryContent>
   | SectionBase<'faq', FaqContent>

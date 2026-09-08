@@ -2,6 +2,7 @@ export const WEBSITE_ELEMENT_TYPES = [
   'heading',
   'text',
   'richText',
+  'date',
   'image',
   'media',
   'divider',

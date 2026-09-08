@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createSemanticId } from "./createSemanticId";
 import { websiteElementTreeSchema } from "../websiteElements/schemas";
-import type { CompositionGroup, DividerElement, MediaElement, RichTextElement, TextElement, WebsiteElement } from "../websiteElements/types";
+import type { CompositionGroup, DateElement, DividerElement, MediaElement, RichTextElement, TextElement, WebsiteElement } from "../websiteElements/types";
 import { canonicalizeRichTextDocument } from "../websiteElements/richText";
 import { normalizeTextContent } from "../websiteElements/text";
 import { GENERIC_BLOCK_LABELS, isGenericBlock, normalizeEditorName, type GenericBlockType } from "../websiteElements/blockIdentity";
@@ -45,13 +45,13 @@ export const genericSectionChildFlowSchema = childFlowShapeSchema.superRefine((f
 
 export const textSectionChildFlowSchema = sectionChildFlowSchema.superRefine((flow, context) => {
   flow.elements.forEach((element, index) => {
-    if (element.type !== "text" && element.type !== "richText" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
+    if (element.type !== "text" && element.type !== "richText" && element.type !== "date" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
   });
 });
 
 export const genericTextSectionChildFlowSchema = genericSectionChildFlowSchema.superRefine((flow, context) => {
   flow.elements.forEach((element, index) => {
-    if (element.type !== "text" && element.type !== "richText" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
+    if (element.type !== "text" && element.type !== "richText" && element.type !== "date" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
   });
 });
 
@@ -95,7 +95,7 @@ export function visitGenericBlocks(elements: readonly WebsiteElement[], visitor:
 }
 
 function automaticNameState(flow?: SectionChildFlow): Record<GenericBlockType, number> {
-  const state = { text: 0, richText: 0, media: 0, divider: 0, compositionGroup: 0 };
+  const state = { text: 0, richText: 0, date: 0, media: 0, divider: 0, compositionGroup: 0 };
   if (!flow) return state;
   visitGenericBlocks(flow.elements, (element) => {
     const match = new RegExp(`^${GENERIC_BLOCK_LABELS[element.type].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} ([1-9]\\d*)$`).exec(element.editorName);
@@ -117,6 +117,10 @@ export function createRichTextElement(editorName: string): RichTextElement {
   return { id: createSemanticId("rich-text"), type: "richText", editorName, document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "" }] }] } };
 }
 
+export function createDateElement(editorName: string): DateElement {
+  return { id: createSemanticId("date"), type: "date", editorName };
+}
+
 export function createDividerElement(editorName: string): DividerElement {
   return { id: createSemanticId("divider"), type: "divider", editorName };
 }
@@ -133,6 +137,7 @@ export function createSectionElement(flow: SectionChildFlow | undefined, type: G
   const editorName = nextAutomaticName(type, automaticNameState(flow));
   if (type === "text") return createTextElement(editorName);
   if (type === "richText") return createRichTextElement(editorName);
+  if (type === "date") return createDateElement(editorName);
   if (type === "divider") return createDividerElement(editorName);
   if (type === "media") return createMediaElement(editorName, mediaId);
   return createGroupElement(editorName);
@@ -269,7 +274,10 @@ export function moveSectionElement(
   const detached = detachSectionElement(candidate, elementId);
   if (!detached) return { ok: false, reason: "source-not-found" };
   const inserted = insertMovedSectionElement(detached.flow, detached.element, destination);
-  if (!inserted || !sectionChildFlowSchema.safeParse(inserted).success) {
+  const flowSchema = flow.order.some(({ kind }) => kind === "specialized")
+    ? sectionChildFlowSchema
+    : genericSectionChildFlowSchema;
+  if (!inserted || !flowSchema.safeParse(inserted).success) {
     return { ok: false, reason: "invalid-destination" };
   }
   return { ok: true, flow: inserted };

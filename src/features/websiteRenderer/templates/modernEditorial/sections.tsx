@@ -1,7 +1,6 @@
 import { EditableText } from "../../../websiteEditor/inline/EditableText";
 import type {
   DateContent,
-  DressCodeContent,
   FaqContent,
   GalleryContent,
   HeroContent,
@@ -672,45 +671,6 @@ export function ModernEditorialVenue({
           />
         </p>
       </div>
-    </EditorialSection>
-  );
-}
-export function ModernEditorialDressCode({
-  sectionId,
-  content,
-  renderFlow,
-}: {
-  sectionId: string;
-  content: DressCodeContent;
-  renderFlow?: (specialized: React.ReactNode) => React.ReactNode;
-}) {
-  return (
-    <EditorialSection
-      number="06"
-      heading={
-        <EditableText
-          sectionId={sectionId}
-          path={["heading"]}
-          value={content.heading}
-          fallback="Dress Code"
-          placeholder="Add heading"
-          label="Dress code heading"
-        />
-      }
-      renderFlow={renderFlow}
-      specializedClassName="px-5 py-12 [&_[data-section-body]]:mt-8 md:px-8 md:py-16 md:[&_[data-section-body]]:mt-10 xl:px-14 xl:py-20 xl:[&_[data-section-body]]:mt-12"
-    >
-      <p className="w-full max-w-2xl break-words whitespace-pre-line text-lg leading-8 md:text-xl md:leading-9">
-        <EditableText
-          sectionId={sectionId}
-          path={["description"]}
-          value={content.description}
-          fallback="Attire guidance will be shared here."
-          placeholder="Add description"
-          label="Dress code description"
-          multiline
-        />
-      </p>
     </EditorialSection>
   );
 }

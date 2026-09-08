@@ -24,7 +24,11 @@ import { Text } from "../../components/ui/Text";
 import { useEventWorkspace } from "../../features/events/workspace/EventWorkspaceContext";
 import {
   addWebsiteProjectColor,
+  createWebsiteSection,
+  deleteWebsiteSection,
+  duplicateWebsiteSection,
   reorderWebsiteSections,
+  renameWebsiteSection,
   setWebsiteSectionEnabled,
   updateWebsiteDesignSettings,
   updateWebsiteSectionAppearance,
@@ -43,9 +47,11 @@ import { TextElementEditor } from "../../features/websiteEditor/components/TextE
 import { RichTextElementEditor } from "../../features/websiteEditor/components/RichTextElementEditor";
 import { GroupElementEditor } from "../../features/websiteEditor/components/GroupElementEditor";
 import { DividerElementEditor } from "../../features/websiteEditor/components/DividerElementEditor";
+import { DateElementEditor } from "../../features/websiteEditor/components/DateElementEditor";
 import { MediaElementEditor } from "../../features/websiteEditor/components/MediaElementEditor";
 import { SectionDesignDefaultsPanel } from "../../features/websiteEditor/components/SectionDesignDefaultsPanel";
 import { SectionNavigator } from "../../features/websiteEditor/components/SectionNavigator";
+import { BlankSectionDeleteDialog, BlankSectionRenameDialog } from "../../features/websiteEditor/components/BlankSectionLifecycleDialogs";
 import { validateSectionContent } from "../../features/websiteEditor/schemas";
 import { InlineEditProvider } from "../../features/websiteEditor/inline/InlineEditContext";
 import type {
@@ -178,6 +184,8 @@ function WebsitePageContent() {
   );
   const [listPending, setListPending] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
+  const [renameSectionTarget, setRenameSectionTarget] = useState<WebsiteSection | null>(null);
+  const [deleteSectionTarget, setDeleteSectionTarget] = useState<WebsiteSection | null>(null);
   const [sectionStructureOverride, setSectionStructureOverride] =
     useState<SectionStructureOverride | null>(null);
   const deviceCategory = useEditorDeviceCategory();
@@ -380,6 +388,77 @@ function WebsitePageContent() {
     });
   }
 
+  function selectCanonicalSection(updated: WebsiteDraft, sectionId: string) {
+    setDraft(updated);
+    setSectionStructureOverride(null);
+    setContentOverride(null);
+    setAppearanceOverride(null);
+    setSelectedChild(null);
+    setSelectedNarrativeBlockId(null);
+    setStoryHeaderSelection(null);
+    setSelectedId(sectionId);
+    setCanvasSelectionRequest({ kind: "section", id: sectionId, requestId: ++canvasSelectionRequestId.current });
+  }
+
+  async function createBlankSection() {
+    if (globalDirty || !draft) { setListError("Save or discard current changes before adding a Section."); return; }
+    setListPending(true);
+    setListError(null);
+    try {
+      const existing = new Set(draft.sections.map(({ id }) => id));
+      const updated = await createWebsiteSection(event.id, projectId, "blank");
+      const created = updated.sections.find(({ id }) => !existing.has(id));
+      if (!created) throw new Error("The new Section could not be identified.");
+      selectCanonicalSection(updated, created.id);
+    } catch (createError) { setListError(messageFor(createError)); }
+    finally { setListPending(false); }
+  }
+
+  async function renameBlankSection(section: WebsiteSection, requested: string): Promise<boolean> {
+    if (globalDirty) { setListError("Save or discard current changes before renaming a Section."); return false; }
+    const editorName = requested.trim().replace(/\s+/gu, " ");
+    if (!editorName || Array.from(editorName).length > 80) { setListError("Section name must contain 1 to 80 characters."); return false; }
+    setListPending(true);
+    setListError(null);
+    try { selectCanonicalSection(await renameWebsiteSection(event.id, projectId, section.id, editorName), section.id); return true; }
+    catch (renameError) { setListError(messageFor(renameError)); return false; }
+    finally { setListPending(false); }
+  }
+
+  async function duplicateBlankSection(section: WebsiteSection) {
+    if (globalDirty) { setListError("Save or discard current changes before duplicating a Section."); return; }
+    setListPending(true);
+    setListError(null);
+    try {
+      const updated = await duplicateWebsiteSection(event.id, projectId, section.id);
+      const sourceIndex = updated.sections.findIndex(({ id }) => id === section.id);
+      const duplicate = updated.sections[sourceIndex + 1];
+      if (!duplicate || duplicate.id === section.id) throw new Error("The duplicated Section could not be identified.");
+      selectCanonicalSection(updated, duplicate.id);
+    } catch (duplicateError) { setListError(messageFor(duplicateError)); }
+    finally { setListPending(false); }
+  }
+
+  async function deleteBlankSection(section: WebsiteSection): Promise<boolean> {
+    if (globalDirty || !draft) { setListError("Save or discard current changes before deleting a Section."); return false; }
+    setListPending(true);
+    setListError(null);
+    try {
+      const index = draft.sections.findIndex(({ id }) => id === section.id);
+      const updated = await deleteWebsiteSection(event.id, projectId, section.id);
+      const next = updated.sections[Math.min(index, updated.sections.length - 1)];
+      setDraft(updated);
+      setSectionStructureOverride(null);
+      setContentOverride(null);
+      setAppearanceOverride(null);
+      setSelectedChild(null);
+      setSelectedId(next?.id ?? null);
+      if (next) setCanvasSelectionRequest({ kind: "section", id: next.id, requestId: ++canvasSelectionRequestId.current });
+      return true;
+    } catch (deleteError) { setListError(messageFor(deleteError)); return false; }
+    finally { setListPending(false); }
+  }
+
   function updateWorkingContent(content: Record<string, unknown>) {
     if (effectiveSelectedId) {
       setContentOverride({ sectionId: effectiveSelectedId, content });
@@ -530,6 +609,9 @@ function WebsitePageContent() {
     if (selection) {
       setSelectedChild({ sectionId, reference: selection });
       const selectedElement = selection.kind === "element" ? findSectionElement(flow, selection.id) : undefined;
+      if (selectedElement && !selectedElement.isHidden) {
+        setCanvasSelectionRequest({ kind: "element", id: selectedElement.id, sectionId, requestId: ++canvasSelectionRequestId.current });
+      }
       const canvasEditedTextSelected = selectedElement?.type === "text" || selectedElement?.type === "richText" || selectedElement?.type === "divider" || selectedElement?.type === "compositionGroup";
       if (canvasEditedTextSelected) {
         setSectionPanelMode("appearance");
@@ -849,9 +931,9 @@ function WebsitePageContent() {
       selectedNarrativeBlockId={selectedNarrativeBlockId}
       selectedStoryHeaderField={storyHeaderSelection?.sectionId === effectiveSelectedId ? storyHeaderSelection.field : null}
       workingStory={selected?.type === "story" && workingContent ? { sectionId: selected.id, content: workingContent as import("../../features/websiteEditor/types").StoryContent } : null}
-      workingChildFlow={selected && workingContent && (selected.type === "date" || selected.type === "dressCode") ? { sectionId: selected.id, flow: (workingContent as { childFlow?: SectionChildFlow }).childFlow } : null}
+      workingChildFlow={selected && workingContent && (selected.type === "date" || selected.type === "blank") ? { sectionId: selected.id, flow: (workingContent as { childFlow?: SectionChildFlow }).childFlow } : null}
       selectedChild={selectedChild}
-      genericChildSectionIds={draft.template?.capabilities.sections.filter(({ id, elements }) => (id === "date" || id === "dressCode") && elements?.allowedTypes.includes("text")).map(({ id }) => id) ?? []}
+      genericChildTypesBySectionType={Object.fromEntries((draft.template?.capabilities.sections ?? []).map(({ id, elements }) => [id, elements?.allowedTypes.filter((type): type is import("../../features/websiteElements/blockIdentity").GenericBlockType => type === "text" || type === "richText" || type === "date" || type === "divider" || type === "media" || type === "compositionGroup") ?? []]))}
       pending={listPending}
       onSelect={selectSection}
       onNarrativeBlockSelect={selectNarrativeBlock}
@@ -877,6 +959,10 @@ function WebsitePageContent() {
       onToggle={toggle}
       onMove={move}
       onReorder={reorderSections}
+      onCreate={() => void createBlankSection()}
+      onRename={setRenameSectionTarget}
+      onDuplicate={(section) => void duplicateBlankSection(section)}
+      onDelete={setDeleteSectionTarget}
     />
   );
   const desktopInspector =
@@ -1154,7 +1240,7 @@ function WebsitePageContent() {
                 ? "Sections"
                 : drawerMode === "design"
                   ? "Website · Design"
-                  : `${selected?.type === "story" && storyHeaderSelection?.sectionId === selected.id ? storyHeaderSelection.field === "eyebrow" ? "Eyebrow" : storyHeaderSelection.field === "heading" ? "Heading" : "Intro" : selected?.displayName ?? "Section"} · ${drawerMode === "appearance" ? "Appearance" : "Content"}`
+                  : `${selected?.type === "story" && storyHeaderSelection?.sectionId === selected.id ? storyHeaderSelection.field === "eyebrow" ? "Eyebrow" : storyHeaderSelection.field === "heading" ? "Heading" : "Intro" : selected?.editorName ?? selected?.displayName ?? "Section"} · ${drawerMode === "appearance" ? "Appearance" : "Content"}`
             }
             onSnapChange={setDrawerSnap}
             onModeChange={changeDrawerMode}
@@ -1207,6 +1293,8 @@ function WebsitePageContent() {
           setListError(null);
         }}
       />
+      {renameSectionTarget && <BlankSectionRenameDialog key={renameSectionTarget.id} section={renameSectionTarget} pending={listPending} onClose={() => setRenameSectionTarget(null)} onRename={(name) => renameBlankSection(renameSectionTarget, name)} />}
+      {deleteSectionTarget && <BlankSectionDeleteDialog section={deleteSectionTarget} pending={listPending} onClose={() => setDeleteSectionTarget(null)} onDelete={() => deleteBlankSection(deleteSectionTarget)} />}
     </div>
   );
 }
@@ -1804,6 +1892,7 @@ function SectionInspector({
   const selectedElement = selectedChild?.kind === "element" ? findSectionElement(childFlow, selectedChild.id) : undefined;
   const selectedText = selectedElement?.type === "text" ? selectedElement : null;
   const selectedRichText = selectedElement?.type === "richText" ? selectedElement : null;
+  const selectedDate = selectedElement?.type === "date" ? selectedElement : null;
   const selectedGroup = selectedElement?.type === "compositionGroup" ? selectedElement : null;
   const selectedDivider = selectedElement?.type === "divider" ? selectedElement : null;
   const selectedMedia = selectedElement?.type === "media" ? selectedElement : null;
@@ -1821,7 +1910,7 @@ function SectionInspector({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Heading className="xl:text-base!" level={2} variant="panel">
-              {selectedRichText ? "Rich Text" : selectedText ? "Text" : selectedGroup ? "Group" : selectedDivider ? "Divider" : selectedMedia ? "Media" : narrativeBlock ? "Narrative Block" : selected.type === "story" && storyHeaderFocus ? storyHeaderFocus.field === "eyebrow" ? "Eyebrow" : storyHeaderFocus.field === "heading" ? "Heading" : "Intro" : selected.displayName}
+              {selectedRichText ? "Rich Text" : selectedText ? "Text" : selectedDate ? "Date" : selectedGroup ? "Group" : selectedDivider ? "Divider" : selectedMedia ? "Media" : narrativeBlock ? "Narrative Block" : selected.type === "story" && storyHeaderFocus ? storyHeaderFocus.field === "eyebrow" ? "Eyebrow" : storyHeaderFocus.field === "heading" ? "Heading" : "Intro" : selected.editorName ?? selected.displayName}
             </Heading>
             {!selected.isEnabled && (
               <span className="rounded-full bg-surface-muted px-2 py-1 text-[10px] text-foreground-muted">
@@ -1829,7 +1918,7 @@ function SectionInspector({
               </span>
             )}
           </div>
-          {showModeSwitch && !selectedRichText && !selectedText && !selectedGroup && !selectedDivider && (
+          {showModeSwitch && !selectedRichText && !selectedText && !selectedDate && !selectedGroup && !selectedDivider && (
             <SegmentedControl
               value={panelMode}
               options={[
@@ -1852,7 +1941,9 @@ function SectionInspector({
             : "Customize this Section’s presentation."}
         </Text>}
       </div>
-      {selectedRichText && childFlow && capabilities ? (
+      {selectedDate && childFlow && capabilities ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><ColorPreviewScopeContext key={selected.id} value={selected.id}><DateElementEditor element={selectedDate} library={capabilities.designLibrary} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></ColorPreviewScopeContext></div>
+      ) : selectedRichText && childFlow && capabilities ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><ColorPreviewScopeContext key={selected.id} value={selected.id}><RichTextElementEditor element={selectedRichText} viewport={targetViewport} library={capabilities.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onAppearanceChange={(appearance) => { const next = updateSectionRichTextAppearance(childFlow, selectedRichText.id, appearance); if (next) onContentChange({ ...workingContent, childFlow: next }); }} /></ColorPreviewScopeContext></div>
       ) : selectedText && childFlow && capabilities ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><ColorPreviewScopeContext key={selected.id} value={selected.id}><TextElementEditor element={selectedText} viewport={targetViewport} templateKey={templateKey} library={capabilities.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></ColorPreviewScopeContext></div>

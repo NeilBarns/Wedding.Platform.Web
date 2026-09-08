@@ -241,10 +241,9 @@ describe("Section renderer boundary", () => {
     expect(before.sectionClass).toContain("bg-[color-mix(in_srgb,var(--cf-theme-surface)_58%,var(--cf-theme-page))]");
   });
 
-  it.each(["classic", "modern"] as const)("keeps %s Date and Dress Code markup identical for absent and specialized-only child flow", (template) => {
+  it.each(["classic", "modern"] as const)("keeps %s Date markup identical for absent and specialized-only child flow", (template) => {
     for (const [type, content] of [
       ["date", { heading: "When", description: "At noon" }],
-      ["dressCode", { heading: "Attire", description: "Formal" }],
     ] as const) {
       const withoutFlow = render(template, [section(type, type, content)]);
       const specializedOnly = render(template, [section(type, type, { ...content, childFlow: { elements: [], order: [{ kind: "specialized", key: "content" }] } })]);
@@ -283,7 +282,7 @@ describe("Section renderer boundary", () => {
     expect(markup).not.toContain("[&amp;_[data-section-content]]:py-");
   });
 
-  it.each(["classic", "modern"] as const)("keeps %s Date and Dress Code ordering authoritative at every viewport", (template) => {
+  it.each(["classic", "modern"] as const)("keeps %s Date ordering authoritative at every viewport", (template) => {
     const cases = [
       {
         order: [{ kind: "specialized", key: "content" }, { kind: "element", id: "a" }, { kind: "element", id: "b" }],
@@ -294,7 +293,7 @@ describe("Section renderer boundary", () => {
         expected: ["First", "Second", "Specialized"],
       },
     ] as const;
-    for (const type of ["date", "dressCode"] as const) {
+    for (const type of ["date"] as const) {
       for (const viewport of ["mobile", "tablet", "desktop"] as const) {
         for (const { order, expected } of cases) {
           const markup = render(template, [section(type, type, {
@@ -312,8 +311,8 @@ describe("Section renderer boundary", () => {
     }
   });
 
-  it.each(["classic", "modern"] as const)("keeps %s Date and Dress Code specialized width separate from Group width and padding", (template) => {
-    for (const type of ["date", "dressCode"] as const) {
+  it.each(["classic", "modern"] as const)("keeps %s Date specialized width separate from Group width and padding", (template) => {
+    for (const type of ["date"] as const) {
       const childFlow = {
         elements: [{
           id: "group",
@@ -335,8 +334,8 @@ describe("Section renderer boundary", () => {
     }
   });
 
-  it.each(["classic", "modern"] as const)("supports independent %s Date and Dress Code heading/body alignment", (template) => {
-    for (const type of ["date", "dressCode"] as const) {
+  it.each(["classic", "modern"] as const)("supports independent %s Date heading/body alignment", (template) => {
+    for (const type of ["date"] as const) {
       for (const alignment of ["left", "center", "right"] as const) {
         const value = section(type, type, { heading: "Heading", description: "Body" });
         value.appearance = { ...appearance, headingAlignment: alignment, bodyAlignment: alignment };
@@ -350,7 +349,7 @@ describe("Section renderer boundary", () => {
     }
   });
 
-  it.each(["classic", "modern"] as const)("isolates every supported %s Date and Dress Code generic child kind", (template) => {
+  it.each(["classic", "modern"] as const)("isolates every supported %s Blank generic child kind", (template) => {
     const elements = [
       { id: "text", type: "text", editorName: "Text 1", text: "Plain text", appearance: {} },
       { id: "rich", type: "richText", editorName: "Rich Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "Rich text" }] }] }, appearance: {} },
@@ -361,23 +360,19 @@ describe("Section renderer boundary", () => {
     const order = [
       { kind: "element", id: "text" },
       { kind: "element", id: "rich" },
-      { kind: "specialized", key: "content" },
       { kind: "element", id: "divider" },
       { kind: "element", id: "media" },
       { kind: "element", id: "group" },
     ];
-    for (const type of ["date", "dressCode"] as const) {
-      const markup = render(template, [section(type, type, { heading: "Specialized", description: "Body", childFlow: { elements, order } })]);
-      expect(markup.match(/data-section-generic-child/g)).toHaveLength(elements.length);
-      for (const element of elements) expect(markup).toContain(`data-section-child-element="${element.id}"`);
-      const positions = ["Plain text", "Rich text", "Specialized"].map((text) => markup.indexOf(text));
-      expect(positions).toEqual([...positions].sort((a, b) => a - b));
-    }
+    const markup = render(template, [section("blank", "blank", { childFlow: { elements, order } })], "desktop", "editor");
+    expect(markup.match(/data-section-generic-child/g)).toHaveLength(elements.length);
+    for (const element of elements) expect(markup).toContain(`data-section-child-element="${element.id}"`);
+    expect(markup.indexOf("Plain text")).toBeLessThan(markup.indexOf("Rich text"));
   });
 
-  it.each(["classic", "modern"] as const)("keeps %s Date and Dress Code long content wrap-safe in editor and public output", (template) => {
+  it.each(["classic", "modern"] as const)("keeps %s Date long content wrap-safe in editor and public output", (template) => {
     const longText = "A-very-long-unbroken-celebration-detail-".repeat(16);
-    for (const type of ["date", "dressCode"] as const) {
+    for (const type of ["date"] as const) {
       for (const mode of ["editor", "public"] as const) {
         const markup = render(template, [section(type, type, { heading: longText, description: longText })], "mobile", mode);
         const specializedTag = markup.match(/<div data-section-specialized-content[^>]*>/)?.[0] ?? "";
@@ -388,8 +383,8 @@ describe("Section renderer boundary", () => {
     }
   });
 
-  it.each(["classic", "modern"] as const)("preserves %s Date and Dress Code flow structure between editor and public output", (template) => {
-    for (const type of ["date", "dressCode"] as const) {
+  it.each(["classic", "modern"] as const)("preserves %s Date flow structure between editor and public output", (template) => {
+    for (const type of ["date"] as const) {
       const childFlow = {
         elements: [{ id: "before", type: "text", editorName: "Text 1", text: "Before", appearance: {} }, { id: "after", type: "text", editorName: "Text 1", text: "After", appearance: {} }],
         order: [{ kind: "element", id: "before" }, { kind: "specialized", key: "content" }, { kind: "element", id: "after" }],

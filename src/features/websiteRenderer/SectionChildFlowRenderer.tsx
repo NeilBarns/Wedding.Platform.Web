@@ -10,23 +10,24 @@ import { WebsiteLeafElementRenderer } from "./WebsiteLeafElementRenderer";
 import { WebsiteElementFrame } from "./WebsiteElementFrame";
 import { GroupElementRenderer } from "./GroupElementRenderer";
 
-export function SectionChildFlowRenderer({ sectionId, flow, specialized, mode, viewport, templateKey, library, projectColors, media = {}, context, selectedElementId, onElementSelect, onElementEdit }: {
+export function SectionChildFlowRenderer({ sectionId, flow, specialized, mode, viewport, templateKey, library, projectColors, media = {}, eventDate = null, context, selectedElementId, onElementSelect, onElementEdit }: {
   sectionId: string;
   flow: SectionChildFlow; specialized: ReactNode; mode: "editor" | "public"; viewport: ResponsiveViewport;
   templateKey: string; library: TemplateDesignLibrary; projectColors: readonly ProjectColor[]; context?: ResolvedDesignContext | null;
   selectedElementId?: string | null; onElementSelect?: (sectionId: string, elementId: string) => void;
   onElementEdit?: (sectionId: string, elementId: string) => void;
   media?: import("../websiteEditor/types").WebsiteDraft["media"];
+  eventDate?: string | null;
 }) {
   useDecorativeSourceAvailability();
   const elements = new Map(flow.elements.map((element) => [element.id, element]));
   return <SectionRootFlow>{flow.order.map((reference) => {
     if (reference.kind === "specialized") return <div key="specialized:content">{specialized}</div>;
     const element = elements.get(reference.id);
-    if (!element || !isElementRenderable(element, templateKey, mode, media)) return null;
+    if (!element || !isElementRenderable(element, templateKey, mode, media, eventDate)) return null;
     const selected = selectedElementId === element.id;
     return <WebsiteElementFrame key={element.id} mode={mode} sectionId={sectionId} elementId={element.id} elementType={element.type === "compositionGroup" ? "Group" : element.type === "media" ? "Media" : element.type} selected={selected} onSelect={onElementSelect} onEdit={element.type === "text" ? onElementEdit : undefined}>
-      {element.type === "compositionGroup" ? <GroupElementRenderer media={media} group={element} sectionId={sectionId} mode={mode} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} /> : <WebsiteLeafElementRenderer media={media} element={element} mode={mode} sectionId={sectionId} selected={selected} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} />}
+      {element.type === "compositionGroup" ? <GroupElementRenderer media={media} eventDate={eventDate} group={element} sectionId={sectionId} mode={mode} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} /> : <WebsiteLeafElementRenderer media={media} eventDate={eventDate} element={element} mode={mode} sectionId={sectionId} selected={selected} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} />}
     </WebsiteElementFrame>;
   })}</SectionRootFlow>;
 }

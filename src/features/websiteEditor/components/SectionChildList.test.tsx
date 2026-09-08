@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { CompositionGroup } from "../../websiteElements/types";
 import type { SectionChildFlow } from "../sectionChildFlow";
 import { GroupDisclosure, SectionChildList } from "./SectionChildList";
-import { addToGroup, applyStructureElementDrop, groupAddKinds, reorderGroupChildren } from "./sectionChildListHelpers";
-import { findSectionElement } from "../sectionChildFlow";
+import { addToGroup, applyStructureElementDrop, groupAddKinds, reorderGroupChildInFlow, reorderGroupChildren, reorderRootSectionElement } from "./sectionChildListHelpers";
+import { findSectionElement, genericTextSectionChildFlowSchema } from "../sectionChildFlow";
 
 const nestedGroup: CompositionGroup = {
   id: "nested-group",
@@ -21,6 +21,7 @@ const topGroup: CompositionGroup = {
     nestedGroup as CompositionGroup["children"][number],
     { id: "long-label", type: "text", editorName: "A very long editor name that must remain available after visual truncation", text: "Content must not become the label" },
     { id: "rich", type: "richText", editorName: "Rich Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "Copy" }] }] } },
+    { id: "date", type: "date", editorName: "Date 1" },
     { id: "media", type: "media", editorName: "Media 1", items: [] },
     { id: "divider", type: "divider", editorName: "Divider 1" },
   ],
@@ -118,10 +119,10 @@ describe("SectionChildList dense Group hierarchy", () => {
 
   it("uses the shared bounded icon, name, and action layout for every generic leaf row", () => {
     const html = renderList();
-    for (const label of ["Text block", "Rich Text block", "Media block", "Divider block"]) {
+    for (const label of ["Text block", "Rich Text block", "Date block", "Media block", "Divider block"]) {
       expect(html).toContain(`${label}:`);
     }
-    for (const icon of ["lucide-type", "lucide-pilcrow", "lucide-images", "lucide-minus"]) {
+    for (const icon of ["lucide-type", "lucide-pilcrow", "lucide-calendar-days", "lucide-images", "lucide-minus"]) {
       expect(html).toContain(icon);
     }
     expect(html.match(/data-structure-label="true"/g)?.length).toBeGreaterThanOrEqual(6);
@@ -140,8 +141,94 @@ describe("SectionChildList dense Group hierarchy", () => {
   });
 
   it("preserves nested drag/reorder behavior", () => {
-    expect(reorderGroupChildren(topGroup, 0, 1).map(({ id }) => id)).toEqual(["long-label", "nested-group", "rich", "media", "divider"]);
-    expect(topGroup.children.map(({ id }) => id)).toEqual(["nested-group", "long-label", "rich", "media", "divider"]);
+    expect(reorderGroupChildren(topGroup, 0, 1).map(({ id }) => id)).toEqual(["long-label", "nested-group", "rich", "date", "media", "divider"]);
+    expect(topGroup.children.map(({ id }) => id)).toEqual(["nested-group", "long-label", "rich", "date", "media", "divider"]);
+  });
+
+  it("reorders Text, Media, nested Group, and Divider siblings in a Blank Group without changing state", () => {
+    const children: CompositionGroup["children"] = [
+      { id: "text-child", type: "text", editorName: "Welcome", text: "Keep copy", isHidden: true, appearance: { fontSize: "l" } },
+      { id: "media-child", type: "media", editorName: "Portrait", items: [{ id: "media-item", type: "image", mediaId: "01M0Q08NQ9XJB9A7B5SGC45YD9", alt: "Portrait" }] },
+      { id: "nested-child", type: "compositionGroup", editorName: "Nested details", children: [{ id: "descendant", type: "text", editorName: "Descendant", text: "Preserved" }], layout: { gap: "m" } },
+      { id: "divider-child", type: "divider", editorName: "Divider", appearance: { width: "large" } },
+    ] as CompositionGroup["children"];
+    const blank: SectionChildFlow = {
+      elements: [{ id: "blank-group", type: "compositionGroup", editorName: "Group", children, layout: { gap: "l" } }],
+      order: [{ kind: "element", id: "blank-group" }],
+    };
+    const originalElements = structuredClone(blank.elements);
+
+    const firstToLast = reorderGroupChildInFlow(blank, "blank-group", "text-child", 3);
+    expect((findSectionElement(firstToLast, "blank-group") as CompositionGroup).children.map(({ id }) => id)).toEqual(["media-child", "nested-child", "divider-child", "text-child"]);
+    const lastToFirst = reorderGroupChildInFlow(firstToLast, "blank-group", "text-child", 0);
+    expect((findSectionElement(lastToFirst, "blank-group") as CompositionGroup).children.map(({ id }) => id)).toEqual(["text-child", "media-child", "nested-child", "divider-child"]);
+    const nestedBeforeLeaf = reorderGroupChildInFlow(lastToFirst, "blank-group", "nested-child", 1);
+    expect((findSectionElement(nestedBeforeLeaf, "blank-group") as CompositionGroup).children.map(({ id }) => id)).toEqual(["text-child", "nested-child", "media-child", "divider-child"]);
+    const repeated = reorderGroupChildInFlow(nestedBeforeLeaf, "blank-group", "divider-child", 0);
+    const reloaded = genericTextSectionChildFlowSchema.parse(JSON.parse(JSON.stringify(repeated)));
+    expect((findSectionElement(reloaded, "blank-group") as CompositionGroup).children.map(({ id }) => id)).toEqual(["divider-child", "text-child", "nested-child", "media-child"]);
+    expect(reloaded.order).toEqual(blank.order);
+    expect(reloaded.elements).toEqual([
+      {
+        ...(originalElements[0] as CompositionGroup),
+        children: [children[3], children[0], children[2], children[1]],
+      },
+    ]);
+  });
+
+  it("keeps specialized Group sibling reorder on the same canonical path", () => {
+    const specialized = structuredClone(flow);
+    const reordered = reorderGroupChildInFlow(specialized, "top-group", "nested-group", topGroup.children.length - 1);
+    expect((findSectionElement(reordered, "top-group") as CompositionGroup).children.map(({ id }) => id)).toEqual(["long-label", "rich", "date", "media", "divider", "nested-group"]);
+    expect(reordered.order).toEqual(flow.order);
+  });
+
+  it("reorders every Blank root block pairing through canonical order without changing element state", () => {
+    const blank: SectionChildFlow = {
+      elements: [
+        { id: "text", type: "text", editorName: "Welcome", text: "Copy", isHidden: true, appearance: { fontSize: "l" } },
+        { id: "rich", type: "richText", editorName: "Details", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "Rich copy", marks: { bold: true } }] }] } },
+        { id: "media", type: "media", editorName: "Portraits", items: [{ id: "media-item", kind: "image", mediaId: "01M0Q08NQ9XJB9A7B5SGC45YD9", alt: "Portrait" }] },
+        { id: "divider", type: "divider", editorName: "Pause", appearance: { width: "wide" } },
+        { id: "group", type: "compositionGroup", editorName: "Details group", children: [{ id: "nested", type: "text", editorName: "Nested", text: "Keep me" }], layout: { gap: "l" } },
+      ] as SectionChildFlow["elements"],
+      order: ["text", "rich", "media", "divider", "group"].map((id) => ({ kind: "element" as const, id })),
+    };
+    const originalElements = structuredClone(blank.elements);
+
+    const textAfterRich = reorderRootSectionElement(blank, "text", { kind: "element", id: "rich" });
+    expect(textAfterRich.order.map((reference) => reference.kind === "element" && reference.id)).toEqual(["rich", "text", "media", "divider", "group"]);
+    const mediaAfterDivider = reorderRootSectionElement(textAfterRich, "media", { kind: "element", id: "divider" });
+    expect(mediaAfterDivider.order.map((reference) => reference.kind === "element" && reference.id)).toEqual(["rich", "text", "divider", "media", "group"]);
+    const groupBeforeLeaf = reorderRootSectionElement(mediaAfterDivider, "group", { kind: "element", id: "rich" });
+    expect(groupBeforeLeaf.order.map((reference) => reference.kind === "element" && reference.id)).toEqual(["group", "rich", "text", "divider", "media"]);
+    expect(groupBeforeLeaf.elements).toEqual(originalElements);
+  });
+
+  it("supports first-to-last, last-to-first, repeated Blank root drops, and canonical save/reload", () => {
+    const elements = ["text", "rich", "media", "divider", "group"].map((id) => ({ id, type: "text" as const, editorName: `${id} name`, text: `${id} content`, isHidden: id === "media" }));
+    const blank: SectionChildFlow = { elements, order: elements.map(({ id }) => ({ kind: "element", id })) };
+    const firstToLast = reorderRootSectionElement(blank, "text", blank.order.at(-1)!);
+    expect(firstToLast.order.map((reference) => reference.kind === "element" && reference.id)).toEqual(["rich", "media", "divider", "group", "text"]);
+    const lastToFirst = reorderRootSectionElement(firstToLast, "text", firstToLast.order[0]);
+    expect(lastToFirst.order.map((reference) => reference.kind === "element" && reference.id)).toEqual(["text", "rich", "media", "divider", "group"]);
+    const repeated = reorderRootSectionElement(lastToFirst, "divider", { kind: "element", id: "rich" });
+    const reloaded = genericTextSectionChildFlowSchema.parse(JSON.parse(JSON.stringify(repeated)));
+    expect(reloaded.order.map((reference) => reference.kind === "element" && reference.id)).toEqual(["text", "divider", "rich", "media", "group"]);
+    expect(reloaded.elements).toEqual(elements);
+  });
+
+  it("retains specialized root DnD ordering without fabricating or removing its sentinel", () => {
+    const specialized: SectionChildFlow = {
+      elements: [
+        { id: "before", type: "text", editorName: "Before", text: "Before" },
+        { id: "after", type: "text", editorName: "After", text: "After" },
+      ],
+      order: [{ kind: "element", id: "before" }, { kind: "specialized", key: "content" }, { kind: "element", id: "after" }],
+    };
+    const reordered = reorderRootSectionElement(specialized, "after", specialized.order[0]);
+    expect(reordered.order).toEqual([{ kind: "element", id: "after" }, { kind: "element", id: "before" }, { kind: "specialized", key: "content" }]);
+    expect(reordered.elements).toEqual(specialized.elements);
   });
 
   it("applies cross-parent drops and keeps the moved block selected with identity intact", () => {
@@ -157,6 +244,29 @@ describe("SectionChildList dense Group hierarchy", () => {
     expect(findSectionElement(moved, hidden.id)).toEqual(hidden);
     expect((findSectionElement(moved, "left") as CompositionGroup).children.map(({ id }) => id)).toEqual([hidden.id]);
     expect(onSelect).toHaveBeenCalledWith({ kind: "element", id: hidden.id });
+  });
+
+  it("wires a Date block through Blank root-to-Group and Group-to-root drops", () => {
+    const source = { id: "blank-date", type: "date" as const, editorName: "Ceremony date", isHidden: true };
+    const blank: SectionChildFlow = {
+      elements: [source, { id: "blank-group", type: "compositionGroup", editorName: "Details", children: [] }],
+      order: [{ kind: "element", id: source.id }, { kind: "element", id: "blank-group" }],
+    };
+    const intoGroupChange = vi.fn();
+    const intoGroupSelect = vi.fn();
+    expect(applyStructureElementDrop(blank, source.id, { parentId: "blank-group", index: 0 }, intoGroupChange, intoGroupSelect)).toBe(true);
+    const grouped = intoGroupChange.mock.calls[0][0] as SectionChildFlow;
+    expect(findSectionElement(grouped, source.id)).toEqual(source);
+    expect((findSectionElement(grouped, "blank-group") as CompositionGroup).children.map(({ id }) => id)).toEqual([source.id]);
+    expect(intoGroupSelect).toHaveBeenCalledWith({ kind: "element", id: source.id });
+
+    const intoRootChange = vi.fn();
+    const intoRootSelect = vi.fn();
+    expect(applyStructureElementDrop(grouped, source.id, { parentId: null, index: grouped.order.length }, intoRootChange, intoRootSelect)).toBe(true);
+    const rooted = intoRootChange.mock.calls[0][0] as SectionChildFlow;
+    expect(rooted.order.at(-1)).toEqual({ kind: "element", id: source.id });
+    expect(findSectionElement(rooted, source.id)).toEqual(source);
+    expect(intoRootSelect).toHaveBeenCalledWith({ kind: "element", id: source.id });
   });
 
   it("does not update or clear selection for an invalid cross-parent drop", () => {
@@ -188,7 +298,7 @@ describe("SectionChildList dense Group hierarchy", () => {
   });
 
   it("does not offer a third Group nesting level and keeps all non-Group child choices", () => {
-    expect(groupAddKinds(1)).toEqual(["text", "richText", "divider", "media", "group"]);
-    expect(groupAddKinds(2)).toEqual(["text", "richText", "divider", "media"]);
+    expect(groupAddKinds(1)).toEqual(["text", "richText", "date", "divider", "media", "group"]);
+    expect(groupAddKinds(2)).toEqual(["text", "richText", "date", "divider", "media"]);
   });
 });

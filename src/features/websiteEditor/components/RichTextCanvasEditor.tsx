@@ -16,6 +16,7 @@ export function RichTextCanvasEditor({ element, viewport, effectiveFontFamilyId,
   const editSession = useRef(createRichTextEditSession());
   const skipNextFormattingInput = useRef(false);
   const capabilities = textFontCapabilities(effectiveFontFamilyId);
+  const isEmpty = !richTextPlainText(element.document).trim();
   const [commandState, setCommandState] = useState<RichTextCommandState>({ bold: false, italic: false, underline: false, strikeThrough: false });
   const [toolbarRange, setToolbarRange] = useState<Range | null>(null);
   const refreshCommandState = () => { const editor = editorRef.current; if (editor) setCommandState(readRichTextCommandState(editor)); };
@@ -94,11 +95,12 @@ export function RichTextCanvasEditor({ element, viewport, effectiveFontFamilyId,
     documentTarget.addEventListener("selectionchange", capture);
     return () => documentTarget.removeEventListener("selectionchange", capture);
   }, []);
-  return <div className="relative m-0 min-h-0 w-full min-w-0 max-w-full p-0 [overflow-wrap:anywhere]" data-rich-text-canvas-editor>
+  return <div className="relative m-0 min-h-[1.75em] w-full min-w-0 max-w-full p-0 [overflow-wrap:anywhere]" data-rich-text-canvas-editor>
     <FloatingFormattingToolbar label="Rich Text formatting" viewport={viewport} observeInOwnerRealm range={toolbarRange}>
       <Tool label="Bold" disabled={!capabilities.weights.includes(700)} pressed={commandState.bold} onPress={() => command("bold")}><Bold size={16} /></Tool><Tool label="Italic" disabled={!capabilities.italic} pressed={commandState.italic} onPress={() => command("italic")}><Italic size={16} /></Tool><Tool label="Underline" pressed={commandState.underline} onPress={() => command("underline")}><Underline size={16} /></Tool><Tool label="Strikethrough" pressed={commandState.strikeThrough} onPress={() => command("strikeThrough")}><Strikethrough size={16} /></Tool>
     </FloatingFormattingToolbar>
-    <div ref={editorRef} contentEditable suppressContentEditableWarning role="textbox" aria-label="Rich Text content" aria-multiline="true" className="m-0 min-h-0 w-full min-w-0 max-w-full cursor-text p-0 outline-none [overflow-wrap:anywhere] [&>*]:m-0 [&>p+p]:mt-[1.5em] [&>p[data-rich-text-empty-paragraph]]:!mt-0" onFocus={() => { focused.current = true; refreshCommandState(); }} onBlur={() => { focused.current = false; setToolbarRange(null); commit(); }} onInput={() => { if (skipNextFormattingInput.current) { skipNextFormattingInput.current = false; refreshCommandState(); return; } editSession.current.markDirty(); commit(); refreshCommandState(); }} onKeyDown={(event) => { if (event.key === "Tab") event.preventDefault(); }} onPaste={paste} />
+    {isEmpty && <span className="inline-edit-placeholder pointer-events-none absolute inset-x-0 top-0" aria-hidden="true">Add rich text</span>}
+    <div ref={editorRef} contentEditable suppressContentEditableWarning role="textbox" aria-label="Rich Text content" aria-multiline="true" className="relative m-0 min-h-[1.75em] w-full min-w-0 max-w-full cursor-text p-0 outline-none [overflow-wrap:anywhere] [&>*]:m-0 [&>p+p]:mt-[1.5em] [&>p[data-rich-text-empty-paragraph]]:!mt-0" onFocus={() => { focused.current = true; refreshCommandState(); }} onBlur={() => { focused.current = false; setToolbarRange(null); commit(); }} onInput={() => { if (skipNextFormattingInput.current) { skipNextFormattingInput.current = false; refreshCommandState(); return; } editSession.current.markDirty(); commit(); refreshCommandState(); }} onKeyDown={(event) => { if (event.key === "Tab") event.preventDefault(); }} onPaste={paste} />
   </div>;
 }
 

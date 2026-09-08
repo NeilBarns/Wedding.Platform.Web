@@ -1,0 +1,114 @@
+import { renderToStaticMarkup } from 'react-dom/server'
+import { describe, expect, it } from 'vitest'
+import type { WebsiteDraft, WebsiteSection } from '../websiteEditor/types'
+import { ClassicFilipinianaRenderer } from './templates/ClassicFilipinianaRenderer'
+import { ModernEditorialRenderer } from './templates/ModernEditorialRenderer'
+
+const event = { id: 'event', name: 'Alex & Sam', eventDate: '2027-01-02', type: 'wedding' as const }
+
+function blank(content: Record<string, unknown>, backgroundTreatment: 'inherit' | 'accent' = 'inherit'): WebsiteSection {
+  return {
+    id: 'blank-id', type: 'blank', displayName: 'Section', editorName: 'Private planning notes', sortOrder: 10, isEnabled: true,
+    content, appearance: { headingAlignment: 'inherit', bodyAlignment: 'inherit', backgroundTreatment, emphasis: 'inherit' },
+    designDefaults: {}, resolvedDesignContext: null, appearanceOptions: null, mediaCapability: null, itemMediaCapability: null, presentationCapability: null,
+  } as WebsiteSection
+}
+
+function draft(templateKey: 'classic-filipiniana-v1' | 'modern-editorial-v1', section: WebsiteSection): WebsiteDraft {
+  return {
+    schemaVersion: 5, id: 'website', eventId: 'event', name: 'Website', templateKey,
+    designSettings: { colorTheme: templateKey.startsWith('classic') ? 'terracotta' : 'ink', fontSet: 'editorial', artStyle: 'clean', projectDefaults: {}, customColors: [] },
+    projectDesignDefaults: null,
+    template: { key: templateKey, displayName: templateKey, designOptions: { colorThemes: [], fontSets: [], artStyles: [] }, capabilities: { sections: [], elementCapabilities: [], designLibrary: { colors: [], fontFamilies: [], palettePresets: [], typographyPresets: [] } } },
+    sections: [section], media: {},
+  } as unknown as WebsiteDraft
+}
+
+const templates = [
+  ['classic-filipiniana-v1', ClassicFilipinianaRenderer],
+  ['modern-editorial-v1', ModernEditorialRenderer],
+] as const
+
+describe.each(templates)('%s Blank Section', (templateKey, Renderer) => {
+  it('shows a selectable editor-only empty boundary and omits a default empty public Section', () => {
+    const section = blank({ childFlow: { elements: [], order: [] } })
+    const editor = renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, section)} mode="editor" selectedSectionId={section.id} />)
+    const published = renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, section)} mode="public" />)
+    expect(editor).toContain('data-preview-section="blank-id"')
+    expect(editor).toContain('data-empty-blank-section')
+    expect(editor).toContain('Empty Section')
+    expect(published).not.toContain('data-preview-section="blank-id"')
+    expect(published).not.toContain('Empty Section')
+    expect(published).not.toContain('Private planning notes')
+  })
+
+  it('retains an intentional empty surface and renders generic children in authoritative root order', () => {
+    const emptySurface = renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, blank({ childFlow: { elements: [], order: [] } }, 'accent'))} mode="public" />)
+    expect(emptySurface).toContain('data-section-surface')
+    const elements = [
+      { id: 'second', type: 'text', editorName: 'Text 2', text: 'Second' },
+      { id: 'first', type: 'text', editorName: 'Text 1', text: 'First' },
+      { id: 'group', type: 'compositionGroup', editorName: 'Group 1', children: [{ id: 'nested', type: 'richText', editorName: 'Rich Text 1', document: { type: 'doc', children: [{ type: 'paragraph', children: [{ text: 'Nested' }] }] } }] },
+    ]
+    const content = { childFlow: { elements, order: [{ kind: 'element', id: 'first' }, { kind: 'element', id: 'group' }, { kind: 'element', id: 'second' }] } }
+    const html = renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, blank(content))} mode="public" />)
+    expect(html).toContain('data-section-content-inset')
+    expect(html).toContain('data-section-root-flow')
+    expect(html.indexOf('First')).toBeLessThan(html.indexOf('Nested'))
+    expect(html.indexOf('Nested')).toBeLessThan(html.indexOf('Second'))
+    expect(html).not.toContain('data-section-specialized-content="true"')
+    expect(html).not.toContain('Private planning notes')
+  })
+
+  it('publishes only flows with a renderable descendant', () => {
+    const cases = [
+      [{ id: 'hidden', type: 'text', editorName: 'Text 1', text: 'Hidden', isHidden: true }],
+      [{ id: 'media', type: 'media', editorName: 'Media 1', items: [] }],
+      [{ id: 'media', type: 'media', editorName: 'Media 1', items: [{ id: 'item', type: 'image', mediaId: 'missing', alt: '' }] }],
+      [{ id: 'group', type: 'compositionGroup', editorName: 'Group 1', children: [] }],
+    ]
+    for (const elements of cases) {
+      const content = { childFlow: { elements, order: elements.map(({ id }) => ({ kind: 'element', id })) } }
+      const html = renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, blank(content))} mode="public" />)
+      expect(html).not.toContain('data-preview-section="blank-id"')
+    }
+    const content = { childFlow: { elements: [{ id: 'group', type: 'compositionGroup', editorName: 'Group 1', children: [{ id: 'text', type: 'text', editorName: 'Text 1', text: 'Visible' }] }], order: [{ kind: 'element', id: 'group' }] } }
+    const html = renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, blank(content))} mode="public" />)
+    expect(html).toContain('Visible')
+  })
+
+  it('renders Date blocks from Event data at root, Group, and nested Group placements', () => {
+    const elements = [
+      { id: 'root-date', type: 'date', editorName: 'Ceremony date' },
+      { id: 'outer', type: 'compositionGroup', editorName: 'Date group', children: [
+        { id: 'group-date', type: 'date', editorName: 'Reception date' },
+        { id: 'inner', type: 'compositionGroup', editorName: 'Nested dates', children: [
+          { id: 'nested-date', type: 'date', editorName: 'Private nested name' },
+        ] },
+      ] },
+    ]
+    const content = { childFlow: { elements, order: [{ kind: 'element', id: 'root-date' }, { kind: 'element', id: 'outer' }] } }
+    const html = renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, blank(content))} mode="public" />)
+    expect(html).toContain('<time')
+    expect(html.match(/<time[^>]*datetime="2027-01-02"/g)).toHaveLength(3)
+    expect(html.match(/Saturday, January 2, 2027/g)).toHaveLength(3)
+    expect(html).not.toContain('Ceremony date')
+    expect(html).not.toContain('Reception date')
+    expect(html).not.toContain('Private nested name')
+    const updated = renderToStaticMarkup(<Renderer event={{ ...event, eventDate: '2028-02-03' }} website={draft(templateKey, blank(content))} mode="public" />)
+    expect(updated).toContain('Thursday, February 3, 2028')
+    expect(updated).toContain('datetime="2028-02-03"')
+    expect(content.childFlow.elements).toEqual(elements)
+  })
+
+  it('omits missing Date blocks publicly and shows the editor diagnostic', () => {
+    const content = { childFlow: { elements: [{ id: 'date', type: 'date', editorName: 'Date 1' }], order: [{ kind: 'element', id: 'date' }] } }
+    const noDateEvent = { ...event, eventDate: null }
+    const published = renderToStaticMarkup(<Renderer event={noDateEvent} website={draft(templateKey, blank(content))} mode="public" />)
+    const editor = renderToStaticMarkup(<Renderer event={noDateEvent} website={draft(templateKey, blank(content))} mode="editor" />)
+    expect(published).not.toContain('data-preview-section="blank-id"')
+    expect(published).not.toContain('<time')
+    expect(editor).toContain('Add a wedding date in Event settings to display this block.')
+    expect(editor).toContain('data-date-block-missing')
+  })
+})

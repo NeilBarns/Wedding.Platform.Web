@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { dateContentSchema, dressCodeContentSchema, heroContentSchema } from "./schemas";
+import { dateContentSchema, heroContentSchema } from "./schemas";
 import { commitPendingRichTextEdit, createRichTextEditSession } from "./richTextSelection";
 import {
   SECTION_SPECIALIZED_REFERENCE,
@@ -8,6 +8,7 @@ import {
   deleteSectionElement,
   duplicateSectionElement,
   findSectionElement,
+  genericTextSectionChildFlowSchema,
   getValidSectionElementMoveDestinations,
   insertSectionElement,
   moveSectionChild,
@@ -29,6 +30,7 @@ describe("Section child-flow schema", () => {
   it.each([
     { id: "text", type: "text", editorName: "  Text\n  1 ", text: "" },
     { id: "rich", type: "richText", editorName: "Rich Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "" }] }] } },
+    { id: "date", type: "date", editorName: "Date 1" },
     { id: "media", type: "media", editorName: "Media 1", items: [] },
     { id: "divider", type: "divider", editorName: "Divider 1" },
     { id: "group", type: "compositionGroup", editorName: "Group 1", children: [] },
@@ -57,9 +59,9 @@ describe("Section child-flow schema", () => {
     expect(findSectionElement(hydrated, "direct-text")?.isHidden).toBe(true);
   });
 
-  it("is optional for Date and Dress Code and accepted when valid", () => {
+  it("is optional for Date and accepted when valid", () => {
     expect(dateContentSchema.safeParse({ heading: "Date", description: "Details" }).success).toBe(true);
-    expect(dressCodeContentSchema.safeParse({ heading: "Dress", description: "Details", childFlow: flow() }).success).toBe(true);
+    expect(dateContentSchema.safeParse({ heading: "Date", description: "Details", childFlow: flow() }).success).toBe(true);
   });
 
   it.each([
@@ -140,6 +142,66 @@ describe("Section child-flow operations", () => {
 
     const nestedToOuter = moveSectionElement(movableFlow(), "nested", { parentId: "group-a", index: 0 });
     expect(nestedToOuter.ok && (findSectionElement(nestedToOuter.flow, "group-a") as import("../websiteElements/types").CompositionGroup).children.map(({ id }) => id)).toEqual(["nested", "a-1", "inner"]);
+  });
+
+  it("reparents Blank root and Group children through the canonical move path", () => {
+    const blank = structuredClone(movableFlow());
+    blank.order = blank.order.filter(({ kind }) => kind === "element");
+
+    const rootIntoGroup = moveSectionElement(blank, "root-text", { parentId: "group-b", index: 1 });
+    expect(rootIntoGroup.ok).toBe(true);
+    if (!rootIntoGroup.ok) return;
+    expect((findSectionElement(rootIntoGroup.flow, "group-b") as import("../websiteElements/types").CompositionGroup).children.map(({ id }) => id)).toEqual(["b-1", "root-text"]);
+
+    const groupIntoRoot = moveSectionElement(rootIntoGroup.flow, "root-text", { parentId: null, index: rootIntoGroup.flow.order.length });
+    expect(groupIntoRoot.ok).toBe(true);
+    if (!groupIntoRoot.ok) return;
+    expect(groupIntoRoot.flow.order.at(-1)).toEqual({ kind: "element", id: "root-text" });
+
+    const groupToGroup = moveSectionElement(groupIntoRoot.flow, "a-1", { parentId: "group-b", index: 0 });
+    expect(groupToGroup.ok).toBe(true);
+    if (!groupToGroup.ok) return;
+    expect((findSectionElement(groupToGroup.flow, "group-b") as import("../websiteElements/types").CompositionGroup).children.map(({ id }) => id)).toEqual(["a-1", "b-1"]);
+
+    const nestedToRoot = moveSectionElement(groupToGroup.flow, "nested", { parentId: null, index: groupToGroup.flow.order.length });
+    expect(nestedToRoot.ok).toBe(true);
+    if (!nestedToRoot.ok) return;
+    expect(nestedToRoot.flow.order.at(-1)).toEqual({ kind: "element", id: "nested" });
+
+    const rootGroupIntoGroup = moveSectionElement(nestedToRoot.flow, "shallow-group", { parentId: "group-b", index: 2 });
+    expect(rootGroupIntoGroup.ok).toBe(true);
+    if (!rootGroupIntoGroup.ok) return;
+    expect((findSectionElement(rootGroupIntoGroup.flow, "group-b") as import("../websiteElements/types").CompositionGroup).children.map(({ id }) => id)).toEqual(["a-1", "b-1", "shallow-group"]);
+  });
+
+  it("preserves Blank subtree identity and state across cross-parent save/reload", () => {
+    const blank = structuredClone(movableFlow());
+    blank.order = blank.order.filter(({ kind }) => kind === "element");
+    const source = structuredClone(findSectionElement(blank, "root-text"));
+    const groupSource = structuredClone(findSectionElement(blank, "shallow-group"));
+
+    const first = moveSectionElement(blank, "root-text", { parentId: "group-b", index: 0 });
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const second = moveSectionElement(first.flow, "shallow-group", { parentId: "group-b", index: 2 });
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+
+    const reloaded = genericTextSectionChildFlowSchema.parse(JSON.parse(JSON.stringify(second.flow)));
+    expect(findSectionElement(reloaded, "root-text")).toEqual(source);
+    expect(findSectionElement(reloaded, "shallow-group")).toEqual(groupSource);
+    expect((findSectionElement(reloaded, "group-b") as import("../websiteElements/types").CompositionGroup).children.map(({ id }) => id)).toEqual(["root-text", "b-1", "shallow-group"]);
+    expect(reloaded.order.every(({ kind }) => kind === "element")).toBe(true);
+  });
+
+  it("rejects Blank over-depth and descendant cycle destinations without mutation", () => {
+    const blank = structuredClone(movableFlow());
+    blank.order = blank.order.filter(({ kind }) => kind === "element");
+    const snapshot = structuredClone(blank);
+
+    expect(moveSectionElement(blank, "shallow-group", { parentId: "inner", index: 0 })).toMatchObject({ ok: false, reason: "invalid-destination" });
+    expect(moveSectionElement(blank, "group-a", { parentId: "inner", index: 0 })).toMatchObject({ ok: false, reason: "cycle" });
+    expect(blank).toEqual(snapshot);
   });
 
   it("reorders within a parent and around immutable specialized root content", () => {
@@ -256,6 +318,7 @@ describe("Section child-flow operations", () => {
     };
     expect(createSectionElement(existing, "text").editorName).toBe("Text 4");
     expect(createSectionElement(existing, "media").editorName).toBe("Media 2");
+    expect(createSectionElement(existing, "date")).toMatchObject({ type: "date", editorName: "Date 1" });
     expect(createSectionElement(existing, "compositionGroup").editorName).toBe("Group 3");
     expect(createSectionElement(existing, "divider").editorName).toBe("Divider 1");
   });
@@ -273,6 +336,7 @@ describe("Section child-flow operations", () => {
   it("duplicates a Group subtree with fresh deterministic preorder identities", () => {
     const group = { id: "group", type: "compositionGroup" as const, editorName: "Group 1", isHidden: true, layout: { gap: "m" as const }, children: [
       { id: "text", type: "text" as const, editorName: "Welcome", text: "Keep", appearance: { fontSize: "l" as const } },
+      { id: "date", type: "date" as const, editorName: "Ceremony date", isHidden: true },
       { id: "inner", type: "compositionGroup" as const, editorName: "Details", children: [{ id: "nested", type: "text" as const, editorName: "Text 4", text: "Nested" }] },
     ] };
     const current: SectionChildFlow = { elements: [group], order: [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "group" }] };
@@ -280,6 +344,7 @@ describe("Section child-flow operations", () => {
     const copy = findSectionElement(result.flow, result.elementId);
     expect(copy).toMatchObject({ type: "compositionGroup", editorName: "Group 2", isHidden: true, layout: { gap: "m" }, children: [
       { type: "text", editorName: "Text 5", text: "Keep", appearance: { fontSize: "l" } },
+      { type: "date", editorName: "Date 1", isHidden: true },
       { type: "compositionGroup", editorName: "Group 3", children: [{ type: "text", editorName: "Text 6", text: "Nested" }] },
     ] });
     expect(copy?.id).not.toBe(group.id);
@@ -413,6 +478,18 @@ describe("Section child-flow operations", () => {
     expect(result!.elementId).not.toBe("a");
     expect(findSectionElement(result!.flow, result!.elementId)).toMatchObject({ editorName: "Text 2" });
     expect(result!.flow.order[2]).toEqual({ kind: "element", id: result!.elementId });
+  });
+
+  it("preserves sparse Date identity and state through lifecycle operations", () => {
+    const date = { id: "date-1", type: "date" as const, editorName: "Ceremony day", isHidden: true };
+    const initial: SectionChildFlow = { elements: [date], order: [{ kind: "element", id: date.id }] };
+    const renamed = renameSectionElement(initial, date.id, "Wedding date");
+    const duplicated = duplicateSectionElement(renamed, date.id);
+    expect(duplicated).not.toBeNull();
+    if (!duplicated) return;
+    expect(findSectionElement(duplicated.flow, date.id)).toEqual({ ...date, editorName: "Wedding date" });
+    expect(findSectionElement(duplicated.flow, duplicated.elementId)).toMatchObject({ type: "date", editorName: "Date 1", isHidden: true });
+    expect(genericTextSectionChildFlowSchema.parse(JSON.parse(JSON.stringify(duplicated.flow)))).toEqual(duplicated.flow);
   });
 
   it("deletes only the element and falls back to specialized selection", () => {

@@ -20,12 +20,12 @@ const twoColumnPresets = new Set<keyof typeof columns>(["equal-2", "content-wide
 const shadows = { none: "none", soft: "0 4px 16px rgb(0 0 0 / .1)", medium: "0 10px 28px rgb(0 0 0 / .16)", strong: "0 18px 45px rgb(0 0 0 / .24)" } as const;
 const childAlignment = { start: "flex-start", center: "center", end: "flex-end", stretch: "flex-start" } as const;
 
-export function GroupElementRenderer({ group, sectionId, mode, viewport, templateKey, library, projectColors, media = {}, context, selectedElementId, onElementSelect, onElementEdit }: {
-  group: CompositionGroup; sectionId: string; mode: "editor" | "public"; viewport: ResponsiveViewport; templateKey: string; library: TemplateDesignLibrary; projectColors: readonly ProjectColor[]; media?: import("../websiteEditor/types").WebsiteDraft["media"]; context?: ResolvedDesignContext | null; selectedElementId?: string | null; onElementSelect?: (sectionId: string, elementId: string) => void; onElementEdit?: (sectionId: string, elementId: string) => void;
+export function GroupElementRenderer({ group, sectionId, mode, viewport, templateKey, library, projectColors, media = {}, eventDate = null, context, selectedElementId, onElementSelect, onElementEdit }: {
+  group: CompositionGroup; sectionId: string; mode: "editor" | "public"; viewport: ResponsiveViewport; templateKey: string; library: TemplateDesignLibrary; projectColors: readonly ProjectColor[]; media?: import("../websiteEditor/types").WebsiteDraft["media"]; eventDate?: string | null; context?: ResolvedDesignContext | null; selectedElementId?: string | null; onElementSelect?: (sectionId: string, elementId: string) => void; onElementEdit?: (sectionId: string, elementId: string) => void;
 }) {
   useDecorativeSourceAvailability();
   const layout = resolveGroupLayout(group.layout, viewport);
-  const visibleChildren = group.children.filter((child) => isElementRenderable(child, templateKey, mode, media ?? {}));
+  const visibleChildren = group.children.filter((child) => isElementRenderable(child, templateKey, mode, media ?? {}, eventDate));
   const direction = layout.direction ?? "vertical";
   const alignment = layout.alignment ?? "stretch";
   const columnPreset = layout.columns ?? "equal-2";
@@ -66,8 +66,8 @@ export function GroupElementRenderer({ group, sectionId, mode, viewport, templat
     const childSelected = selectedElementId === element.id;
     const frame = <WebsiteElementFrame mode={mode} sectionId={sectionId} elementId={element.id} elementType={element.type === "compositionGroup" ? "Group" : element.type === "media" ? "Media" : element.type} selected={childSelected} onSelect={onElementSelect} onEdit={element.type === "text" ? onElementEdit : undefined}>
       {element.type === "compositionGroup"
-        ? <GroupElementRenderer media={media} group={element} sectionId={sectionId} mode={mode} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />
-        : <WebsiteLeafElementRenderer media={media} element={element} mode={mode} sectionId={sectionId} selected={childSelected} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} />}
+        ? <GroupElementRenderer media={media} eventDate={eventDate} group={element} sectionId={sectionId} mode={mode} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />
+        : <WebsiteLeafElementRenderer media={media} eventDate={eventDate} element={element} mode={mode} sectionId={sectionId} selected={childSelected} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} />}
     </WebsiteElementFrame>;
     const className = hasDecoration ? "relative z-10 min-w-0 max-w-full [overflow-wrap:anywhere]" : "min-w-0 max-w-full [overflow-wrap:anywhere]";
     if (direction === "horizontal") return <div key={element.id} className={className} style={childGridStyle(index)}>{frame}</div>;
