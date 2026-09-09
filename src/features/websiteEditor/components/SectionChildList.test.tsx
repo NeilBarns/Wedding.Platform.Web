@@ -298,7 +298,7 @@ describe("SectionChildList dense Group hierarchy", () => {
   });
 
   it("does not offer a third Group nesting level and keeps all non-Group child choices", () => {
-    expect(groupAddKinds(1)).toEqual(["text", "richText", "date", "divider", "media", "group"]);
-    expect(groupAddKinds(2)).toEqual(["text", "richText", "date", "divider", "media"]);
+    expect(groupAddKinds(1)).toEqual(["text", "richText", "date", "accordion", "schedule", "divider", "media", "group"]);
+    expect(groupAddKinds(2)).toEqual(["text", "richText", "date", "accordion", "schedule", "divider", "media"]);
   });
 });

@@ -20,7 +20,7 @@ export function WebsiteElementFrame({
   onSelect?: (sectionId: string, elementId: string) => void;
   onEdit?: (sectionId: string, elementId: string) => void;
 }) {
-  const stretchesWidth = elementType === "text" || elementType === "richText" || elementType === "divider";
+  const stretchesWidth = elementType === "text" || elementType === "richText" || elementType === "accordion" || elementType === "schedule" || elementType === "divider";
   if (mode === "public")
     return (
       <div

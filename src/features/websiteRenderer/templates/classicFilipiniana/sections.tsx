@@ -1,7 +1,5 @@
 import { EditableText } from "../../../websiteEditor/inline/EditableText";
 import type {
-  DateContent,
-  FaqContent,
   GalleryContent,
   HeroContent,
   PeopleContent,
@@ -104,50 +102,6 @@ export function ClassicFilipinianaHero({
       </p>
       <ClassicFoundationOrnament className="relative mt-10 rotate-180 opacity-70" />
     </div>
-  );
-}
-
-export function ClassicFilipinianaDate({
-  sectionId,
-  date,
-  content,
-  renderFlow,
-}: {
-  sectionId: string;
-  date: string | null;
-  content: DateContent;
-  renderFlow?: (specialized: React.ReactNode) => React.ReactNode;
-}) {
-  return (
-    <ContentSection
-      eyebrow="Save the date"
-      heading={
-        <EditableText
-          sectionId={sectionId}
-          path={["heading"]}
-          value={content.heading}
-          fallback="Our Wedding Day"
-          placeholder="Add heading"
-          label="Date heading"
-        />
-      }
-      renderFlow={renderFlow}
-      specializedClassName="px-5 py-12 [&_[data-section-body]]:mt-6 md:px-8 md:py-16 md:[&_[data-section-body]]:mt-8 xl:px-12 xl:py-20"
-    >
-      <p className="mx-auto max-w-2xl break-words font-[family-name:var(--cf-heading-font)] text-2xl leading-tight text-[var(--cf-text)]">
-        {date ?? "Date to be announced"}
-      </p>
-      <p className="mx-auto mt-4 max-w-xl break-words">
-        <EditableText
-          sectionId={sectionId}
-          path={["description"]}
-          value={content.description}
-          placeholder="Add description"
-          label="Date description"
-          multiline
-        />
-      </p>
-    </ContentSection>
   );
 }
 
@@ -809,64 +763,6 @@ export function ClassicFilipinianaGallery({
           </div>
           <div className="aspect-[4/5] rotate-2 border border-[var(--cf-border)] bg-[color-mix(in_srgb,var(--cf-surface)_65%,transparent)] shadow-sm" />
         </div>
-      )}
-    </ContentSection>
-  );
-}
-
-export function ClassicFilipinianaFaq({
-  sectionId,
-  content,
-}: {
-  sectionId: string;
-  content: FaqContent;
-}) {
-  return (
-    <ContentSection
-      eyebrow="Good to know"
-      heading={
-        <EditableText
-          sectionId={sectionId}
-          path={["heading"]}
-          value={content.heading}
-          fallback="Frequently Asked Questions"
-          placeholder="Add heading"
-          label="FAQ heading"
-        />
-      }
-    >
-      {content.items.length ? (
-        <div className="mx-auto max-w-2xl text-left">
-          {content.items.map((item, index) => (
-            <div
-              className="border-t border-[color-mix(in_srgb,var(--cf-border)_25%,transparent)] py-5"
-              key={index}
-            >
-              <h3 className="font-[family-name:var(--cf-heading-font)] text-lg text-[var(--cf-text)]">
-                <EditableText
-                  sectionId={sectionId}
-                  path={["items", index, "question"]}
-                  value={item.question}
-                  fallback="Question"
-                  placeholder="Add question"
-                  label={`FAQ ${index + 1} question`}
-                />
-              </h3>
-              <p className="mt-2 whitespace-pre-line text-sm leading-6">
-                <EditableText
-                  sectionId={sectionId}
-                  path={["items", index, "answer"]}
-                  value={item.answer}
-                  placeholder="Add answer"
-                  label={`FAQ ${index + 1} answer`}
-                  multiline
-                />
-              </p>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <EmptyCopy>Helpful details will appear here.</EmptyCopy>
       )}
     </ContentSection>
   );

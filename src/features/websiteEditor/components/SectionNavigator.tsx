@@ -397,6 +397,8 @@ function SortableSection(
               { type: "text" as const, label: "Text" },
               { type: "richText" as const, label: "Rich Text" },
               { type: "date" as const, label: "Date" },
+              { type: "accordion" as const, label: "Accordion" },
+              { type: "schedule" as const, label: "Schedule" },
               { type: "divider" as const, label: "Divider" },
               { type: "media" as const, label: "Media" },
               { type: "compositionGroup" as const, label: "Group" },

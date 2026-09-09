@@ -1,6 +1,4 @@
 import type {
-  DateContent,
-  FaqContent,
   GalleryContent,
   HeroContent,
   PeopleContent,
@@ -20,8 +18,6 @@ import { storyElementMedia } from "../../websiteEditor/storyMedia";
 import { resolveModernEditorialSectionAppearance } from "./modernEditorial/appearance";
 import { resolveModernEditorialDesign } from "./modernEditorial/design";
 import {
-  ModernEditorialDate,
-  ModernEditorialFaq,
   ModernEditorialGallery,
   ModernEditorialHero,
   ModernEditorialPeople,
@@ -39,7 +35,6 @@ import type { ElementCapability } from "../../websiteCapabilities/types";
 import { resolveEffectiveStorySequence } from "../storyEffectiveSequence";
 import { resolveStoryRenderItems } from "../storyRenderSequence";
 import { SectionDecorativeLayers } from "../SectionDecorativeLayers";
-import { SectionChildFlowRenderer } from "../SectionChildFlowRenderer";
 import { BlankSectionRenderer } from "../BlankSectionRenderer";
 import { isBlankSectionRenderable } from "../blankSectionRenderability";
 
@@ -271,9 +266,6 @@ function Section({
       {content}
     </ModernMediaPresentation>
   );
-  const childFlow = (flow: DateContent["childFlow"]) => flow?.elements.length
-    ? (specialized: React.ReactNode) => <SectionChildFlowRenderer media={media} eventDate={eventDate} sectionId={section.id} flow={flow} specialized={specialized} mode={mode} viewport={targetViewport} templateKey="modern-editorial-v1" library={library} projectColors={projectColors} context={section.resolvedDesignContext} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />
-    : undefined;
   switch (section.type) {
     case "blank":
       return <BlankSectionRenderer section={section} mode={mode} viewport={targetViewport} templateKey="modern-editorial-v1" library={library} projectColors={projectColors} media={media} eventDate={eventDate} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />;
@@ -287,17 +279,6 @@ function Section({
           viewport={targetViewport}
         />,
       );
-    case "date": {
-      const content = section.content as DateContent;
-      return (
-        <ModernEditorialDate
-          sectionId={section.id}
-          date={date}
-          content={content}
-          renderFlow={childFlow(content.childFlow)}
-        />
-      );
-    }
     case "story": {
       const content = section.content as StoryContent;
       const contract = narrativeCapability?.narrativeBlock?.composition;
@@ -408,13 +389,6 @@ function Section({
           sectionId={section.id}
           content={section.content as GalleryContent}
           mode={mode}
-        />
-      );
-    case "faq":
-      return (
-        <ModernEditorialFaq
-          sectionId={section.id}
-          content={section.content as FaqContent}
         />
       );
     case "rsvp":

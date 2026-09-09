@@ -4,6 +4,8 @@ export const GENERIC_BLOCK_LABELS = {
   text: "Text",
   richText: "Rich Text",
   date: "Date",
+  accordion: "Accordion",
+  schedule: "Schedule",
   media: "Media",
   divider: "Divider",
   compositionGroup: "Group",

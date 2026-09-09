@@ -45,7 +45,6 @@ const responsiveControlSchema = z.object({
   }).strict().optional(),
 }).strict()
 export const heroContentSchema = z.object({ headline: text, subheadline: text, media: sectionMediaSchema }).strict()
-export const dateContentSchema = z.object({ heading: text, description: text, childFlow: textSectionChildFlowSchema.optional() }).strict()
 const storyMediaFramingSchema = z.object({
   focalPoint: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().optional(),
   zoom: z.number().min(1).max(3).optional(),
@@ -107,22 +106,16 @@ export const peopleContentSchema = z.object({
   })
 })
 export const galleryContentSchema = z.object({ heading: text, items: z.tuple([]) }).strict()
-export const faqContentSchema = z.object({
-  heading: text,
-  items: z.array(z.object({ question: text, answer: text }).strict()),
-}).strict()
 export const rsvpContentSchema = z.object({ heading: text, description: text, buttonLabel: text }).strict()
 export const blankContentSchema = z.object({ childFlow: genericTextSectionChildFlowSchema }).strict()
 
 const contentSchemas: Record<string, z.ZodType> = {
   hero: heroContentSchema,
-  date: dateContentSchema,
   story: storyContentSchema,
   schedule: scheduleContentSchema,
   venue: venueContentSchema,
   people: peopleContentSchema,
   gallery: galleryContentSchema,
-  faq: faqContentSchema,
   rsvp: rsvpContentSchema,
   blank: blankContentSchema,
 }
@@ -181,7 +174,7 @@ export function validateSectionContent(type: string, content: Record<string, unk
   const schema = contentSchemas[type]
   return schema ? schema.superRefine((value, context) => {
     if (!templateKey || typeof value !== "object" || value === null || !("childFlow" in value)) return;
-    const flow = textSectionChildFlowSchema.safeParse(value.childFlow);
+    const flow = (type === 'blank' ? genericTextSectionChildFlowSchema : textSectionChildFlowSchema).safeParse(value.childFlow);
     if (!flow.success) return;
     const visit = (element: import("../websiteElements/types").WebsiteElement, path: (string | number)[]) => {
       if (element.type === "divider" && element.appearance?.assetId !== undefined && !isDividerAssetForTemplate(templateKey, element.appearance.assetId)) {
@@ -194,7 +187,7 @@ export function validateSectionContent(type: string, content: Record<string, unk
 }
 
 const sectionSchema = z.object({
-  id: z.string(), type: z.string(), displayName: z.string(), editorName: z.string().min(1).max(80).nullable(), sortOrder: z.number(),
+  id: z.string(), type: z.enum(['hero', 'story', 'schedule', 'venue', 'people', 'gallery', 'rsvp', 'blank']), displayName: z.string(), editorName: z.string().min(1).max(80).nullable(), sortOrder: z.number(),
   isEnabled: z.boolean(), content: z.record(z.string(), z.unknown()),
   appearance: z.object({
     headingAlignment: z.enum(['inherit', 'left', 'center', 'right']),

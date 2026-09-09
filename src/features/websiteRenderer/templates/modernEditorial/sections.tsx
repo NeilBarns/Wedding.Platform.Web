@@ -1,7 +1,5 @@
 import { EditableText } from "../../../websiteEditor/inline/EditableText";
 import type {
-  DateContent,
-  FaqContent,
   GalleryContent,
   HeroContent,
   PeopleContent,
@@ -114,49 +112,6 @@ export function ModernEditorialHero({
   );
 }
 
-export function ModernEditorialDate({
-  sectionId,
-  date,
-  content,
-  renderFlow,
-}: {
-  sectionId: string;
-  date: string | null;
-  content: DateContent;
-  renderFlow?: (specialized: React.ReactNode) => React.ReactNode;
-}) {
-  return (
-    <EditorialSection
-      number="02"
-      heading={
-        <EditableText
-          sectionId={sectionId}
-          path={["heading"]}
-          value={content.heading}
-          fallback="The Date"
-          placeholder="Add heading"
-          label="Date heading"
-        />
-      }
-      renderFlow={renderFlow}
-      specializedClassName="px-5 py-12 [&_[data-section-body]]:mt-8 md:px-8 md:py-16 md:[&_[data-section-body]]:mt-10 xl:px-14 xl:py-20 xl:[&_[data-section-body]]:mt-12"
-    >
-      <p className="max-w-3xl break-words font-[family-name:var(--me-heading-font)] text-4xl leading-tight md:text-6xl">
-        {date ?? "Date to be announced"}
-      </p>
-      <p className="mt-5 max-w-xl break-words whitespace-pre-line md:mt-6">
-        <EditableText
-          sectionId={sectionId}
-          path={["description"]}
-          value={content.description}
-          placeholder="Add description"
-          label="Date description"
-          multiline
-        />
-      </p>
-    </EditorialSection>
-  );
-}
 export function ModernEditorialStoryHeader({
   sectionId,
   content,
@@ -801,63 +756,6 @@ export function ModernEditorialGallery({
         <div className="border-y border-dashed border-[var(--me-border)] py-10 text-xs uppercase tracking-widest">
           Photos will appear here
         </div>
-      )}
-    </EditorialSection>
-  );
-}
-export function ModernEditorialFaq({
-  sectionId,
-  content,
-}: {
-  sectionId: string;
-  content: FaqContent;
-}) {
-  return (
-    <EditorialSection
-      number="09"
-      heading={
-        <EditableText
-          sectionId={sectionId}
-          path={["heading"]}
-          value={content.heading}
-          fallback="Questions"
-          placeholder="Add heading"
-          label="FAQ heading"
-        />
-      }
-    >
-      {content.items.length ? (
-        <div>
-          {content.items.map((item, index) => (
-            <div
-              className="grid gap-3 border-t border-[var(--me-border)] py-6 md:grid-cols-[1fr_1.5fr]"
-              key={index}
-            >
-              <h3 className="font-[family-name:var(--me-heading-font)] text-xl">
-                <EditableText
-                  sectionId={sectionId}
-                  path={["items", index, "question"]}
-                  value={item.question}
-                  fallback="Question"
-                  placeholder="Add question"
-                  label={`FAQ ${index + 1} question`}
-                />
-              </h3>
-              <p className="whitespace-pre-line">
-                <EditableText
-                  sectionId={sectionId}
-                  path={["items", index, "answer"]}
-                  value={item.answer}
-                  placeholder="Add answer"
-                  label={`FAQ ${index + 1} answer`}
-                  multiline
-                />
-              </p>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <EmptyCopy>Helpful details will appear here.</EmptyCopy>
       )}
     </EditorialSection>
   );

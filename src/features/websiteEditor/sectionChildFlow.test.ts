@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { dateContentSchema, heroContentSchema } from "./schemas";
+import { heroContentSchema } from "./schemas";
 import { commitPendingRichTextEdit, createRichTextEditSession } from "./richTextSelection";
 import {
   SECTION_SPECIALIZED_REFERENCE,
@@ -59,11 +59,6 @@ describe("Section child-flow schema", () => {
     expect(findSectionElement(hydrated, "direct-text")?.isHidden).toBe(true);
   });
 
-  it("is optional for Date and accepted when valid", () => {
-    expect(dateContentSchema.safeParse({ heading: "Date", description: "Details" }).success).toBe(true);
-    expect(dateContentSchema.safeParse({ heading: "Date", description: "Details", childFlow: flow() }).success).toBe(true);
-  });
-
   it.each([
     ["missing specialized", flow(undefined, [{ kind: "element", id: "a" }])],
     ["duplicate specialized", flow(undefined, [SECTION_SPECIALIZED_REFERENCE, SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "a" }])],
@@ -75,10 +70,9 @@ describe("Section child-flow schema", () => {
   ])("rejects %s", (_name, candidate) => expect(sectionChildFlowSchema.safeParse(candidate).success).toBe(false));
 
   it("rejects invalid Text, disallowed elements, unknown discriminators, and unknown keys", () => {
-    expect(dateContentSchema.safeParse({ heading: "Date", description: "", childFlow: flow([{ ...text("a"), appearance: { fontWeight: 500 } }]) }).success).toBe(false);
-    expect(dateContentSchema.safeParse({ heading: "Date", description: "", childFlow: flow([{ id: "a", type: "image", mediaId: "01M0Q08NQ9XJB9B5SGC45YD9AA" } as never]) }).success).toBe(false);
-    expect(dateContentSchema.safeParse({ heading: "Date", description: "", childFlow: flow([{ id: "a", type: "mystery" } as never]) }).success).toBe(false);
-    expect(dateContentSchema.safeParse({ heading: "Date", description: "", childFlow: { ...flow(), extra: true } }).success).toBe(false);
+    expect(sectionChildFlowSchema.safeParse(flow([{ ...text("a"), appearance: { fontWeight: 500 } }])).success).toBe(false);
+    expect(sectionChildFlowSchema.safeParse(flow([{ id: "a", type: "mystery" } as never])).success).toBe(false);
+    expect(sectionChildFlowSchema.safeParse({ ...flow(), extra: true }).success).toBe(false);
     expect(heroContentSchema.safeParse({ headline: "Hi", subheadline: "", childFlow: flow() }).success).toBe(false);
   });
 
@@ -122,8 +116,8 @@ describe("Section child-flow operations", () => {
       ? { id: "group", type: "compositionGroup" as const, editorName: "Group 1", children: [rich] }
       : { id: "outer", type: "compositionGroup" as const, editorName: "Group 1", children: [{ id: "inner", type: "compositionGroup" as const, editorName: "Group 2", children: [rich] }] };
     const candidate: SectionChildFlow = { elements: [root], order: [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: root.id }] };
-    const saved = dateContentSchema.parse({ heading: "Date", description: "", childFlow: candidate });
-    const hydrated = dateContentSchema.parse(JSON.parse(JSON.stringify(saved))).childFlow!;
+    const saved = sectionChildFlowSchema.parse(candidate);
+    const hydrated = sectionChildFlowSchema.parse(JSON.parse(JSON.stringify(saved)));
     expect(findSectionElement(hydrated, "rich-fixture")).toEqual(rich);
   });
 
@@ -260,7 +254,7 @@ describe("Section child-flow operations", () => {
       expect(moved.ok).toBe(true);
       if (moved.ok) current = moved.flow;
     }
-    const reloaded = dateContentSchema.parse(JSON.parse(JSON.stringify({ heading: "Date", description: "", childFlow: current }))).childFlow!;
+    const reloaded = sectionChildFlowSchema.parse(JSON.parse(JSON.stringify(current)));
     expect(findSectionElement(reloaded, "root-text")).toMatchObject({ id: "root-text", editorName: "Welcome message", isHidden: true, text: "Keep me", appearance: { fontSize: "l" } });
     expect((findSectionElement(reloaded, "group-b") as import("../websiteElements/types").CompositionGroup).children.map(({ id }) => id)).toContain("root-text");
     expect(reloaded.order[1]).toEqual({ kind: "element", id: "nested" });
@@ -353,7 +347,7 @@ describe("Section child-flow operations", () => {
 
   it("rejects noncanonical Rich Text runs nested inside Groups before saving", () => {
     const candidate = flow([{ id: "group", type: "compositionGroup", editorName: "Group 1", children: [{ id: "rich", type: "richText", editorName: "Rich Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "Copy", marks: { bold: true, italic: false }, editorMetadata: true }] }] } }], layout: {} } as never], [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "group" }]);
-    expect(dateContentSchema.safeParse({ heading: "Date", description: "", childFlow: candidate }).success).toBe(false);
+    expect(sectionChildFlowSchema.safeParse(candidate).success).toBe(false);
   });
 
   it.each(["tablet", "mobile"] as const)("preserves nested Rich Text document through every %s appearance update", (viewport) => {
@@ -417,9 +411,9 @@ describe("Section child-flow operations", () => {
     const document = { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Persist me", marks: { underline: true } }] }] };
     const nested = flow([{ id: "group", type: "compositionGroup", editorName: "Group 1", children: [{ id: "rich", type: "richText", editorName: "Rich Text 1", document }], layout: {} } as never], [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "group" }]);
     const updated = updateSectionRichTextAppearance(nested, "rich", { responsive: { mobile: { fontSize: "s", alignment: "center" } } });
-    const saved = dateContentSchema.parse({ heading: "Date", description: "", childFlow: updated! });
-    const reloaded = dateContentSchema.parse(JSON.parse(JSON.stringify(saved)));
-    const rich = findSectionElement(reloaded.childFlow, "rich");
+    const saved = sectionChildFlowSchema.parse(updated!);
+    const reloaded = sectionChildFlowSchema.parse(JSON.parse(JSON.stringify(saved)));
+    const rich = findSectionElement(reloaded, "rich");
     expect(rich?.type === "richText" ? rich.document : null).toEqual(document);
     expect(rich?.type === "richText" ? rich.appearance : null).toEqual({ responsive: { mobile: { fontSize: "s", alignment: "center" } } });
   });

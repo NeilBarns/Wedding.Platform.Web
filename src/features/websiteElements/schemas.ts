@@ -119,10 +119,60 @@ export const dateElementSchema = z.object({
     format: z.enum(["long", "medium", "short", "numeric"]).optional(),
     showWeekday: z.boolean().optional(),
     alignment: textAlignmentSchema.optional(),
-    textStyle: z.enum(["display", "heading", "body"]).optional(),
+    textStyle: z.enum(["display", "heading", "subheading", "eyebrow", "body", "caption"]).optional(),
+    fontFamilyId: z.string().min(1).optional(),
+    fontSize: elementFontSizeSchema.optional(),
+    fontWeight: z.union([z.literal(400), z.literal(600), z.literal(700)]).optional(),
+    lineHeight: elementLineSpacingSchema.optional(),
+    letterSpacing: elementLetterSpacingSchema.optional(),
+    textTransform: textTransformSchema.optional(),
     colorId: z.string().min(1).optional(),
+    responsive: z.object({
+      tablet: textResponsiveAppearanceSchema.optional(),
+      mobile: textResponsiveAppearanceSchema.optional(),
+    }).strict().optional(),
   }).strict().optional(),
+}).strict().superRefine((element, context) => {
+  const issue = validateTextFontTuple(element.appearance ?? {});
+  if (issue) context.addIssue({ code: "custom", message: issue, path: ["appearance"] });
+});
+
+export const accordionItemSchema = z.object({
+  id: elementIdSchema,
+  title: z.string().max(WEBSITE_ELEMENT_LIMITS.shortText),
+  content: z.string().refine((value) => Array.from(value).length <= WEBSITE_ELEMENT_LIMITS.text, `Content cannot exceed ${WEBSITE_ELEMENT_LIMITS.text} characters.`).transform(normalizeTextContent),
 }).strict();
+
+export const accordionElementSchema = z.object({
+  ...genericBlockShape,
+  type: z.literal("accordion"),
+  items: z.array(accordionItemSchema).max(WEBSITE_ELEMENT_LIMITS.accordionItems),
+}).strict().superRefine((element, context) => {
+  const seen = new Set<string>();
+  element.items.forEach((item, index) => {
+    if (seen.has(item.id)) context.addIssue({ code: "custom", path: ["items", index, "id"], message: "Accordion item IDs must be unique." });
+    seen.add(item.id);
+  });
+});
+
+export const scheduleItemSchema = z.object({
+  id: elementIdSchema,
+  time: z.string().regex(/^(?:|(?:[01]\d|2[0-3]):[0-5]\d)$/, "Time must use HH:mm format."),
+  title: z.string().max(WEBSITE_ELEMENT_LIMITS.shortText),
+  details: z.string().refine((value) => Array.from(value).length <= WEBSITE_ELEMENT_LIMITS.text, `Details cannot exceed ${WEBSITE_ELEMENT_LIMITS.text} characters.`).transform(normalizeTextContent),
+}).strict();
+
+export const scheduleElementSchema = z.object({
+  ...genericBlockShape,
+  type: z.literal("schedule"),
+  items: z.array(scheduleItemSchema).max(WEBSITE_ELEMENT_LIMITS.scheduleItems),
+}).strict().superRefine((element, context) => {
+  const seen = new Set<string>();
+  element.items.forEach((item, index) => {
+    if (seen.has(item.id)) context.addIssue({ code: "custom", path: ["items", index, "id"], message: "Schedule item IDs must be unique." });
+    seen.add(item.id);
+  });
+});
 
 export const imageElementSchema = z
   .object({
@@ -380,6 +430,8 @@ export const websiteLeafElementSchema = z.discriminatedUnion("type", [
   textElementSchema,
   richTextElementSchema,
   dateElementSchema,
+  accordionElementSchema,
+  scheduleElementSchema,
   imageElementSchema,
   mediaElementSchema,
   dividerElementSchema,
@@ -421,7 +473,7 @@ export const groupLayoutSchema = z.object({
   responsive: z.object({ tablet: groupLayoutOverrideSchema.optional(), mobile: groupLayoutOverrideSchema.optional() }).strict().optional(),
 }).strict();
 
-const groupLeafElementSchema = z.discriminatedUnion("type", [textElementSchema, richTextElementSchema, dateElementSchema, dividerElementSchema, mediaElementSchema]);
+const groupLeafElementSchema = z.discriminatedUnion("type", [textElementSchema, richTextElementSchema, dateElementSchema, accordionElementSchema, scheduleElementSchema, dividerElementSchema, mediaElementSchema]);
 const nestedCompositionGroupSchema = z.object({ ...genericBlockShape, type: z.literal("compositionGroup"), children: z.array(groupLeafElementSchema).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional() }).strict();
 export const compositionGroupSchema = z.object({ ...genericBlockShape, type: z.literal("compositionGroup"), children: z.array(z.union([groupLeafElementSchema, nestedCompositionGroupSchema])).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional() }).strict().superRefine((group, context) => addDuplicateIdIssues([group], context));
 

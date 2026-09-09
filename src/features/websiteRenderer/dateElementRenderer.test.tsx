@@ -16,10 +16,29 @@ describe("Date block formatting", () => {
   });
 
   it("applies authored style, alignment, and color", () => {
-    const html = renderToStaticMarkup(<DateElementRenderer element={{ id: "date", type: "date", editorName: "Date 1", appearance: { format: "short", alignment: "end", textStyle: "body", colorId: "accent" } }} eventDate="2026-12-22" mode="public" templateKey="classic-filipiniana-v1" library={library} context={context} />);
+    const html = renderToStaticMarkup(<DateElementRenderer element={{ id: "date", type: "date", editorName: "Date 1", appearance: { format: "short", alignment: "end", textStyle: "body", colorId: "accent" } }} eventDate="2026-12-22" mode="public" viewport="desktop" templateKey="classic-filipiniana-v1" library={library} context={context} />);
     expect(html).toContain("Dec 22, 2026");
     expect(html).toContain("text-align:end");
+    expect(html).toContain("display:block");
     expect(html).toContain("font-size:1rem");
     expect(html).toContain("color:#abcdef");
+  });
+
+  it("uses live color preview only in editor mode", () => {
+    const element = { id: "date", type: "date", editorName: "Date 1", appearance: { colorId: "accent" } } as const;
+    const editor = renderToStaticMarkup(<DateElementRenderer element={element} eventDate="2026-12-22" mode="editor" viewport="desktop" previewColor="#fedcba" templateKey="classic-filipiniana-v1" library={library} context={context} />);
+    const published = renderToStaticMarkup(<DateElementRenderer element={element} eventDate="2026-12-22" mode="public" viewport="desktop" previewColor="#fedcba" templateKey="classic-filipiniana-v1" library={library} context={context} />);
+    expect(editor).toContain("color:#fedcba");
+    expect(published).toContain("color:#abcdef");
+    expect(published).not.toContain("#fedcba");
+  });
+
+  it("uses shared typography fields and responsive overrides", () => {
+    const html = renderToStaticMarkup(<DateElementRenderer element={{ id: "date", type: "date", editorName: "Date 1", appearance: { fontSize: "l", fontWeight: 700, lineHeight: "relaxed", letterSpacing: "wide", responsive: { mobile: { fontSize: "s", alignment: "center" } } } }} eventDate="2026-12-22" mode="public" viewport="mobile" templateKey="classic-filipiniana-v1" library={library} context={context} />);
+    expect(html).toContain("font-size:0.875rem");
+    expect(html).toContain("font-weight:700");
+    expect(html).toContain("line-height:1.75");
+    expect(html).toContain("letter-spacing:0.08em");
+    expect(html).toContain("text-align:center");
   });
 });

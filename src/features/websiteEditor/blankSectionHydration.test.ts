@@ -41,4 +41,13 @@ describe('repeatable Blank Section hydration', () => {
   it('does not recognize removed Dress Code content as a canonical Section contract', () => {
     expect(validateSectionContent('dressCode', { heading: 'Attire', description: 'Formal' }).success).toBe(false)
   })
+
+  it('does not recognize Date as a Section content contract', () => {
+    expect(validateSectionContent('date', { heading: 'When', description: 'At noon' }).success).toBe(false)
+  })
+
+  it('rejects FAQ as a Section type during content validation and API hydration', () => {
+    expect(validateSectionContent('faq', { heading: 'Questions', items: [] }).success).toBe(false)
+    expect(() => normalizeWebsiteDraftFromApi(draft([{ ...blank('faq', 'FAQ'), type: 'faq', content: { heading: 'Questions', items: [] } }]))).toThrow()
+  })
 })

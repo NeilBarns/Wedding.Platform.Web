@@ -9,14 +9,15 @@ import type { TemplateDesignLibrary } from "../websiteCapabilities/types";
 vi.mock("react", async (original) => ({ ...await original<typeof import("react")>(), useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot() }));
 const library = { colors: [{ id: "accent", displayName: "Accent", value: "#123456" }], fontFamilies: [], fontRecommendations: { heading: [], body: [], accent: [] }, palettePresets: [], typographyPresets: [] } as unknown as TemplateDesignLibrary;
 const context = { headingFontId: "", bodyFontId: "", headingColorId: "accent", bodyColorId: "accent", accentColorId: "accent" };
-const elements: Extract<WebsiteLeafElement, { type: "divider" | "text" | "richText" }>[] = [
+const elements: Extract<WebsiteLeafElement, { type: "divider" | "text" | "richText" | "date" }>[] = [
   { id: "same", editorName: "Divider 1", type: "divider" },
   { id: "same", editorName: "Text 1", type: "text", text: "Text" },
   { id: "same", editorName: "Rich Text 1", type: "richText", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "Rich text" }] }] } },
+  { id: "same", editorName: "Date 1", type: "date" },
 ];
 it.each(elements.flatMap((element) => [undefined, "accent", "project-color-existing"].map((colorId) => ({ ...element, appearance: { colorId } }))))("$type previews only the targeted editor Section, preserves public output, and restores canonical geometry", (element) => {
   const store = createColorPreviewStore();
-  const render = (mode: "editor" | "public", sectionId = "section") => renderToStaticMarkup(<ColorPreviewContext value={store}><WebsiteLeafElementRenderer element={element} mode={mode} sectionId={sectionId} viewport="desktop" templateKey="classic-filipiniana-v1" library={library} projectColors={[{ id: "project-color-existing", value: "#FEDCBA" }]} context={context} /></ColorPreviewContext>);
+  const render = (mode: "editor" | "public", sectionId = "section") => renderToStaticMarkup(<ColorPreviewContext value={store}><WebsiteLeafElementRenderer element={element} eventDate="2026-12-22" mode={mode} sectionId={sectionId} viewport="desktop" templateKey="classic-filipiniana-v1" library={library} projectColors={[{ id: "project-color-existing", value: "#FEDCBA" }]} context={context} /></ColorPreviewContext>);
   const saved = JSON.stringify(element);
   const before = render("editor");
   const publicBefore = render("public");

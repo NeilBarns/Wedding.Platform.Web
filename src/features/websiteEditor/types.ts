@@ -8,7 +8,6 @@ export type SectionDesignDefaults = ContextDefaultsIntent
 export type SectionMedia = { assetId: string; focalPoint?: { x: number; y: number }; zoom?: number } | null
 type WithMedia = { media?: SectionMedia }
 export type HeroContent = { headline: string; subheadline: string } & WithMedia
-export type DateContent = { heading: string; description: string; childFlow?: SectionChildFlow }
 export type StoryBlock = NarrativeBlockElement
 export type StoryMediaFraming = { focalPoint?: { x: number; y: number }; zoom?: number }
 export type StoryHeaderField = 'eyebrow' | 'heading' | 'intro'
@@ -23,7 +22,6 @@ export type PeoplePerson = { id: string; name: string; role?: string | null; med
 export type PeopleGroup = { id: string; name: string; people: PeoplePerson[] }
 export type PeopleContent = { heading: string; groups: PeopleGroup[] }
 export type GalleryContent = { heading: string; items: [] }
-export type FaqContent = { heading: string; items: Array<{ question: string; answer: string }> }
 export type RsvpContent = { heading: string; description: string; buttonLabel: string }
 export type BlankContent = { childFlow: SectionChildFlow }
 
@@ -130,13 +128,11 @@ export type WebsiteSectionAppearanceOptions = {
 
 export type WebsiteSection =
   | SectionBase<'hero', HeroContent>
-  | SectionBase<'date', DateContent>
   | SectionBase<'story', StoryContent>
   | SectionBase<'schedule', ScheduleContent>
   | SectionBase<'venue', VenueContent>
   | SectionBase<'people', PeopleContent>
   | SectionBase<'gallery', GalleryContent>
-  | SectionBase<'faq', FaqContent>
   | SectionBase<'rsvp', RsvpContent>
   | SectionBase<'blank', BlankContent>
   | SectionBase<string, Record<string, unknown>>

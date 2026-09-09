@@ -8,7 +8,7 @@ import { validateSectionContent } from "../websiteEditor/schemas";
 function content(element: unknown, depth: number) {
   let root = element;
   for (let index = 0; index < depth; index++) root = { id: `group-${index}`, type: "compositionGroup", editorName: `Group ${index + 1}`, children: [root] };
-  return { heading: "When", description: "Details", childFlow: { elements: [root], order: [{ kind: "specialized", key: "content" }, { kind: "element", id: depth ? `group-${depth - 1}` : "divider-1" }] } };
+  return { childFlow: { elements: [root], order: [{ kind: "element", id: depth ? `group-${depth - 1}` : "divider-1" }] } };
 }
 
 describe("Divider canonical contract (mirrored API fixtures)", () => {
@@ -21,14 +21,14 @@ describe("Divider canonical contract (mirrored API fixtures)", () => {
   describe.each([0, 1, 2])("template validation at Group depth %s", (depth) => {
     it.each(fixtures.templateCases)("$name", ({ element, templateKey, valid }) => {
       const candidate = content(element, depth);
-      const parsed = validateSectionContent("date", candidate, templateKey);
+      const parsed = validateSectionContent("blank", candidate, templateKey);
       expect(parsed.success).toBe(valid);
       if (parsed.success) expect(parsed.data).toEqual(candidate);
     });
 
     it("preserves the complete canonical fixture through JSON hydration", () => {
       const candidate = content(fixtures.schemaCases.find(({ name }) => name === "complete")!.element, depth);
-      const parsed = validateSectionContent("date", JSON.parse(JSON.stringify(candidate)), "classic-filipiniana-v1");
+      const parsed = validateSectionContent("blank", JSON.parse(JSON.stringify(candidate)), "classic-filipiniana-v1");
       expect(parsed.success).toBe(true);
       if (parsed.success) expect(parsed.data).toEqual(candidate);
     });

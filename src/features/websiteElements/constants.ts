@@ -3,6 +3,8 @@ export const WEBSITE_ELEMENT_TYPES = [
   'text',
   'richText',
   'date',
+  'accordion',
+  'schedule',
   'image',
   'media',
   'divider',
@@ -38,6 +40,8 @@ export const WEBSITE_ELEMENT_LIMITS = {
   shortText: 255,
   text: 5000,
   richText: 20000,
+  accordionItems: 50,
+  scheduleItems: 100,
   narrativeBody: 10000,
   externalUrl: 2048,
 } as const

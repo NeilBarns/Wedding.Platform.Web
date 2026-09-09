@@ -1,6 +1,4 @@
 import type {
-  DateContent,
-  FaqContent,
   GalleryContent,
   HeroContent,
   PeopleContent,
@@ -13,13 +11,10 @@ import type {
   VenueContent,
   WebsiteSection,
 } from "../../websiteEditor/types";
-import { formatDateOnly } from "../formatDateOnly";
 import type { WebsiteRendererProps } from "../types";
 import { ZoomedMediaImage } from "../ZoomedMediaImage";
 import { storyElementMedia } from "../../websiteEditor/storyMedia";
 import {
-  ClassicFilipinianaDate,
-  ClassicFilipinianaFaq,
   ClassicFilipinianaGallery,
   ClassicFilipinianaHero,
   ClassicFilipinianaPeople,
@@ -43,7 +38,6 @@ import type { ElementCapability } from "../../websiteCapabilities/types";
 import { resolveEffectiveStorySequence } from "../storyEffectiveSequence";
 import { resolveStoryRenderItems } from "../storyRenderSequence";
 import { SectionDecorativeLayers } from "../SectionDecorativeLayers";
-import { SectionChildFlowRenderer } from "../SectionChildFlowRenderer";
 import { BlankSectionRenderer } from "../BlankSectionRenderer";
 import { isBlankSectionRenderable } from "../blankSectionRenderability";
 
@@ -279,9 +273,6 @@ function Section({
       {content}
     </ClassicMediaPresentation>
   );
-  const childFlow = (flow: DateContent["childFlow"]) => flow?.elements.length
-    ? (specialized: React.ReactNode) => <SectionChildFlowRenderer media={media} eventDate={eventDate} sectionId={section.id} flow={flow} specialized={specialized} mode={mode} viewport={targetViewport} templateKey="classic-filipiniana-v1" library={library} projectColors={projectColors} context={section.resolvedDesignContext} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />
-    : undefined;
   switch (section.type) {
     case "blank":
       return <BlankSectionRenderer section={section} mode={mode} viewport={targetViewport} templateKey="classic-filipiniana-v1" library={library} projectColors={projectColors} media={media} eventDate={eventDate} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} />;
@@ -293,17 +284,6 @@ function Section({
           content={section.content as HeroContent}
         />,
       );
-    case "date": {
-      const content = section.content as DateContent;
-      return (
-        <ClassicFilipinianaDate
-          sectionId={section.id}
-          date={formatDateOnly(eventDate)}
-          content={content}
-          renderFlow={childFlow(content.childFlow)}
-        />
-      );
-    }
     case "story": {
       const content = section.content as StoryContent;
       const contract = narrativeCapability?.narrativeBlock?.composition;
@@ -419,13 +399,6 @@ function Section({
           sectionId={section.id}
           content={section.content as GalleryContent}
           mode={mode}
-        />
-      );
-    case "faq":
-      return (
-        <ClassicFilipinianaFaq
-          sectionId={section.id}
-          content={section.content as FaqContent}
         />
       );
     case "rsvp":

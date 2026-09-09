@@ -7,10 +7,7 @@ import { resolveTextResponsiveAppearance } from "../websiteElements/text";
 import type { ResponsiveViewport } from "../websiteEditor/types";
 import { fontStackForTemplate } from "../websiteTemplates/design/catalogs";
 import { TextCanvasEditor } from "../websiteEditor/components/TextCanvasEditor";
-
-const fontSizes = { xs: "0.75rem", s: "0.875rem", m: "1rem", l: "1.5rem", xl: "2.25rem" } as const;
-const lineHeights = { tight: 1.2, normal: 1.5, relaxed: 1.75 } as const;
-const letterSpacings = { tight: "-0.02em", normal: "0em", wide: "0.08em" } as const;
+import { elementFontSizes, elementLetterSpacings, elementLineHeights } from "./elementTypography";
 
 export type TextElementRendererProps = {
   element: TextElement;
@@ -37,11 +34,11 @@ export function TextElementRenderer({ element, viewport, templateKey, library, p
     padding: 0,
     overflowWrap: "anywhere",
     fontFamily: fontFamilyId ? fontStackForTemplate(templateKey, fontFamilyId) : "inherit",
-    fontSize: fontSizes[responsive.fontSize],
+    fontSize: elementFontSizes[responsive.fontSize],
     fontWeight: appearance.fontWeight ?? 400,
     fontStyle: appearance.italic ? "italic" : "normal",
-    lineHeight: lineHeights[appearance.lineHeight ?? "normal"],
-    letterSpacing: letterSpacings[appearance.letterSpacing ?? "normal"],
+    lineHeight: elementLineHeights[appearance.lineHeight ?? "normal"],
+    letterSpacing: elementLetterSpacings[appearance.letterSpacing ?? "normal"],
     textAlign: responsive.alignment,
     color: previewColor ?? resolveWebsiteColor(colorId, library, projectColors) ?? "inherit",
     textDecorationLine: decorations,

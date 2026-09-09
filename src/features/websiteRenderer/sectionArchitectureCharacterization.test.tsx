@@ -3,8 +3,6 @@ import { describe, expect, it } from "vitest";
 import type { WebsiteDraft, WebsiteSection } from "../websiteEditor/types";
 import { ClassicFilipinianaRenderer } from "./templates/ClassicFilipinianaRenderer";
 import { ModernEditorialRenderer } from "./templates/ModernEditorialRenderer";
-import { resolveModernEditorialSectionAppearance } from "./templates/modernEditorial/appearance";
-import { resolveClassicFilipinianaSectionAppearance } from "./templates/classicFilipiniana/appearance";
 
 const event = { id: "event", name: "Alex & Sam", eventDate: "2027-01-02", type: "wedding" as const };
 const appearance = {
@@ -222,131 +220,9 @@ describe("Section renderer boundary", () => {
   it.each(["classic", "modern"] as const)("renders %s Sections in persisted array order", (template) => {
     const markup = render(template, [
       section("rsvp", "second", { heading: "RSVP", description: "", buttonLabel: "Reply" }),
-      section("date", "first", { heading: "Date", description: "" }),
+      section("schedule", "first", { heading: "Schedule", items: [] }),
     ]);
     expect(markup.indexOf('data-preview-section="second"')).toBeLessThan(markup.indexOf('data-preview-section="first"'));
-  });
-
-  it("keeps Modern inherited appearance independent of persisted order", () => {
-    const library = { colors: [], fontFamilies: [], palettePresets: [], typographyPresets: [] } as never;
-    const first = resolveModernEditorialSectionAppearance("date", appearance, library, []);
-    expect(first.sectionClass).toContain("bg-[var(--me-surface)]");
-    expect(first.sectionClass).toContain("text-left");
-  });
-
-  it("keeps Classic inherited background independent of persisted order", () => {
-    const library = { colors: [], fontFamilies: [], palettePresets: [], typographyPresets: [] } as never;
-    const design = { colorTheme: "terracotta", fontSet: "editorial", artStyle: "clean", projectDefaults: {}, customColors: [] };
-    const before = resolveClassicFilipinianaSectionAppearance("date", design, appearance, library, []);
-    expect(before.sectionClass).toContain("bg-[color-mix(in_srgb,var(--cf-theme-surface)_58%,var(--cf-theme-page))]");
-  });
-
-  it.each(["classic", "modern"] as const)("keeps %s Date markup identical for absent and specialized-only child flow", (template) => {
-    for (const [type, content] of [
-      ["date", { heading: "When", description: "At noon" }],
-    ] as const) {
-      const withoutFlow = render(template, [section(type, type, content)]);
-      const specializedOnly = render(template, [section(type, type, { ...content, childFlow: { elements: [], order: [{ kind: "specialized", key: "content" }] } })]);
-      expect(specializedOnly).toBe(withoutFlow);
-      expect(withoutFlow).not.toContain("data-section-root-flow");
-    }
-  });
-
-  it.each(["classic", "modern"] as const)("uses a gapless %s root flow and authoritative Text/specialized/Text order", (template) => {
-    const childFlow = {
-      elements: [
-        { id: "before", type: "text", editorName: "Text 1", text: "Before content", appearance: {} },
-        { id: "after", type: "text", editorName: "Text 1", text: "After content", appearance: {} },
-      ],
-      order: [
-        { kind: "element", id: "before" },
-        { kind: "specialized", key: "content" },
-        { kind: "element", id: "after" },
-      ],
-    };
-    const markup = render(template, [section("date", "date", { heading: "Specialized content", description: "At noon", childFlow })]);
-    expect(markup).toContain("data-section-root-flow");
-    expect(markup).toContain('data-section-root-flow="true" class="flex flex-col"');
-    expect(markup).not.toMatch(/data-section-root-flow="true" class="[^"]*\bgap-/);
-    expect(markup.indexOf("Before content")).toBeLessThan(markup.indexOf("Specialized content"));
-    expect(markup.indexOf("Specialized content")).toBeLessThan(markup.indexOf("After content"));
-    expect(markup).toMatch(/style="[^"]*margin:0;padding:0;/);
-  });
-
-  it.each(["classic", "modern"] as const)("isolates %s emphasis spacing from Date generic children", (template) => {
-    const childFlow = { elements: [{ id: "group", type: "compositionGroup", editorName: "Group 1", children: [], layout: { width: "full", padding: { top: "none", right: "none", bottom: "none", left: "none" } } }], order: [{ kind: "specialized", key: "content" }, { kind: "element", id: "group" }] };
-    const emphasized = { ...section("date", "date", { heading: "Date", description: "At noon", childFlow }), appearance: { ...appearance, emphasis: "featured" as const } };
-    const markup = render(template, [emphasized]);
-    expect(markup).toContain("data-section-specialized-content");
-    expect(markup).toContain("data-section-generic-child");
-    expect(markup).not.toContain("[&amp;_[data-section-content]]:py-");
-  });
-
-  it.each(["classic", "modern"] as const)("keeps %s Date ordering authoritative at every viewport", (template) => {
-    const cases = [
-      {
-        order: [{ kind: "specialized", key: "content" }, { kind: "element", id: "a" }, { kind: "element", id: "b" }],
-        expected: ["Specialized", "First", "Second"],
-      },
-      {
-        order: [{ kind: "element", id: "a" }, { kind: "element", id: "b" }, { kind: "specialized", key: "content" }],
-        expected: ["First", "Second", "Specialized"],
-      },
-    ] as const;
-    for (const type of ["date"] as const) {
-      for (const viewport of ["mobile", "tablet", "desktop"] as const) {
-        for (const { order, expected } of cases) {
-          const markup = render(template, [section(type, type, {
-            heading: "Specialized",
-            description: "Formal",
-            childFlow: {
-              elements: [{ id: "a", type: "text", editorName: "Text 1", text: "First", appearance: {} }, { id: "b", type: "text", editorName: "Text 1", text: "Second", appearance: {} }],
-              order,
-            },
-          })], viewport);
-          const positions = expected.map((value) => markup.indexOf(value));
-          expect(positions).toEqual([...positions].sort((a, b) => a - b));
-        }
-      }
-    }
-  });
-
-  it.each(["classic", "modern"] as const)("keeps %s Date specialized width separate from Group width and padding", (template) => {
-    for (const type of ["date"] as const) {
-      const childFlow = {
-        elements: [{
-          id: "group",
-          type: "compositionGroup", editorName: "Group 1",
-          children: [],
-          layout: { width: "full", gap: "l", padding: { top: "l", right: "s", bottom: "m", left: "xs" } },
-        }],
-        order: [{ kind: "specialized", key: "content" }, { kind: "element", id: "group" }],
-      };
-      const markup = render(template, [section(type, type, { heading: "Specialized", description: "Formal", childFlow })]);
-      const specializedTag = markup.match(/<div data-section-specialized-content[^>]*>/)?.[0] ?? "";
-      const genericTag = markup.match(/<div data-section-generic-child[^>]*>/)?.[0] ?? "";
-      expect(specializedTag).toMatch(/max-w-/);
-      expect(specializedTag).toContain("px-5");
-      expect(genericTag).not.toMatch(/max-w-|\b(?:p|px|py|pt|pr|pb|pl)-/);
-      expect(markup).toContain("width:100%;max-width:100%");
-      expect(markup).toContain("padding-top:1.5rem");
-      expect(markup).toContain("padding-right:0.5rem");
-    }
-  });
-
-  it.each(["classic", "modern"] as const)("supports independent %s Date heading/body alignment", (template) => {
-    for (const type of ["date"] as const) {
-      for (const alignment of ["left", "center", "right"] as const) {
-        const value = section(type, type, { heading: "Heading", description: "Body" });
-        value.appearance = { ...appearance, headingAlignment: alignment, bodyAlignment: alignment };
-        const markup = render(template, [value]);
-        const surfaceTag = markup.match(/<section[^>]*data-preview-section[^>]*>/)?.[0] ?? "";
-        expect(surfaceTag).toContain(`[&amp;_[data-section-specialized-content]_[data-section-heading]]:text-${alignment}`);
-        expect(surfaceTag).toContain(`[&amp;_[data-section-specialized-content]_[data-section-body]]:text-${alignment}`);
-        expect(surfaceTag).not.toContain('[&amp;_[data-section-heading]]');
-        expect(surfaceTag).not.toContain('[&amp;_[data-section-body]]');
-      }
-    }
   });
 
   it.each(["classic", "modern"] as const)("isolates every supported %s Blank generic child kind", (template) => {
@@ -368,39 +244,6 @@ describe("Section renderer boundary", () => {
     expect(markup.match(/data-section-generic-child/g)).toHaveLength(elements.length);
     for (const element of elements) expect(markup).toContain(`data-section-child-element="${element.id}"`);
     expect(markup.indexOf("Plain text")).toBeLessThan(markup.indexOf("Rich text"));
-  });
-
-  it.each(["classic", "modern"] as const)("keeps %s Date long content wrap-safe in editor and public output", (template) => {
-    const longText = "A-very-long-unbroken-celebration-detail-".repeat(16);
-    for (const type of ["date"] as const) {
-      for (const mode of ["editor", "public"] as const) {
-        const markup = render(template, [section(type, type, { heading: longText, description: longText })], "mobile", mode);
-        const specializedTag = markup.match(/<div data-section-specialized-content[^>]*>/)?.[0] ?? "";
-        expect(markup).toContain("break-words");
-        expect(specializedTag).not.toContain("100vw");
-        expect(specializedTag).not.toMatch(/\bwhitespace-nowrap\b/);
-      }
-    }
-  });
-
-  it.each(["classic", "modern"] as const)("preserves %s Date flow structure between editor and public output", (template) => {
-    for (const type of ["date"] as const) {
-      const childFlow = {
-        elements: [{ id: "before", type: "text", editorName: "Text 1", text: "Before", appearance: {} }, { id: "after", type: "text", editorName: "Text 1", text: "After", appearance: {} }],
-        order: [{ kind: "element", id: "before" }, { kind: "specialized", key: "content" }, { kind: "element", id: "after" }],
-      };
-      for (const viewport of ["mobile", "tablet", "desktop"] as const) {
-        const publicMarkup = render(template, [section(type, type, { heading: "Specialized", description: "Body", childFlow })], viewport, "public");
-        const editorMarkup = render(template, [section(type, type, { heading: "Specialized", description: "Body", childFlow })], viewport, "editor");
-        for (const markup of [publicMarkup, editorMarkup]) {
-          expect(markup).toContain("data-section-root-flow");
-          expect(markup).toContain("data-section-specialized-content");
-          expect(markup.match(/data-section-generic-child/g)).toHaveLength(2);
-          expect(markup.indexOf("Before")).toBeLessThan(markup.indexOf("Specialized"));
-          expect(markup.indexOf("Specialized")).toBeLessThan(markup.indexOf("After"));
-        }
-      }
-    }
   });
 
   it.each(["classic", "modern"] as const)("uses canonical, safe %s Schedule tracks and responsive rhythm", (template) => {

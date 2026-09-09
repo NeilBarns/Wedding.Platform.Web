@@ -14,7 +14,7 @@ vi.mock("./decorativeSourceAvailability", async (importOriginal) => ({
 const props = {
   sectionId: "date-section",
   flow: { elements: [{ id: "text-1", type: "text" as const, editorName: "Text 1", text: "Click me" }], order: [{ kind: "specialized" as const, key: "content" as const }, { kind: "element" as const, id: "text-1" }] },
-  specialized: <div>Date</div>, viewport: "desktop" as const, templateKey: "classic-filipiniana-v1",
+  specialized: <div>Section content</div>, viewport: "desktop" as const, templateKey: "classic-filipiniana-v1",
   library: { colors: [], fontFamilies: [], fontRecommendations: { heading: [], body: [], accent: [] }, palettePresets: [], typographyPresets: [] } as never,
   projectColors: [], context: null,
 };

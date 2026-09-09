@@ -15,14 +15,13 @@ const childFlow = (groupId: string, childId: string) => ({
     children: [{ id: childId, type: "text" as const, editorName: "Text 1", text: childId }],
   }],
   order: [
-    { kind: "specialized" as const, key: "content" as const },
     { kind: "element" as const, id: groupId },
   ],
 });
 
 const sections = [
-  { id: "section-a", type: "date", displayName: "Section A", isEnabled: true, content: { heading: "A", description: "A", childFlow: childFlow("group-a", "child-a") } },
-  { id: "section-b", type: "date", displayName: "Section B", isEnabled: false, content: { heading: "B", description: "B", childFlow: childFlow("group-b", "nested-child-b") } },
+  { id: "section-a", type: "blank", displayName: "Section A", editorName: "Section A", isEnabled: true, content: { childFlow: childFlow("group-a", "child-a") } },
+  { id: "section-b", type: "blank", displayName: "Section B", editorName: "Section B", isEnabled: false, content: { childFlow: childFlow("group-b", "nested-child-b") } },
 ] as unknown as WebsiteSection[];
 
 const renderNavigator = (selectedId: string, childSectionId?: string, childId?: string) => renderToStaticMarkup(
@@ -34,7 +33,7 @@ const renderNavigator = (selectedId: string, childSectionId?: string, childId?: 
     workingStory={null}
     workingChildFlow={null}
     selectedChild={childSectionId && childId ? { sectionId: childSectionId, reference: { kind: "element", id: childId } } : null}
-    genericChildTypesBySectionType={{ date: ["text", "richText", "date", "divider", "media", "compositionGroup"] }}
+    genericChildTypesBySectionType={{ blank: ["text", "richText", "date", "accordion", "divider", "media", "compositionGroup"] }}
     pending={false}
     onSelect={vi.fn()}
     onNarrativeBlockSelect={vi.fn()}

@@ -176,82 +176,6 @@ function ScheduleEditor(props: EditorProps) {
   );
 }
 
-function FaqEditor(props: EditorProps) {
-  const reveal = useRevealNewItem();
-  const items = Array.isArray(props.content.items)
-    ? (props.content.items as Array<Record<string, string>>)
-    : [];
-  function updateItem(index: number, field: string, value: string) {
-    props.onChange({
-      ...props.content,
-      items: items.map((item, current) =>
-        current === index ? { ...item, [field]: value } : item,
-      ),
-    });
-  }
-  function swap(index: number, target: number) {
-    const next = [...items];
-    [next[index], next[target]] = [next[target], next[index]];
-    props.onChange({ ...props.content, items: next });
-  }
-  return (
-    <EditorForm>
-      <TextField
-        label="Heading"
-        id={`${props.section.id}-heading`}
-        value={String(props.content.heading ?? "")}
-        onChange={(heading) => props.onChange({ ...props.content, heading })}
-      />
-      <ItemList
-        title="Questions"
-        onAdd={() => {
-          reveal.reveal(`faq-${items.length}`);
-          props.onChange({
-            ...props.content,
-            items: [...items, { question: "", answer: "" }],
-          });
-        }}
-      >
-        {items.map((item, index) => (
-          <div
-            className="rounded-xl border border-border bg-background p-3 xl:rounded-md"
-            key={index}
-            ref={reveal.register(`faq-${index}`)}
-          >
-            <TextField
-              label="Question"
-              id={`${props.section.id}-${index}-question`}
-              value={item.question}
-              onChange={(value) => updateItem(index, "question", value)}
-            />
-            <div className="mt-3">
-              <TextField
-                label="Answer"
-                id={`${props.section.id}-${index}-answer`}
-                value={item.answer}
-                multiline
-                onChange={(value) => updateItem(index, "answer", value)}
-              />
-            </div>
-            <ItemActions
-              label="FAQ item"
-              index={index}
-              length={items.length}
-              onRemove={() =>
-                props.onChange({
-                  ...props.content,
-                  items: items.filter((_, current) => current !== index),
-                })
-              }
-              onMove={(to) => swap(index, to)}
-            />
-          </div>
-        ))}
-      </ItemList>
-    </EditorForm>
-  );
-}
-
 function PeopleEditor(props: EditorProps) {
   const event = useEventWorkspace();
   const reveal = useRevealNewItem();
@@ -453,21 +377,6 @@ export function SectionEditor(props: EditorProps) {
           ]}
         />
       );
-    case "date":
-      return (
-        <SimpleEditor
-          {...props}
-          fields={[
-            { name: "heading", label: "Heading" },
-            {
-              name: "description",
-              label: "Description",
-              multiline: true,
-              note: "The event date is managed in Event settings.",
-            },
-          ]}
-        />
-      );
     case "story":
       return <StoryEditor {...props} />;
     case "schedule":
@@ -499,8 +408,6 @@ export function SectionEditor(props: EditorProps) {
           ]}
         />
       );
-    case "faq":
-      return <FaqEditor {...props} />;
     case "rsvp":
       return (
         <SimpleEditor

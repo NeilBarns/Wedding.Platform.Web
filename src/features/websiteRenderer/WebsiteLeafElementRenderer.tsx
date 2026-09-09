@@ -6,6 +6,8 @@ import { useWebsiteElementChange } from "./WebsiteElementChangeContext";
 import { DividerElementRenderer } from "./DividerElementRenderer";
 import { MediaElementRenderer } from "./MediaElementRenderer";
 import { DateElementRenderer } from "./DateElementRenderer";
+import { AccordionElementRenderer } from "./AccordionElementRenderer";
+import { ScheduleElementRenderer } from "./ScheduleElementRenderer";
 
 type Props = Omit<TextElementRendererProps, "element" | "editor" | "previewColor"> & { element: WebsiteLeafElement; mode?: "editor" | "public"; sectionId?: string; selected?: boolean; media?: import("../websiteEditor/types").WebsiteDraft["media"]; eventDate?: string | null };
 
@@ -17,6 +19,8 @@ export function WebsiteLeafElementRenderer({ element, mode = "public", sectionId
   if (element.type === "richText") return <RichTextElementRenderer previewColor={previewColor} element={element} editor={mode === "editor" && selected && sectionId && changes.onRichTextDocumentChange ? { onDocumentChange: (elementId, document) => changes.onRichTextDocumentChange?.(sectionId, elementId, document) } : undefined} {...context} />;
   if (element.type === "divider") return <DividerElementRenderer previewColor={previewColor} element={element} mode={mode} {...context} />;
   if (element.type === "media") return <MediaElementRenderer element={element} mode={mode} viewport={context.viewport} media={media} />;
-  if (element.type === "date") return <DateElementRenderer element={element} eventDate={eventDate} mode={mode} {...context} />;
+  if (element.type === "date") return <DateElementRenderer previewColor={previewColor} element={element} eventDate={eventDate} mode={mode} {...context} />;
+  if (element.type === "accordion") return <AccordionElementRenderer element={element} mode={mode} />;
+  if (element.type === "schedule") return <ScheduleElementRenderer element={element} mode={mode} templateKey={context.templateKey} />;
   return mode === "editor" ? <div data-unsupported-website-element role="status">Unsupported element: {element.type}</div> : null;
 }
