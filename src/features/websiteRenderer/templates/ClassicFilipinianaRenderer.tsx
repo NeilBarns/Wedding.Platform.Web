@@ -5,10 +5,8 @@ import type {
   ResolvedWebsiteMedia,
   ResponsiveViewport,
   RsvpContent,
-  ScheduleContent,
   SectionMedia,
   StoryContent,
-  VenueContent,
   WebsiteSection,
 } from "../../websiteEditor/types";
 import type { WebsiteRendererProps } from "../types";
@@ -19,10 +17,8 @@ import {
   ClassicFilipinianaHero,
   ClassicFilipinianaPeople,
   ClassicFilipinianaRsvp,
-  ClassicFilipinianaSchedule,
   ClassicFilipinianaStoryBlock,
   ClassicFilipinianaStoryHeader,
-  ClassicFilipinianaVenue,
 } from "./classicFilipiniana/sections";
 import { resolveClassicFilipinianaSectionAppearance } from "./classicFilipiniana/appearance";
 import { resolveClassicFilipinianaDesign } from "./classicFilipiniana/design";
@@ -368,20 +364,6 @@ function Section({
         </>
       );
     }
-    case "schedule":
-      return (
-        <ClassicFilipinianaSchedule
-          sectionId={section.id}
-          content={section.content as ScheduleContent}
-        />
-      );
-    case "venue":
-      return present(
-        <ClassicFilipinianaVenue
-          sectionId={section.id}
-          content={section.content as VenueContent}
-        />,
-      );
     case "people":
       return (
         <ClassicFilipinianaPeople
@@ -476,8 +458,6 @@ function ClassicMediaPresentation({
   const spacingValue = (side: "top" | "right" | "bottom" | "left") =>
     spacing?.[side] ?? "medium";
   const spacingClass = `${spacingValue("top") === "none" ? "" : spacingValue("top") === "small" ? "pt-2 sm:pt-3" : spacingValue("top") === "large" ? "pt-5 sm:pt-10" : "pt-3 sm:pt-6"} ${spacingValue("right") === "none" ? "" : spacingValue("right") === "small" ? "pr-2 sm:pr-3" : spacingValue("right") === "large" ? "pr-5 sm:pr-10" : "pr-3 sm:pr-6"} ${spacingValue("bottom") === "none" ? "" : spacingValue("bottom") === "small" ? "pb-2 sm:pb-3" : spacingValue("bottom") === "large" ? "pb-5 sm:pb-10" : "pb-3 sm:pb-6"} ${spacingValue("left") === "none" ? "" : spacingValue("left") === "small" ? "pl-2 sm:pl-3" : spacingValue("left") === "large" ? "pl-5 sm:pl-10" : "pl-3 sm:pl-6"}`;
-  const venueSpacingClass = `${spacingValue("top") === "none" ? "" : spacingValue("top") === "small" ? "pt-2 md:pt-3" : spacingValue("top") === "large" ? "pt-5 md:pt-8 xl:pt-10" : "pt-3 md:pt-5 xl:pt-6"} ${spacingValue("right") === "none" ? "" : spacingValue("right") === "small" ? "pr-2 md:pr-3" : spacingValue("right") === "large" ? "pr-5 md:pr-8 xl:pr-10" : "pr-3 md:pr-5 xl:pr-6"} ${spacingValue("bottom") === "none" ? "" : spacingValue("bottom") === "small" ? "pb-2 md:pb-3" : spacingValue("bottom") === "large" ? "pb-5 md:pb-8 xl:pb-10" : "pb-3 md:pb-5 xl:pb-6"} ${spacingValue("left") === "none" ? "" : spacingValue("left") === "small" ? "pl-2 md:pl-3" : spacingValue("left") === "large" ? "pl-5 md:pl-8 xl:pl-10" : "pl-3 md:pl-5 xl:pl-6"}`;
-  const effectiveSpacingClass = section.type === "venue" ? venueSpacingClass : spacingClass;
   const gapClass =
     contentGap === "tight"
       ? "gap-3 sm:gap-4"
@@ -486,8 +466,6 @@ function ClassicMediaPresentation({
         : contentGap === "generous"
           ? "gap-12 sm:gap-16"
           : "gap-6 sm:gap-8";
-  const venueGapClass = contentGap === "tight" ? "gap-3 md:gap-4 xl:gap-5" : contentGap === "spacious" ? "gap-7 md:gap-9 xl:gap-12" : contentGap === "generous" ? "gap-8 md:gap-12 xl:gap-16" : "gap-5 md:gap-6 xl:gap-8";
-  const effectiveGapClass = section.type === "venue" ? venueGapClass : gapClass;
   const frameClass =
     frame === "fineLine"
       ? "after:pointer-events-none after:absolute after:inset-1 after:z-10 after:border after:border-[var(--cf-border)] after:content-[''] after:[border-radius:inherit]"
@@ -532,7 +510,7 @@ function ClassicMediaPresentation({
       />
     ) : (
       <span
-        className={`block ${applySizing ? sizing : "w-full"} ${effectiveSpacingClass} ${wrapperClassName}`}
+        className={`block ${applySizing ? sizing : "w-full"} ${spacingClass} ${wrapperClassName}`}
       >
         <span className={`block w-full ${decorationSafeAreaClass}`}>
           <span
@@ -557,7 +535,6 @@ function ClassicMediaPresentation({
     typeof size === "string" ? size : "balanced",
     targetViewport,
   );
-  const effectiveSplitGrid = section.type === "venue" ? classicVenueSplitGrid(typeof placement === "string" ? placement : "left", typeof size === "string" ? size : "balanced", targetViewport) : splitGrid;
   const mediaOrder =
     placement === "right"
       ? semanticClass(targetViewport, "order-2", "order-2")
@@ -629,7 +606,7 @@ function ClassicMediaPresentation({
     );
   }
 
-  if (presentation === "immersive" || presentation === "scenic") {
+  if (presentation === "immersive") {
     const strength =
       section.appearance.overlayStrength ??
       controls?.overlayStrength?.default ??
@@ -770,127 +747,6 @@ function ClassicMediaPresentation({
       );
     return (
       <div className={`grid ${splitAlignment} ${gapClass} ${splitGrid}`}>
-        {media}
-        {copy}
-      </div>
-    );
-  }
-  if (presentation === "detailsFirst") {
-    if (section.type === "venue" && targetViewport === "mobile") {
-      const venueMedia = <div className="min-w-0">{image("aspect-[4/3] max-h-[24rem] object-cover", false, false)}</div>;
-      const mediaFirst = placement === "top" || placement === "left";
-      return <div data-venue-composition="stacked" className={`grid min-w-0 ${effectiveGapClass}`}>{mediaFirst ? <>{venueMedia}{children}</> : <>{children}{venueMedia}</>}</div>;
-    }
-    if (tabletContainedLayout)
-      return tabletVertical(
-        <div className={`mx-auto ${tabletContainedLayout.wrapperClass}`}>
-          {image(tabletContainedLayout.imageClass, false, false)}
-        </div>,
-      );
-    if (
-      targetViewport === "tablet" &&
-      (placement === "left" || placement === "right")
-    ) {
-      const columns = classicTabletSplitColumns(
-        placement,
-        typeof size === "string" ? size : "balanced",
-      );
-      const media = (
-        <div className="min-w-0 self-center">
-          {image("aspect-video", false, false)}
-        </div>
-      );
-      const copy = (
-        <div className="min-w-0 [&_[data-section-specialized-content]]:min-h-0 [&_[data-section-specialized-content]]:px-8 [&_[data-section-specialized-content]]:py-10">
-          {children}
-        </div>
-      );
-      return (
-        <div data-venue-composition={section.type === "venue" ? "split" : undefined} className={`grid min-w-0 ${columns} ${effectiveGapClass}`}>
-          {placement === "right" ? (
-            <>
-              {copy}
-              {media}
-            </>
-          ) : (
-            <>
-              {media}
-              {copy}
-            </>
-          )}
-        </div>
-      );
-    }
-    if (targetViewport === "mobile") {
-      const mobileWidth =
-        size === "compact"
-          ? "w-[78%]"
-          : size === "feature"
-            ? "w-full"
-            : "w-[90%]";
-      const media = (
-        <div className={`mx-auto ${mobileWidth}`}>
-          {image("aspect-video", false, false)}
-        </div>
-      );
-      return (
-        <div className={`grid ${gapClass}`}>
-          {placement === "top" ? (
-            <>
-              {media}
-              {children}
-            </>
-          ) : (
-            <>
-              {children}
-              {media}
-            </>
-          )}
-        </div>
-      );
-    }
-    if (
-      targetViewport === "desktop" &&
-      (placement === "left" || placement === "right")
-    ) {
-      const media = (
-        <div className={`min-w-0 self-center ${mediaOrder}`}>
-          {image("aspect-video", false, false)}
-        </div>
-      );
-      const copy = <div className={`min-w-0 ${copyOrder}`}>{children}</div>;
-      return (
-        <div data-venue-composition={section.type === "venue" ? "split" : undefined} className={`grid min-w-0 ${effectiveGapClass} ${effectiveSplitGrid}`}>
-          {media}
-          {copy}
-        </div>
-      );
-    }
-    const media = image(
-      "h-full min-h-[24rem] max-h-[42rem]",
-      false,
-      false,
-      mediaOrder,
-    );
-    const copy = <div className={copyOrder}>{children}</div>;
-    if (placement === "top" || placement === "bottom")
-      return (
-        <div className={`grid ${effectiveGapClass}`}>
-          {placement === "top" ? (
-            <>
-              {media}
-              {copy}
-            </>
-          ) : (
-            <>
-              {copy}
-              {media}
-            </>
-          )}
-        </div>
-      );
-    return (
-      <div className={`grid items-stretch ${effectiveGapClass} ${effectiveSplitGrid}`}>
         {media}
         {copy}
       </div>
@@ -1076,18 +932,6 @@ function classicSplitGrid(
   return viewport === "tablet" ? tablet : viewport === "desktop" ? desktop : "";
 }
 
-function classicVenueSplitGrid(placement: string, size: string, viewport: ResponsiveViewport): string {
-  if (viewport === "mobile") return "";
-  if (placement === "right") {
-    if (size === "compact") return viewport === "desktop" ? "grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]" : "grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]";
-    if (size === "feature") return viewport === "desktop" ? "grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]" : "grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]";
-    return viewport === "desktop" ? "grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]" : "grid-cols-[minmax(0,1fr)_minmax(0,1fr)]";
-  }
-  if (size === "compact") return viewport === "desktop" ? "grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]" : "grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]";
-  if (size === "feature") return viewport === "desktop" ? "grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]" : "grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]";
-  return viewport === "desktop" ? "grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]" : "grid-cols-[minmax(0,1fr)_minmax(0,1fr)]";
-}
-
 function classicTabletSplitColumns(placement: string, size: string): string {
   if (placement === "right") {
     if (size === "compact")
@@ -1097,7 +941,8 @@ function classicTabletSplitColumns(placement: string, size: string): string {
     return "grid-cols-[minmax(0,1fr)_minmax(0,1fr)]";
   }
 
-  if (size === "compact") return "grid-cols-[minmax(0,0.4fr)_minmax(0,0.6fr)]";
+  if (size === "compact")
+    return "grid-cols-[minmax(0,0.4fr)_minmax(0,0.6fr)]";
   if (size === "feature")
     return "grid-cols-[minmax(0,0.56fr)_minmax(0,0.44fr)]";
   return "grid-cols-[minmax(0,1fr)_minmax(0,1fr)]";
@@ -1173,22 +1018,14 @@ function resolveClassicTabletContainedLayout(
           : size === "feature"
             ? "w-full"
             : "w-[92%] max-w-3xl"
-        : sectionType === "venue" && presentation === "detailsFirst"
-          ? size === "compact"
-            ? "w-[78%] max-w-2xl"
-            : size === "feature"
-              ? "w-full"
-              : "w-[92%] max-w-3xl"
-          : undefined;
+        : undefined;
 
   if (!widths) return undefined;
 
   const imageClass =
     sectionType === "story" && presentation === "portraitStory"
       ? "aspect-[8/5]"
-      : sectionType === "venue"
-        ? "aspect-video"
-        : "aspect-[4/3]";
+      : "aspect-[4/3]";
 
   return { imageClass, wrapperClass: widths };
 }

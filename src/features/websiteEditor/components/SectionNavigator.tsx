@@ -399,6 +399,7 @@ function SortableSection(
               { type: "date" as const, label: "Date" },
               { type: "accordion" as const, label: "Accordion" },
               { type: "schedule" as const, label: "Schedule" },
+              { type: "people" as const, label: "People" },
               { type: "divider" as const, label: "Divider" },
               { type: "media" as const, label: "Media" },
               { type: "compositionGroup" as const, label: "Group" },

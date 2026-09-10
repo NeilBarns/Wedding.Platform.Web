@@ -12,6 +12,7 @@ import type {
   dateElementSchema,
   accordionElementSchema,
   scheduleElementSchema,
+  peopleElementSchema,
 } from './schemas'
 export type { NarrativeBlockElement } from './narrativeBlock'
 
@@ -27,3 +28,4 @@ export type MediaElement = z.infer<typeof mediaElementSchema>
 export type DateElement = z.infer<typeof dateElementSchema>
 export type AccordionElement = z.infer<typeof accordionElementSchema>
 export type ScheduleElement = z.infer<typeof scheduleElementSchema>
+export type PeopleElement = z.infer<typeof peopleElementSchema>

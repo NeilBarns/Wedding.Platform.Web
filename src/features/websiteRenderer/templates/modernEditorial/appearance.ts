@@ -30,7 +30,7 @@ export function resolveModernEditorialSectionAppearance(sectionType: string, app
 }
 
 function modernBackgroundDefault(sectionType: string): 'plain' | 'soft' {
-  return ['venue', 'people', 'rsvp'].includes(sectionType) ? 'soft' : 'plain'
+  return ['people', 'rsvp'].includes(sectionType) ? 'soft' : 'plain'
 }
 
 function resolveBackground(background: 'plain' | 'soft' | 'accent'): { className: string; style?: CSSProperties } {

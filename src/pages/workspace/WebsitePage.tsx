@@ -39,7 +39,7 @@ import { AppearancePanel } from "../../features/websiteEditor/components/Appeara
 import { BuilderSaveBar } from "../../features/websiteEditor/components/BuilderSaveBar";
 import { DesignPanel } from "../../features/websiteEditor/components/DesignPanel";
 import { DiscardChangesDialog } from "../../features/websiteEditor/components/DiscardChangesDialog";
-import { SectionEditor } from "../../features/websiteEditor/components/SectionEditor";
+import { PeopleEditor, SectionEditor } from "../../features/websiteEditor/components/SectionEditor";
 import { NarrativeBlockContentPanel } from "../../features/websiteEditor/components/NarrativeBlockContentPanel";
 import { NarrativeBlockAppearancePanel } from "../../features/websiteEditor/components/NarrativeBlockAppearancePanel";
 import { StorySingletonAppearancePanel } from "../../features/websiteEditor/components/StorySingletonAppearancePanel";
@@ -935,7 +935,7 @@ function WebsitePageContent() {
       workingStory={selected?.type === "story" && workingContent ? { sectionId: selected.id, content: workingContent as import("../../features/websiteEditor/types").StoryContent } : null}
       workingChildFlow={selected && workingContent && selected.type === "blank" ? { sectionId: selected.id, flow: (workingContent as { childFlow?: SectionChildFlow }).childFlow } : null}
       selectedChild={selectedChild}
-      genericChildTypesBySectionType={Object.fromEntries((draft.template?.capabilities.sections ?? []).map(({ id, elements }) => [id, elements?.allowedTypes.filter((type): type is import("../../features/websiteElements/blockIdentity").GenericBlockType => type === "text" || type === "richText" || type === "date" || type === "accordion" || type === "schedule" || type === "divider" || type === "media" || type === "compositionGroup") ?? []]))}
+      genericChildTypesBySectionType={Object.fromEntries((draft.template?.capabilities.sections ?? []).map(({ id, elements }) => [id, elements?.allowedTypes.filter((type): type is import("../../features/websiteElements/blockIdentity").GenericBlockType => type === "text" || type === "richText" || type === "date" || type === "accordion" || type === "schedule" || type === "people" || type === "divider" || type === "media" || type === "compositionGroup") ?? []]))}
       pending={listPending}
       onSelect={selectSection}
       onNarrativeBlockSelect={selectNarrativeBlock}
@@ -1897,6 +1897,7 @@ function SectionInspector({
   const selectedDate = selectedElement?.type === "date" ? selectedElement : null;
   const selectedAccordion = selectedElement?.type === "accordion" ? selectedElement : null;
   const selectedSchedule = selectedElement?.type === "schedule" ? selectedElement : null;
+  const selectedPeople = selectedElement?.type === "people" ? selectedElement : null;
   const selectedGroup = selectedElement?.type === "compositionGroup" ? selectedElement : null;
   const selectedDivider = selectedElement?.type === "divider" ? selectedElement : null;
   const selectedMedia = selectedElement?.type === "media" ? selectedElement : null;
@@ -1914,7 +1915,7 @@ function SectionInspector({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Heading className="xl:text-base!" level={2} variant="panel">
-              {selectedRichText ? "Rich Text" : selectedText ? "Text" : selectedDate ? "Date" : selectedAccordion ? "Accordion" : selectedSchedule ? "Schedule" : selectedGroup ? "Group" : selectedDivider ? "Divider" : selectedMedia ? "Media" : narrativeBlock ? "Narrative Block" : selected.type === "story" && storyHeaderFocus ? storyHeaderFocus.field === "eyebrow" ? "Eyebrow" : storyHeaderFocus.field === "heading" ? "Heading" : "Intro" : selected.editorName ?? selected.displayName}
+              {selectedRichText ? "Rich Text" : selectedText ? "Text" : selectedDate ? "Date" : selectedAccordion ? "Accordion" : selectedSchedule ? "Schedule" : selectedPeople ? "People" : selectedGroup ? "Group" : selectedDivider ? "Divider" : selectedMedia ? "Media" : narrativeBlock ? "Narrative Block" : selected.type === "story" && storyHeaderFocus ? storyHeaderFocus.field === "eyebrow" ? "Eyebrow" : storyHeaderFocus.field === "heading" ? "Heading" : "Intro" : selected.editorName ?? selected.displayName}
             </Heading>
             {!selected.isEnabled && (
               <span className="rounded-full bg-surface-muted px-2 py-1 text-[10px] text-foreground-muted">
@@ -1922,7 +1923,7 @@ function SectionInspector({
               </span>
             )}
           </div>
-          {showModeSwitch && !selectedRichText && !selectedText && !selectedDate && !selectedAccordion && !selectedSchedule && !selectedGroup && !selectedDivider && (
+          {showModeSwitch && !selectedRichText && !selectedText && !selectedDate && !selectedAccordion && !selectedSchedule && !selectedPeople && !selectedGroup && !selectedDivider && (
             <SegmentedControl
               value={panelMode}
               options={[
@@ -1949,6 +1950,8 @@ function SectionInspector({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><AccordionElementEditor element={selectedAccordion} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></div>
       ) : selectedSchedule && childFlow ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><ScheduleElementEditor element={selectedSchedule} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></div>
+      ) : selectedPeople && childFlow ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><PeopleEditor section={selected} content={selectedPeople} resolvedMedia={resolvedMedia} onMediaResolved={onMediaResolved} hideHeading itemMediaEnabled onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element as typeof selectedPeople) })} /></div>
       ) : selectedDate && childFlow && capabilities ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><ColorPreviewScopeContext key={selected.id} value={selected.id}><DateElementEditor element={selectedDate} viewport={targetViewport} templateKey={templateKey} library={capabilities.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></ColorPreviewScopeContext></div>
       ) : selectedRichText && childFlow && capabilities ? (
@@ -2028,7 +2031,7 @@ function SectionInspector({
                   onAddColor={onAddColor}
                   onChange={onAppearanceChange}
                 />
-                {selected.type !== "story" && <SectionDesignDefaultsPanel
+                {selected.type !== "story" && selected.type !== "blank" && <SectionDesignDefaultsPanel
                   appearance={workingAppearance}
                   capability={capability}
                   defaults={selected.designDefaults}

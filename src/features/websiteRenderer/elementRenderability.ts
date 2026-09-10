@@ -15,6 +15,7 @@ export function isElementRenderable(element: WebsiteElement, templateKey: string
   if (element.type === "date") return Boolean(formatDateOnly(eventDate));
   if (element.type === "accordion") return element.items.some((item) => Boolean(item.title.trim() && item.content.trim()));
   if (element.type === "schedule") return element.items.some((item) => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(item.time) && Boolean(item.title.trim()));
+  if (element.type === "people") return element.groups.some((group) => Boolean(group.name.trim()) && group.people.some((person) => Boolean(person.name.trim())));
   if (element.type === "compositionGroup" && element.children.length > 0) return element.children.some((child) => isElementRenderable(child, templateKey, mode, media, eventDate));
   return true;
 }

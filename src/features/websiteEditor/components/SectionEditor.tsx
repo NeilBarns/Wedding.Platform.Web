@@ -92,91 +92,7 @@ function StoryEditor(props: EditorProps) {
   return <EditorForm><SemanticTextContentField label={label} id={`${props.section.id}-${field}`} value={value} hidden={hidden} multiline={field === "intro"} onChange={(next) => props.onChange({ ...props.content, [field]: field === "heading" ? next : next || null })} /></EditorForm>;
 }
 
-function ScheduleEditor(props: EditorProps) {
-  const reveal = useRevealNewItem();
-  const items = Array.isArray(props.content.items)
-    ? (props.content.items as Array<Record<string, string>>)
-    : [];
-  function updateItem(index: number, field: string, value: string) {
-    props.onChange({
-      ...props.content,
-      items: items.map((item, current) =>
-        current === index ? { ...item, [field]: value } : item,
-      ),
-    });
-  }
-  function swap(index: number, target: number) {
-    const next = [...items];
-    [next[index], next[target]] = [next[target], next[index]];
-    props.onChange({ ...props.content, items: next });
-  }
-  return (
-    <EditorForm>
-      <TextField
-        label="Heading"
-        id={`${props.section.id}-heading`}
-        value={String(props.content.heading ?? "")}
-        onChange={(heading) => props.onChange({ ...props.content, heading })}
-      />
-      <ItemList
-        title="Schedule items"
-        onAdd={() => {
-          reveal.reveal(`schedule-${items.length}`);
-          props.onChange({
-            ...props.content,
-            items: [...items, { time: "", title: "", description: "" }],
-          });
-        }}
-      >
-        {items.map((item, index) => (
-          <div
-            className="rounded-xl border border-border bg-background p-3 xl:rounded-md"
-            key={index}
-            ref={reveal.register(`schedule-${index}`)}
-          >
-            <div className="grid gap-3 sm:grid-cols-2">
-              <TextField
-                label="Time"
-                id={`${props.section.id}-${index}-time`}
-                value={item.time}
-                onChange={(value) => updateItem(index, "time", value)}
-              />
-              <TextField
-                label="Title"
-                id={`${props.section.id}-${index}-title`}
-                value={item.title}
-                onChange={(value) => updateItem(index, "title", value)}
-              />
-            </div>
-            <div className="mt-3">
-              <TextField
-                label="Description"
-                id={`${props.section.id}-${index}-description`}
-                value={item.description}
-                multiline
-                onChange={(value) => updateItem(index, "description", value)}
-              />
-            </div>
-            <ItemActions
-              label="schedule item"
-              index={index}
-              length={items.length}
-              onRemove={() =>
-                props.onChange({
-                  ...props.content,
-                  items: items.filter((_, current) => current !== index),
-                })
-              }
-              onMove={(to) => swap(index, to)}
-            />
-          </div>
-        ))}
-      </ItemList>
-    </EditorForm>
-  );
-}
-
-function PeopleEditor(props: EditorProps) {
+export function PeopleEditor(props: EditorProps & { hideHeading?: boolean; itemMediaEnabled?: boolean }) {
   const event = useEventWorkspace();
   const reveal = useRevealNewItem();
   const [pickerPersonId, setPickerPersonId] = useState<string | null>(null);
@@ -194,7 +110,12 @@ function PeopleEditor(props: EditorProps) {
   };
 
   return <EditorForm>
-    <TextField label="Heading" id={`${props.section.id}-heading`} value={String(content.heading ?? "")} onChange={(heading) => props.onChange({ ...props.content, heading })} />
+    {!props.hideHeading && <TextField label="Heading" id={`${props.section.id}-heading`} value={String(content.heading ?? "")} onChange={(heading) => props.onChange({ ...props.content, heading })} />}
+    {props.hideHeading && <label className="block text-sm font-medium">Presentation
+      <select className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm" value={(props.content as { appearance?: { presentation?: string } }).appearance?.presentation ?? "portraits"} onChange={(event) => props.onChange({ ...props.content, appearance: { presentation: event.target.value } })}>
+        <option value="portraits">Portraits</option><option value="cards">Cards</option><option value="minimal">Minimal</option><option value="namesOnly">Names only</option>
+      </select>
+    </label>}
     <ItemList title="Groups" onAdd={() => { const id = createSemanticId("group"); reveal.reveal(`group-${id}`); changeGroups([...groups, { id, name: "New group", people: [] }]); }}>
       {groups.map((group, groupIndex) => <div className="rounded-xl border border-border bg-background p-3 xl:rounded-md" key={group.id} ref={reveal.register(`group-${group.id}`)}>
         <TextField label="Group name" id={`${props.section.id}-${group.id}-name`} value={group.name} onChange={(name) => updateGroup(groupIndex, { name })} />
@@ -203,7 +124,7 @@ function PeopleEditor(props: EditorProps) {
             {group.people.map((person, personIndex) => <div className="rounded-md border border-border bg-surface p-3" key={person.id} ref={reveal.register(`person-${person.id}`)}>
               <TextField label="Name" id={`${props.section.id}-${person.id}-name`} value={person.name} onChange={(name) => updateGroup(groupIndex, { people: group.people.map((item, current) => current === personIndex ? { ...item, name } : item) })} />
               <div className="mt-3"><TextField label="Role or title (optional)" id={`${props.section.id}-${person.id}-role`} value={person.role ?? ""} onChange={(role) => updateGroup(groupIndex, { people: group.people.map((item, current) => current === personIndex ? { ...item, role: role || null } : item) })} /></div>
-              {props.section.itemMediaCapability?.itemType === "person" && <PersonMediaEditor person={person} resolvedMedia={props.resolvedMedia} onChoose={() => setPickerPersonId(person.id)} onAdjust={() => setFocalPersonId(person.id)} onRemove={() => updatePerson(person.id, (current) => ({ ...current, media: null }))} />}
+              {(props.itemMediaEnabled || props.section.itemMediaCapability?.itemType === "person") && <PersonMediaEditor person={person} resolvedMedia={props.resolvedMedia} onChoose={() => setPickerPersonId(person.id)} onAdjust={() => setFocalPersonId(person.id)} onRemove={() => updatePerson(person.id, (current) => ({ ...current, media: null }))} />}
               <ItemActions label={person.name.trim() || "person"} index={personIndex} length={group.people.length} onRemove={() => updateGroup(groupIndex, { people: group.people.filter((_, current) => current !== personIndex) })} onMove={(target) => {
                 const people = [...group.people];
                 [people[personIndex], people[target]] = [people[target], people[personIndex]];
@@ -379,20 +300,6 @@ export function SectionEditor(props: EditorProps) {
       );
     case "story":
       return <StoryEditor {...props} />;
-    case "schedule":
-      return <ScheduleEditor {...props} />;
-    case "venue":
-      return (
-        <SimpleEditor
-          {...props}
-          fields={[
-            { name: "heading", label: "Heading" },
-            { name: "name", label: "Venue name" },
-            { name: "address", label: "Address", multiline: true },
-            { name: "description", label: "Description", multiline: true },
-          ]}
-        />
-      );
     case "people":
       return <PeopleEditor {...props} />;
     case "gallery":

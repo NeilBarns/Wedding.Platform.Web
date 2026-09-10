@@ -14,6 +14,12 @@ function blank(content: Record<string, unknown>, backgroundTreatment: 'inherit' 
   } as WebsiteSection
 }
 
+function decoratedBlank(decorativeAppearance: NonNullable<WebsiteSection['appearance']['decorativeAppearance']>): WebsiteSection {
+  const section = blank({ childFlow: { elements: [], order: [] } });
+  section.appearance.decorativeAppearance = decorativeAppearance;
+  return section;
+}
+
 function draft(templateKey: 'classic-filipiniana-v1' | 'modern-editorial-v1', section: WebsiteSection): WebsiteDraft {
   return {
     schemaVersion: 5, id: 'website', eventId: 'event', name: 'Website', templateKey,
@@ -58,6 +64,26 @@ describe.each(templates)('%s Blank Section', (templateKey, Renderer) => {
     expect(html.indexOf('Nested')).toBeLessThan(html.indexOf('Second'))
     expect(html).not.toContain('data-section-specialized-content="true"')
     expect(html).not.toContain('Private planning notes')
+  })
+
+  it.each([
+    ['custom color', { background: { customColor: '#123456' } }],
+    ['texture', { background: { texture: 'paper' as const, textureStrength: 40 } }],
+    ['pattern', { background: { pattern: 'botanical' as const, patternStrength: 60 } }],
+    ['overlay', { background: { overlay: 'soft' as const } }],
+    ['frame', { frame: { style: 'fine' as const } }],
+  ])('publishes an empty Blank with authored %s through shared layout-neutral layers', (_, decorativeAppearance) => {
+    const html = renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, decoratedBlank(decorativeAppearance))} mode="public" />)
+    expect(html).toContain('data-preview-section="blank-id"')
+    expect(html).toContain('data-section-decoration')
+    expect(html).toContain('pointer-events-none absolute inset-0 overflow-hidden')
+    expect(html).toContain('aria-hidden="true"')
+    expect(html.indexOf('data-section-decoration')).toBeLessThan(html.indexOf('data-section-content-inset'))
+  })
+
+  it('still omits an empty Blank whose authored decorative choices resolve to none', () => {
+    const section = decoratedBlank({ background: { texture: 'none', pattern: 'none', overlay: 'none' }, frame: { style: 'none' } })
+    expect(renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, section)} mode="public" />)).not.toContain('data-preview-section="blank-id"')
   })
 
   it('publishes only flows with a renderable descendant', () => {

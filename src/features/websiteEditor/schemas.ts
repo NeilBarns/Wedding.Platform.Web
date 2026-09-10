@@ -83,11 +83,6 @@ export const storyContentSchema = z.object({
     context.addIssue({ code: 'custom', message: 'Story structure order must be a complete canonical permutation', path: ['structureOrder'] })
   }
 })
-export const scheduleContentSchema = z.object({
-  heading: text,
-  items: z.array(z.object({ time: text, title: text, description: text }).strict()),
-}).strict()
-export const venueContentSchema = z.object({ heading: text, name: text, address: text, description: text, media: sectionMediaSchema }).strict()
 const peoplePersonSchema = z.object({ id: semanticId, name: requiredLabel, role: text.max(255).nullable().optional(), media: sectionMediaSchema }).strict()
 const peopleGroupSchema = z.object({ id: semanticId, name: requiredLabel, people: z.array(peoplePersonSchema).max(100) }).strict()
 export const peopleContentSchema = z.object({
@@ -112,8 +107,6 @@ export const blankContentSchema = z.object({ childFlow: genericTextSectionChildF
 const contentSchemas: Record<string, z.ZodType> = {
   hero: heroContentSchema,
   story: storyContentSchema,
-  schedule: scheduleContentSchema,
-  venue: venueContentSchema,
   people: peopleContentSchema,
   gallery: galleryContentSchema,
   rsvp: rsvpContentSchema,
@@ -187,7 +180,7 @@ export function validateSectionContent(type: string, content: Record<string, unk
 }
 
 const sectionSchema = z.object({
-  id: z.string(), type: z.enum(['hero', 'story', 'schedule', 'venue', 'people', 'gallery', 'rsvp', 'blank']), displayName: z.string(), editorName: z.string().min(1).max(80).nullable(), sortOrder: z.number(),
+  id: z.string(), type: z.enum(['hero', 'story', 'people', 'gallery', 'rsvp', 'blank']), displayName: z.string(), editorName: z.string().min(1).max(80).nullable(), sortOrder: z.number(),
   isEnabled: z.boolean(), content: z.record(z.string(), z.unknown()),
   appearance: z.object({
     headingAlignment: z.enum(['inherit', 'left', 'center', 'right']),

@@ -8,6 +8,7 @@ import { MediaElementRenderer } from "./MediaElementRenderer";
 import { DateElementRenderer } from "./DateElementRenderer";
 import { AccordionElementRenderer } from "./AccordionElementRenderer";
 import { ScheduleElementRenderer } from "./ScheduleElementRenderer";
+import { PeopleElementRenderer } from "./PeopleElementRenderer";
 
 type Props = Omit<TextElementRendererProps, "element" | "editor" | "previewColor"> & { element: WebsiteLeafElement; mode?: "editor" | "public"; sectionId?: string; selected?: boolean; media?: import("../websiteEditor/types").WebsiteDraft["media"]; eventDate?: string | null };
 
@@ -22,5 +23,6 @@ export function WebsiteLeafElementRenderer({ element, mode = "public", sectionId
   if (element.type === "date") return <DateElementRenderer previewColor={previewColor} element={element} eventDate={eventDate} mode={mode} {...context} />;
   if (element.type === "accordion") return <AccordionElementRenderer element={element} mode={mode} />;
   if (element.type === "schedule") return <ScheduleElementRenderer element={element} mode={mode} templateKey={context.templateKey} />;
+  if (element.type === "people") return <PeopleElementRenderer element={element} mode={mode} templateKey={context.templateKey} media={media} />;
   return mode === "editor" ? <div data-unsupported-website-element role="status">Unsupported element: {element.type}</div> : null;
 }

@@ -45,13 +45,13 @@ export const genericSectionChildFlowSchema = childFlowShapeSchema.superRefine((f
 
 export const textSectionChildFlowSchema = sectionChildFlowSchema.superRefine((flow, context) => {
   flow.elements.forEach((element, index) => {
-    if (element.type !== "text" && element.type !== "richText" && element.type !== "date" && element.type !== "accordion" && element.type !== "schedule" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
+    if (element.type !== "text" && element.type !== "richText" && element.type !== "date" && element.type !== "accordion" && element.type !== "schedule" && element.type !== "people" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
   });
 });
 
 export const genericTextSectionChildFlowSchema = genericSectionChildFlowSchema.superRefine((flow, context) => {
   flow.elements.forEach((element, index) => {
-    if (element.type !== "text" && element.type !== "richText" && element.type !== "date" && element.type !== "accordion" && element.type !== "schedule" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
+    if (element.type !== "text" && element.type !== "richText" && element.type !== "date" && element.type !== "accordion" && element.type !== "schedule" && element.type !== "people" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
   });
 });
 
@@ -95,7 +95,7 @@ export function visitGenericBlocks(elements: readonly WebsiteElement[], visitor:
 }
 
 function automaticNameState(flow?: SectionChildFlow): Record<GenericBlockType, number> {
-  const state = { text: 0, richText: 0, date: 0, accordion: 0, schedule: 0, media: 0, divider: 0, compositionGroup: 0 };
+  const state = { text: 0, richText: 0, date: 0, accordion: 0, schedule: 0, people: 0, media: 0, divider: 0, compositionGroup: 0 };
   if (!flow) return state;
   visitGenericBlocks(flow.elements, (element) => {
     const match = new RegExp(`^${GENERIC_BLOCK_LABELS[element.type].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} ([1-9]\\d*)$`).exec(element.editorName);
@@ -129,6 +129,10 @@ export function createScheduleElement(editorName: string): import("../websiteEle
   return { id: createSemanticId("schedule"), type: "schedule", editorName, items: [] };
 }
 
+export function createPeopleElement(editorName: string): import("../websiteElements/types").PeopleElement {
+  return { id: createSemanticId("people"), type: "people", editorName, groups: [] };
+}
+
 export function createDividerElement(editorName: string): DividerElement {
   return { id: createSemanticId("divider"), type: "divider", editorName };
 }
@@ -148,6 +152,7 @@ export function createSectionElement(flow: SectionChildFlow | undefined, type: G
   if (type === "date") return createDateElement(editorName);
   if (type === "accordion") return createAccordionElement(editorName);
   if (type === "schedule") return createScheduleElement(editorName);
+  if (type === "people") return createPeopleElement(editorName);
   if (type === "divider") return createDividerElement(editorName);
   if (type === "media") return createMediaElement(editorName, mediaId);
   return createGroupElement(editorName);
@@ -399,6 +404,10 @@ function regenerateElementIdentities(element: WebsiteElement, names: Record<Gene
   if (element.type === "mediaCollection" || element.type === "media") element.items.forEach((item) => { item.id = createSemanticId("media-item"); });
   if (element.type === "accordion") element.items.forEach((item) => { item.id = createSemanticId("accordion-item"); });
   if (element.type === "schedule") element.items.forEach((item) => { item.id = createSemanticId("schedule-item"); });
+  if (element.type === "people") element.groups.forEach((group) => {
+    group.id = createSemanticId("people-group");
+    group.people.forEach((person) => { person.id = createSemanticId("person"); });
+  });
   if (element.type === "compositionGroup") element.children.forEach((child) => regenerateElementIdentities(child, names));
   return element;
 }

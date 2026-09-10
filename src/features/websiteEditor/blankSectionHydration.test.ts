@@ -50,4 +50,14 @@ describe('repeatable Blank Section hydration', () => {
     expect(validateSectionContent('faq', { heading: 'Questions', items: [] }).success).toBe(false)
     expect(() => normalizeWebsiteDraftFromApi(draft([{ ...blank('faq', 'FAQ'), type: 'faq', content: { heading: 'Questions', items: [] } }]))).toThrow()
   })
+
+  it('rejects Schedule as a Section type during content validation and API hydration', () => {
+    expect(validateSectionContent('schedule', { heading: 'Schedule', items: [] }).success).toBe(false)
+    expect(() => normalizeWebsiteDraftFromApi(draft([{ ...blank('schedule', 'Schedule'), type: 'schedule', content: { heading: 'Schedule', items: [] } }]))).toThrow()
+  })
+
+  it('rejects Venue as a Section type during content validation and API hydration', () => {
+    expect(validateSectionContent('venue', { heading: 'Venue', name: 'Garden Pavilion', address: 'Main Street', description: '' }).success).toBe(false)
+    expect(() => normalizeWebsiteDraftFromApi(draft([{ ...blank('venue', 'Venue'), type: 'venue', content: { heading: 'Venue', name: 'Garden Pavilion', address: 'Main Street', description: '' } }]))).toThrow()
+  })
 })

@@ -24,8 +24,7 @@ import type { TemplateDesignLibrary } from "../../websiteCapabilities/types";
 import { WebsiteColorSwatchControl } from "./WebsiteColorSwatchControl";
 import { DecorativeStrengthControl } from "./DecorativeStrengthControl";
 import { decorativeHelpers, decorativeLabel } from "./decorativeAppearanceOptions";
-import { applyStoryBackgroundColor } from "../storyBackgroundAuthoring";
-import { storyLegacyBackgroundState } from "../storyLegacyBackground";
+import { applySectionBackgroundColor, legacySectionBackgroundState } from "../sectionBackgroundAuthoring";
 
 export function AppearancePanel({
   appearance,
@@ -70,7 +69,13 @@ export function AppearancePanel({
   if (sectionCapability.id === 'story') {
     return <div className="space-y-5">
       {error && <p className="rounded-xl bg-danger-muted p-3 text-sm text-danger" role="alert">{error}</p>}
-      <StorySectionAppearanceControls templateKey={templateKey} sectionCapability={sectionCapability} appearance={appearance} library={library} projectColors={projectColors} onAddColor={onAddColor} onChange={onChange} />
+      <SectionDecorativeAppearanceControls sectionLabel="Story" templateKey={templateKey} sectionCapability={sectionCapability} appearance={appearance} library={library} projectColors={projectColors} onAddColor={onAddColor} onChange={onChange} />
+    </div>
+  }
+  if (sectionCapability.id === 'blank') {
+    return <div className="space-y-5">
+      {error && <p className="rounded-xl bg-danger-muted p-3 text-sm text-danger" role="alert">{error}</p>}
+      <SectionDecorativeAppearanceControls sectionLabel="Section" templateKey={templateKey} sectionCapability={sectionCapability} appearance={appearance} library={library} projectColors={projectColors} onAddColor={onAddColor} onChange={onChange} />
     </div>
   }
   return (
@@ -150,7 +155,7 @@ export function AppearancePanel({
   );
 }
 
-function StorySectionAppearanceControls({ templateKey, sectionCapability, appearance, library, projectColors, onAddColor, onChange }: { templateKey: string; sectionCapability: SectionCapability; appearance: WebsiteSectionAppearance; library: TemplateDesignLibrary; projectColors: ProjectColor[]; onAddColor: (value: string) => Promise<ProjectColor>; onChange: (appearance: WebsiteSectionAppearance) => void }) {
+export function SectionDecorativeAppearanceControls({ sectionLabel, templateKey, sectionCapability, appearance, library, projectColors, onAddColor, onChange }: { sectionLabel: string; templateKey: string; sectionCapability: SectionCapability; appearance: WebsiteSectionAppearance; library: TemplateDesignLibrary; projectColors: ProjectColor[]; onAddColor: (value: string) => Promise<ProjectColor>; onChange: (appearance: WebsiteSectionAppearance) => void }) {
   const decorative = sectionCapability.decorativeAppearance
   if (!decorative) return null
   const helpers: Record<string, Record<string, string>> = {
@@ -175,7 +180,7 @@ function StorySectionAppearanceControls({ templateKey, sectionCapability, appear
   const choice = (title: string, group: 'background' | 'frame', field: 'texture' | 'pattern' | 'overlay' | 'style', values: readonly string[], helperKey: string) => {
     if (values.length === 0) return null
     const value = group === 'background' ? appearance.decorativeAppearance?.background?.[field as 'texture' | 'pattern' | 'overlay'] : appearance.decorativeAppearance?.frame?.style
-    return <div><div className="mb-1.5 flex items-center justify-between gap-2"><p className="text-xs font-medium">{title}</p>{value !== undefined && <InspectorResetAction onClick={() => updateDecoration(group, field)} />}</div><InspectorVisualChoiceGroup label={`Story ${title.toLowerCase()}`} layout="stack" showIllustration={false} value={value ?? ''} options={values.map((option) => ({ value: option, label: label(option), helper: helpers[helperKey][option], illustration: null }))} onChange={(next) => updateDecoration(group, field, next)} /></div>
+    return <div><div className="mb-1.5 flex items-center justify-between gap-2"><p className="text-xs font-medium">{title}</p>{value !== undefined && <InspectorResetAction onClick={() => updateDecoration(group, field)} />}</div><InspectorVisualChoiceGroup label={`${sectionLabel} ${title.toLowerCase()}`} layout="stack" showIllustration={false} value={value ?? ''} options={values.map((option) => ({ value: option, label: label(option), helper: helpers[helperKey][option], illustration: null }))} onChange={(next) => updateDecoration(group, field, next)} /></div>
   }
   const updateStrength = (field: 'textureStrength' | 'patternStrength', value?: number) => {
     const next = structuredClone(appearance)
@@ -192,12 +197,12 @@ function StorySectionAppearanceControls({ templateKey, sectionCapability, appear
   const texture = appearance.decorativeAppearance?.background?.texture ?? 'none'
   const pattern = appearance.decorativeAppearance?.background?.pattern ?? 'none'
   const backgroundColorId = appearance.decorativeAppearance?.background?.colorId
-  const legacyBackground = storyLegacyBackgroundState(appearance)
+  const legacyBackground = legacySectionBackgroundState(appearance)
   const updateBackgroundColor = (colorId?: string) => {
-    onChange(applyStoryBackgroundColor(appearance, colorId))
+    onChange(applySectionBackgroundColor(appearance, colorId))
   }
   return <div className="space-y-5"><InspectorSection title="Background">
-    <div><p className="mb-1.5 text-xs font-medium">Background Color</p><WebsiteColorSwatchControl label="Story background color" colorId={backgroundColorId} inheritSelected={appearance.backgroundTreatment === 'inherit'} showUnresolvedWarning={!legacyBackground} allowedTemplateColorIds={decorative.backgroundColorIds} templateColors={library.colors} projectColors={projectColors} onChange={updateBackgroundColor} onAddColor={onAddColor} />{legacyBackground && <div className="mt-2 flex items-center gap-2 rounded-md border border-border bg-surface-muted px-2.5 py-2 text-xs text-foreground-muted" role="status"><span className="size-5 shrink-0 rounded-full border border-border bg-surface" style={legacyBackground.color ? { backgroundColor: legacyBackground.color } : undefined} aria-hidden="true" /><span><span className="font-medium text-foreground">Current saved background</span><span className="ml-1.5">{legacyBackground.label}</span></span></div>}</div>
+    <div><p className="mb-1.5 text-xs font-medium">Background Color</p><WebsiteColorSwatchControl label={`${sectionLabel} background color`} inheritLabel={sectionLabel === 'Section' ? 'No surface color' : 'Use Template'} colorId={backgroundColorId} inheritSelected={appearance.backgroundTreatment === 'inherit'} showUnresolvedWarning={!legacyBackground} allowedTemplateColorIds={decorative.backgroundColorIds} templateColors={library.colors} projectColors={projectColors} onChange={updateBackgroundColor} onAddColor={onAddColor} />{legacyBackground && <div className="mt-2 flex items-center gap-2 rounded-md border border-border bg-surface-muted px-2.5 py-2 text-xs text-foreground-muted" role="status"><span className="size-5 shrink-0 rounded-full border border-border bg-surface" style={legacyBackground.color ? { backgroundColor: legacyBackground.color } : undefined} aria-hidden="true" /><span><span className="font-medium text-foreground">Current saved background</span><span className="ml-1.5">{legacyBackground.label}</span></span></div>}</div>
     {decorative && choice('Texture', 'background', 'texture', decorative.textures, 'texture')}
     {decorative && texture !== 'none' && <DecorativeStrengthControl label="Texture Strength" value={appearance.decorativeAppearance?.background?.textureStrength} defaultValue={resolveDecorativeDefaultStrength(templateKey, 'texture', texture)} onChange={(value) => updateStrength('textureStrength', value)} />}
     {decorative && choice('Pattern', 'background', 'pattern', decorative.patterns, 'pattern')}

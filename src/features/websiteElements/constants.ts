@@ -5,6 +5,7 @@ export const WEBSITE_ELEMENT_TYPES = [
   'date',
   'accordion',
   'schedule',
+  'people',
   'image',
   'media',
   'divider',
@@ -25,7 +26,6 @@ export const WEBSITE_LEAF_ELEMENT_TYPES = WEBSITE_ELEMENT_TYPES.filter(
 export const CTA_ACTION_TYPES = [
   'rsvp',
   'scrollToSection',
-  'viewVenue',
   'viewSchedule',
   'viewGallery',
   'backToTop',
@@ -42,6 +42,8 @@ export const WEBSITE_ELEMENT_LIMITS = {
   richText: 20000,
   accordionItems: 50,
   scheduleItems: 100,
+  peopleGroups: 30,
+  peoplePerGroup: 100,
   narrativeBody: 10000,
   externalUrl: 2048,
 } as const

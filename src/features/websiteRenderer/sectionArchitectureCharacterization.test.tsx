@@ -101,24 +101,6 @@ function containedHero(template: "classic" | "modern", placement: "top" | "botto
   } as WebsiteSection;
 }
 
-function venue(template: "classic" | "modern", placement: "top" | "bottom" | "left" | "right" = "left", text = "Garden Pavilion"): WebsiteSection {
-  const presentation = template === "classic" ? "detailsFirst" : "editorial";
-  return {
-    ...section("venue", "venue", { heading: "Venue", name: text, address: text, description: text, media: { assetId: "image", focalPoint: { x: 0.2, y: 0.8 }, zoom: 1.4 } }),
-    appearance: { ...appearance, presentation, mediaPlacement: placement, mediaSize: "balanced", mediaContentGap: "comfortable", mediaSpacing: { top: "none", right: "none", bottom: "none", left: "none" } },
-    mediaCapability: { mode: "single" },
-    presentationCapability: {
-      default: presentation,
-      options: [{ key: presentation, displayName: presentation, description: "Venue", preview: "contained", mediaControls: {
-        mediaPlacements: { default: placement, options: ["top", "bottom", "left", "right"].map((key) => ({ key, displayName: key })) },
-        mediaSizes: { default: "balanced", options: [{ key: "balanced", displayName: "Balanced" }] },
-        mediaContentGaps: { default: "comfortable", options: [{ key: "comfortable", displayName: "Comfortable" }] },
-        mediaSpacing: { default: { top: "none", right: "none", bottom: "none", left: "none" }, options: [{ key: "none", displayName: "None" }] },
-      } }],
-    },
-  } as WebsiteSection;
-}
-
 function people(template: "classic" | "modern", groupCount = 2, peoplePerGroup = 3, presentation?: string): WebsiteSection {
   const selectedPresentation = presentation ?? (template === "classic" ? "portraitCards" : "editorialPortraits");
   return {
@@ -220,7 +202,7 @@ describe("Section renderer boundary", () => {
   it.each(["classic", "modern"] as const)("renders %s Sections in persisted array order", (template) => {
     const markup = render(template, [
       section("rsvp", "second", { heading: "RSVP", description: "", buttonLabel: "Reply" }),
-      section("schedule", "first", { heading: "Schedule", items: [] }),
+      section("gallery", "first", { heading: "Gallery", items: [] }),
     ]);
     expect(markup.indexOf('data-preview-section="second"')).toBeLessThan(markup.indexOf('data-preview-section="first"'));
   });
@@ -244,140 +226,6 @@ describe("Section renderer boundary", () => {
     expect(markup.match(/data-section-generic-child/g)).toHaveLength(elements.length);
     for (const element of elements) expect(markup).toContain(`data-section-child-element="${element.id}"`);
     expect(markup.indexOf("Plain text")).toBeLessThan(markup.indexOf("Rich text"));
-  });
-
-  it.each(["classic", "modern"] as const)("uses canonical, safe %s Schedule tracks and responsive rhythm", (template) => {
-    const markup = render(template, [section("schedule", "schedule", {
-      heading: "Schedule",
-      items: [{ time: "4:30 PM", title: "Ceremony", description: "Garden" }],
-    })]);
-    const row = markup.match(/<li class="([^"]*)"/)?.[1] ?? "";
-    expect(row).toContain("min-w-0");
-    expect(row).toContain("minmax(0,1fr)");
-    expect(row).toContain("md:grid-cols-");
-    expect(row).toContain("xl:grid-cols-");
-    expect(row).toContain("py-4");
-    expect(row).toContain("md:py-5");
-    expect(row).toContain("xl:py-6");
-    expect(row).not.toMatch(/\bsm:(?:grid|gap|p[trblxy]?)-/);
-    expect(row).not.toMatch(/\b(?:h|min-h|max-h)-/);
-  });
-
-  it.each(["classic", "modern"] as const)("keeps %s Schedule long content wrap-safe without viewport-width calculations", (template) => {
-    const long = "https://example.test/averylongunbrokenlocationsegment".repeat(8);
-    const markup = render(template, [section("schedule", "schedule", {
-      heading: long,
-      items: [{ time: `10:30AM-${long}`, title: long, description: `Reception location: ${long}` }],
-    })], "mobile");
-    expect(markup.match(/break-words/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
-    expect(markup).toContain("overflow-wrap:anywhere");
-    expect(markup).not.toContain("whitespace-nowrap");
-    expect(markup).not.toContain("100vw");
-    expect(markup).not.toContain("w-screen");
-    expect(markup).not.toMatch(/w-\[calc\(/);
-  });
-
-  it.each(["classic", "modern"] as const)("keeps %s Schedule rules aligned to content-driven rows", (template) => {
-    const markup = render(template, [section("schedule", "schedule", {
-      heading: "Schedule",
-      items: [
-        { time: "Morning through late afternoon", title: "A title that wraps across several lines", description: "A description that also wraps naturally." },
-        { time: "Evening", title: "Dinner", description: "Reception" },
-      ],
-    })]);
-    const rows = [...markup.matchAll(/<li class="([^"]*)"/g)].map((match) => match[1]);
-    expect(rows).toHaveLength(2);
-    for (const row of rows) {
-      expect(row).toContain("border-t");
-      expect(row).not.toMatch(/\babsolute\b|\bfixed\b/);
-    }
-  });
-
-  it.each(["classic", "modern"] as const)("preserves %s Schedule geometry in editor and public rendering", (template) => {
-    const value = section("schedule", "schedule", {
-      heading: "Schedule",
-      items: [{ time: "4:30 PM", title: "Ceremony", description: "Garden" }],
-    });
-    for (const viewport of ["mobile", "tablet", "desktop"] as const) {
-      const editor = render(template, [value], viewport, "editor");
-      const published = render(template, [value], viewport, "public");
-      const editorRow = editor.match(/<li class="([^"]*)"/)?.[1];
-      const publicRow = published.match(/<li class="([^"]*)"/)?.[1];
-      expect(editorRow).toBe(publicRow);
-      expect(editor).toContain("!text-left");
-      expect(published).toContain("!text-left");
-    }
-  });
-
-  it.each(["classic", "modern"] as const)("keeps %s Schedule heading alignment responsive without changing its internal rail", (template) => {
-    for (const alignment of ["left", "center", "right"] as const) {
-      const value = section("schedule", "schedule", { heading: "Schedule", items: [{ time: "Noon", title: "Lunch", description: "Garden" }] });
-      value.appearance = { ...appearance, headingAlignment: alignment, bodyAlignment: alignment };
-      const markup = render(template, [value]);
-      const surface = markup.match(/<section[^>]*data-preview-section[^>]*>/)?.[0] ?? "";
-      expect(surface).toContain(`[&amp;_[data-section-specialized-content]_[data-section-heading]]:text-${alignment}`);
-      expect(markup).toContain("!text-left");
-    }
-  });
-
-  it.each(["classic", "modern"] as const)("stacks %s Venue media safely on Mobile and uses safe split tracks above 768", (template) => {
-    for (const placement of ["left", "right"] as const) {
-      const mobile = render(template, [venue(template, placement)], "mobile");
-      expect(mobile).toContain('data-venue-composition="stacked"');
-      expect(mobile).toContain("aspect-[4/3] max-h-[24rem] object-cover");
-      expect(mobile).not.toMatch(/data-venue-composition="stacked"[^>]*grid-cols-/);
-      expect(mobile).not.toContain("min-h-[28rem]");
-      expect(mobile).not.toContain("min-h-[24rem]");
-      for (const viewport of ["tablet", "desktop"] as const) {
-        const markup = render(template, [venue(template, placement)], viewport);
-        const composition = markup.match(/<div data-venue-composition="split"[^>]*>/)?.[0] ?? "";
-        expect(composition).toContain("minmax(0,");
-        expect(composition).toContain("min-w-0");
-      }
-    }
-  });
-
-  it.each(["classic", "modern"] as const)("keeps %s Venue long names, addresses, and descriptions wrap-safe", (template) => {
-    const long = "OneExtremelyLongUnbrokenVenueOrAddressToken".repeat(12);
-    const markup = render(template, [venue(template, "left", `${long}\n${long}`)], "mobile");
-    expect(markup.match(/break-words/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
-    expect(markup).toContain("overflow-wrap:anywhere");
-    expect(markup).toContain("whitespace-pre-line");
-    expect(markup).not.toContain("whitespace-nowrap");
-    expect(markup).not.toContain("100vw");
-    expect(markup).not.toContain("w-screen");
-    expect(markup).not.toMatch(/w-\[calc\(/);
-  });
-
-  it.each(["classic", "modern"] as const)("preserves %s Venue focal point, zoom, and frame geometry in editor/public output", (template) => {
-    for (const mode of ["editor", "public"] as const) {
-      const markup = render(template, [venue(template)], "mobile", mode);
-      expect(markup).toContain('data-media-focal-x="0.2"');
-      expect(markup).toContain('data-media-focal-y="0.8"');
-      expect(markup).toContain('data-media-zoom="1.4"');
-      expect(markup).toContain('data-venue-composition="stacked"');
-    }
-  });
-
-  it.each(["classic", "modern"] as const)("keeps %s Venue text alignment scoped away from media composition", (template) => {
-    for (const alignment of ["left", "center", "right"] as const) {
-      const value = venue(template);
-      value.appearance = { ...value.appearance, headingAlignment: alignment, bodyAlignment: alignment };
-      const markup = render(template, [value], "tablet");
-      const surface = markup.match(/<section[^>]*data-preview-section[^>]*>/)?.[0] ?? "";
-      expect(surface).toContain(`[&amp;_[data-section-specialized-content]_[data-section-heading]]:text-${alignment}`);
-      expect(surface).toContain(`[&amp;_[data-section-specialized-content]_[data-section-body]]:text-${alignment}`);
-      expect(markup.match(/<div data-venue-composition="split"[^>]*>/)?.[0]).not.toContain(`text-${alignment}`);
-    }
-  });
-
-  it.each(["classic", "modern"] as const)("keeps %s Venue responsive geometry identical in editor and public modes", (template) => {
-    for (const viewport of ["mobile", "tablet", "desktop"] as const) {
-      const editor = render(template, [venue(template, "right")], viewport, "editor");
-      const published = render(template, [venue(template, "right")], viewport, "public");
-      const marker = viewport === "mobile" ? "stacked" : "split";
-      expect(editor.match(new RegExp(`<div data-venue-composition="${marker}"[^>]*>`))?.[0]).toBe(published.match(new RegExp(`<div data-venue-composition="${marker}"[^>]*>`))?.[0]);
-    }
   });
 
   it.each(["classic", "modern"] as const)("keeps %s People groups and person cards single-column on Mobile", (template) => {

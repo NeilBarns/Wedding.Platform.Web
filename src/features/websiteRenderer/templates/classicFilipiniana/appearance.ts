@@ -27,7 +27,7 @@ export function resolveClassicFilipinianaSectionAppearance(
   library: TemplateDesignLibrary,
   projectColors: readonly ProjectColor[],
 ): ResolvedSectionAppearance {
-  const defaultBodyAlignment = sectionType === 'schedule' ? 'left' : 'center'
+  const defaultBodyAlignment = 'center'
   const heading = appearance.headingAlignment === 'inherit' ? 'center' : appearance.headingAlignment
   const body = appearance.bodyAlignment === 'inherit' ? defaultBodyAlignment : appearance.bodyAlignment
   const customBackground = resolveSectionCustomBackground(appearance, library, projectColors)
@@ -45,7 +45,7 @@ export function resolveClassicFilipinianaSectionAppearance(
 }
 
 function classicBackgroundDefault(sectionType: string): 'plain' | 'soft' {
-  return ['venue', 'people', 'rsvp'].includes(sectionType) ? 'soft' : 'plain'
+  return ['people', 'rsvp'].includes(sectionType) ? 'soft' : 'plain'
 }
 
 function resolveBackground(background: 'plain' | 'soft' | 'accent'): { className: string; style?: CSSProperties } {

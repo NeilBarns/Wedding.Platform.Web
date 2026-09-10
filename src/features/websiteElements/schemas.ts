@@ -174,6 +174,40 @@ export const scheduleElementSchema = z.object({
   });
 });
 
+const peopleMediaSchema = z.object({
+  assetId: mediaIdSchema,
+  focalPoint: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().optional(),
+  zoom: z.number().min(1).max(3).optional(),
+}).strict().nullable().optional();
+export const peoplePersonSchema = z.object({
+  id: elementIdSchema,
+  name: z.string().min(1).max(255),
+  role: z.string().max(255).nullable().optional(),
+  media: peopleMediaSchema,
+}).strict();
+export const peopleGroupSchema = z.object({
+  id: elementIdSchema,
+  name: z.string().min(1).max(255),
+  people: z.array(peoplePersonSchema).max(WEBSITE_ELEMENT_LIMITS.peoplePerGroup),
+}).strict();
+export const peopleElementSchema = z.object({
+  ...genericBlockShape,
+  type: z.literal("people"),
+  groups: z.array(peopleGroupSchema).max(WEBSITE_ELEMENT_LIMITS.peopleGroups),
+  appearance: z.object({ presentation: z.enum(["portraits", "cards", "minimal", "namesOnly"]).optional() }).strict().optional(),
+}).strict().superRefine((element, context) => {
+  const groupIds = new Set<string>();
+  const personIds = new Set<string>();
+  element.groups.forEach((group, groupIndex) => {
+    if (groupIds.has(group.id)) context.addIssue({ code: "custom", path: ["groups", groupIndex, "id"], message: "People group IDs must be unique." });
+    groupIds.add(group.id);
+    group.people.forEach((person, personIndex) => {
+      if (personIds.has(person.id)) context.addIssue({ code: "custom", path: ["groups", groupIndex, "people", personIndex, "id"], message: "Person IDs must be unique." });
+      personIds.add(person.id);
+    });
+  });
+});
+
 export const imageElementSchema = z
   .object({
     ...baseShape,
@@ -264,7 +298,6 @@ const externalUrlActionSchema = z
 export const ctaActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("rsvp") }).strict(),
   scrollToSectionActionSchema,
-  z.object({ type: z.literal("viewVenue") }).strict(),
   z.object({ type: z.literal("viewSchedule") }).strict(),
   z.object({ type: z.literal("viewGallery") }).strict(),
   z.object({ type: z.literal("backToTop") }).strict(),
@@ -432,6 +465,7 @@ export const websiteLeafElementSchema = z.discriminatedUnion("type", [
   dateElementSchema,
   accordionElementSchema,
   scheduleElementSchema,
+  peopleElementSchema,
   imageElementSchema,
   mediaElementSchema,
   dividerElementSchema,
@@ -473,7 +507,7 @@ export const groupLayoutSchema = z.object({
   responsive: z.object({ tablet: groupLayoutOverrideSchema.optional(), mobile: groupLayoutOverrideSchema.optional() }).strict().optional(),
 }).strict();
 
-const groupLeafElementSchema = z.discriminatedUnion("type", [textElementSchema, richTextElementSchema, dateElementSchema, accordionElementSchema, scheduleElementSchema, dividerElementSchema, mediaElementSchema]);
+const groupLeafElementSchema = z.discriminatedUnion("type", [textElementSchema, richTextElementSchema, dateElementSchema, accordionElementSchema, scheduleElementSchema, peopleElementSchema, dividerElementSchema, mediaElementSchema]);
 const nestedCompositionGroupSchema = z.object({ ...genericBlockShape, type: z.literal("compositionGroup"), children: z.array(groupLeafElementSchema).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional() }).strict();
 export const compositionGroupSchema = z.object({ ...genericBlockShape, type: z.literal("compositionGroup"), children: z.array(z.union([groupLeafElementSchema, nestedCompositionGroupSchema])).max(20), layout: groupLayoutSchema.optional(), appearance: groupAppearanceSchema.optional() }).strict().superRefine((group, context) => addDuplicateIdIssues([group], context));
 

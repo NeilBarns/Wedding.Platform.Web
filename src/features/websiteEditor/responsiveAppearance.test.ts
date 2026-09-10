@@ -23,7 +23,7 @@ const spacing = {
 }
 
 const capability = {
-  id: 'venue', appearanceControls: [
+  id: 'hero', appearanceControls: [
     option('headingAlignment', 'left', 'center', 'right'),
     option('bodyAlignment', 'left', 'center', 'right'),
     option('mediaPlacement', 'left', 'top', 'bottom'),

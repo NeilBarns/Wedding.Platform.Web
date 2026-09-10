@@ -6,6 +6,7 @@ export const GENERIC_BLOCK_LABELS = {
   date: "Date",
   accordion: "Accordion",
   schedule: "Schedule",
+  people: "People",
   media: "Media",
   divider: "Divider",
   compositionGroup: "Group",

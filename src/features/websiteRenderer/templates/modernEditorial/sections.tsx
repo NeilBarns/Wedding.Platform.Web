@@ -5,10 +5,8 @@ import type {
   PeopleContent,
   ResolvedWebsiteMedia,
   RsvpContent,
-  ScheduleContent,
   StoryBlock,
   StoryContent,
-  VenueContent,
 } from "../../../websiteEditor/types";
 import { ZoomedMediaImage } from "../../ZoomedMediaImage";
 import type { ResponsiveViewport } from "../../../websiteEditor/types";
@@ -499,135 +497,6 @@ export function ModernEditorialStoryBlockBody({
       />
     </p>
   ) : null;
-}
-export function ModernEditorialSchedule({
-  sectionId,
-  content,
-}: {
-  sectionId: string;
-  content: ScheduleContent;
-}) {
-  return (
-    <EditorialSection
-      number="04"
-      heading={
-        <EditableText
-          sectionId={sectionId}
-          path={["heading"]}
-          value={content.heading}
-          fallback="Schedule"
-          placeholder="Add heading"
-          label="Schedule heading"
-        />
-      }
-      specializedClassName="px-5 py-12 md:px-8 md:py-16 xl:px-14 xl:py-20"
-    >
-      {content.items.length ? (
-        <ol className="w-full max-w-5xl">
-          {content.items.map((item, index) => (
-            <li
-              className="grid min-w-0 grid-cols-[minmax(0,4.5rem)_minmax(0,1fr)] gap-3 border-t border-[var(--me-border)] py-4 md:grid-cols-[minmax(0,6rem)_minmax(0,1fr)] md:gap-5 md:py-5 xl:grid-cols-[minmax(0,8rem)_minmax(0,1fr)] xl:py-6"
-              key={index}
-            >
-              <span className="min-w-0 break-words [overflow-wrap:anywhere] !text-left text-xs font-bold uppercase tracking-widest text-[var(--me-section-accent)]">
-                <EditableText
-                  sectionId={sectionId}
-                  path={["items", index, "time"]}
-                  value={item.time}
-                  fallback="TBA"
-                  placeholder="Add time"
-                  label={`Schedule item ${index + 1} time`}
-                />
-              </span>
-              <div className="min-w-0 !text-left">
-                <h3 className="break-words [overflow-wrap:anywhere] font-[family-name:var(--me-heading-font)] text-xl leading-tight md:text-2xl">
-                  <EditableText
-                    sectionId={sectionId}
-                    path={["items", index, "title"]}
-                    value={item.title}
-                    fallback="Celebration detail"
-                    placeholder="Add title"
-                    label={`Schedule item ${index + 1} title`}
-                  />
-                </h3>
-                <p className="mt-2 break-words [overflow-wrap:anywhere] whitespace-pre-line">
-                  <EditableText
-                    sectionId={sectionId}
-                    path={["items", index, "description"]}
-                    value={item.description}
-                    placeholder="Add description"
-                    label={`Schedule item ${index + 1} description`}
-                    multiline
-                  />
-                </p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <EmptyCopy>Celebration details will appear here.</EmptyCopy>
-      )}
-    </EditorialSection>
-  );
-}
-export function ModernEditorialVenue({
-  sectionId,
-  content,
-}: {
-  sectionId: string;
-  content: VenueContent;
-}) {
-  return (
-    <EditorialSection
-      number="05"
-      heading={
-        <EditableText
-          sectionId={sectionId}
-          path={["heading"]}
-          value={content.heading}
-          fallback="Venue"
-          placeholder="Add heading"
-          label="Venue heading"
-        />
-      }
-      specializedClassName="px-5 py-12 [&_[data-section-body]]:mt-8 md:px-8 md:py-16 md:[&_[data-section-body]]:mt-10 xl:px-14 xl:py-20 xl:[&_[data-section-body]]:mt-12"
-    >
-      <div className="min-w-0 space-y-5 md:space-y-7">
-        <div className="min-w-0">
-          <p className="w-full max-w-3xl break-words [overflow-wrap:anywhere] font-[family-name:var(--me-heading-font)] text-2xl leading-tight md:text-3xl">
-            <EditableText
-              sectionId={sectionId}
-              path={["name"]}
-              value={content.name}
-              fallback="Venue details to follow"
-              placeholder="Add venue name"
-              label="Venue name"
-            />
-          </p>
-          <p className="mt-2 w-full max-w-3xl break-words [overflow-wrap:anywhere] whitespace-pre-line text-xs font-semibold uppercase tracking-widest md:mt-3">
-            <EditableText
-              sectionId={sectionId}
-              path={["address"]}
-              value={content.address}
-              placeholder="Add address"
-              label="Venue address"
-              multiline
-            />
-          </p>
-        </div>
-        <p className="w-full max-w-xl break-words [overflow-wrap:anywhere] whitespace-pre-line">
-          <EditableText
-            sectionId={sectionId}
-            path={["description"]}
-            value={content.description}
-            placeholder="Add description"
-            label="Venue description"
-            multiline
-          />
-        </p>
-      </div>
-    </EditorialSection>
-  );
 }
 export function ModernEditorialPeople({
   sectionId,

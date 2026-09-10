@@ -5,10 +5,8 @@ import type {
   PeopleContent,
   ResolvedWebsiteMedia,
   RsvpContent,
-  ScheduleContent,
   StoryBlock,
   StoryContent,
-  VenueContent,
 } from "../../../websiteEditor/types";
 import { ZoomedMediaImage } from "../../ZoomedMediaImage";
 import {
@@ -510,134 +508,6 @@ export function ClassicFilipinianaStoryBlockBody({
       />
     </p>
   ) : null;
-}
-
-export function ClassicFilipinianaSchedule({
-  sectionId,
-  content,
-}: {
-  sectionId: string;
-  content: ScheduleContent;
-}) {
-  return (
-    <ContentSection
-      eyebrow="The celebration"
-      heading={
-        <EditableText
-          sectionId={sectionId}
-          path={["heading"]}
-          value={content.heading}
-          fallback="Schedule"
-          placeholder="Add heading"
-          label="Schedule heading"
-        />
-      }
-      specializedClassName="px-5 py-12 md:px-8 md:py-16 xl:px-12 xl:py-20"
-    >
-      {content.items.length ? (
-        <ol className="mx-auto w-full max-w-2xl text-left">
-          {content.items.map((item, index) => (
-            <li
-              className="grid min-w-0 grid-cols-1 gap-2 border-t border-[color-mix(in_srgb,var(--cf-border)_25%,transparent)] py-4 md:grid-cols-[minmax(6rem,8rem)_minmax(0,1fr)] md:gap-4 md:py-5 xl:grid-cols-[minmax(7rem,9rem)_minmax(0,1fr)] xl:py-6"
-              key={index}
-            >
-              <span className="min-w-0 break-words [overflow-wrap:anywhere] !text-left text-xs font-semibold uppercase tracking-wider text-[var(--cf-section-accent)]">
-                <EditableText
-                  sectionId={sectionId}
-                  path={["items", index, "time"]}
-                  value={item.time}
-                  fallback="Time TBA"
-                  placeholder="Add time"
-                  label={`Schedule item ${index + 1} time`}
-                />
-              </span>
-              <div className="min-w-0 !text-left">
-                <h3 className="break-words [overflow-wrap:anywhere] font-[family-name:var(--cf-heading-font)] text-xl text-[var(--cf-text)]">
-                  <EditableText
-                    sectionId={sectionId}
-                    path={["items", index, "title"]}
-                    value={item.title}
-                    fallback="Celebration detail"
-                    placeholder="Add title"
-                    label={`Schedule item ${index + 1} title`}
-                  />
-                </h3>
-                <p className="mt-1 break-words [overflow-wrap:anywhere] text-sm leading-6">
-                  <EditableText
-                    sectionId={sectionId}
-                    path={["items", index, "description"]}
-                    value={item.description}
-                    placeholder="Add description"
-                    label={`Schedule item ${index + 1} description`}
-                    multiline
-                  />
-                </p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <EmptyCopy>Celebration details will appear here.</EmptyCopy>
-      )}
-    </ContentSection>
-  );
-}
-
-export function ClassicFilipinianaVenue({
-  sectionId,
-  content,
-}: {
-  sectionId: string;
-  content: VenueContent;
-}) {
-  return (
-    <ContentSection
-      eyebrow="Where to gather"
-      heading={
-        <EditableText
-          sectionId={sectionId}
-          path={["heading"]}
-          value={content.heading}
-          fallback="Venue"
-          placeholder="Add heading"
-          label="Venue heading"
-        />
-      }
-      specializedClassName="px-5 py-12 [&_[data-section-body]]:mt-6 md:px-8 md:py-16 md:[&_[data-section-body]]:mt-8 xl:px-12 xl:py-20"
-    >
-      <p className="mx-auto w-full max-w-2xl break-words [overflow-wrap:anywhere] font-[family-name:var(--cf-heading-font)] text-2xl leading-tight text-[var(--cf-text)] md:text-3xl">
-        <EditableText
-          sectionId={sectionId}
-          path={["name"]}
-          value={content.name}
-          fallback="Venue details to follow"
-          placeholder="Add venue name"
-          label="Venue name"
-        />
-      </p>
-      <ClassicFoundationOrnament className="mx-auto my-4 h-4 w-24 opacity-55 md:my-5 md:w-28" />
-      <p className="mx-auto w-full max-w-2xl break-words [overflow-wrap:anywhere] whitespace-pre-line text-xs font-semibold uppercase tracking-[0.2em] text-[var(--cf-muted)]">
-        <EditableText
-          sectionId={sectionId}
-          path={["address"]}
-          value={content.address}
-          placeholder="Add address"
-          label="Venue address"
-          multiline
-        />
-      </p>
-      <p className="mx-auto mt-5 w-full max-w-xl break-words [overflow-wrap:anywhere] whitespace-pre-line md:mt-6">
-        <EditableText
-          sectionId={sectionId}
-          path={["description"]}
-          value={content.description}
-          placeholder="Add description"
-          label="Venue description"
-          multiline
-        />
-      </p>
-    </ContentSection>
-  );
 }
 
 export function ClassicFilipinianaPeople({

@@ -11,7 +11,7 @@ export function hasIntentionalSectionSurface(section: WebsiteSection): boolean {
     || background?.customColor
     || (background?.texture && background.texture !== 'none')
     || (background?.pattern && background.pattern !== 'none')
-    || background?.overlay
+    || (background?.overlay && background.overlay !== 'none')
     || (decorative?.frame?.style && decorative.frame.style !== 'none'),
   )
 }
