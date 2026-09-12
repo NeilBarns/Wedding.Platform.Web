@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { heroContentSchema } from "./schemas";
-import { commitPendingRichTextEdit, createRichTextEditSession } from "./richTextSelection";
+import { commitPendingTextEdit, createTextEditSession } from "./textSelection";
 import {
   SECTION_SPECIALIZED_REFERENCE,
   createSectionElement,
   createTextElement,
+  deleteGenericSectionElement,
   deleteSectionElement,
   duplicateSectionElement,
   findSectionElement,
@@ -16,20 +17,20 @@ import {
   renameSectionElement,
   sectionChildFlowSchema,
   updateSectionElement,
-  updateSectionRichTextAppearance,
-  updateSectionRichTextDocument,
+  updateSectionTextAppearance,
+  updateSectionTextDocument,
   setSectionElementHidden,
   type SectionChildFlow,
 } from "./sectionChildFlow";
 import { websiteElementSchema } from "../websiteElements/schemas";
 
-const text = (id: string, value = id) => ({ id, type: "text" as const, editorName: "Text 1", text: value, appearance: {} });
+const text = (id: string, value = id) => ({ id, type: "text" as const, editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: value }] }] }, appearance: {} });
 const flow = (elements = [text("a")], order: Array<{ kind: "specialized"; key: "content" } | { kind: "element"; id: string }> = [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "a" }]) => ({ elements, order });
 
 describe("Section child-flow schema", () => {
   it.each([
-    { id: "text", type: "text", editorName: "  Text\n  1 ", text: "" },
-    { id: "rich", type: "richText", editorName: "Rich Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "" }] }] } },
+    { id: "text", type: "text", editorName: "  Text\n  1 ", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: ""  }] }] }},
+    { id: "rich", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "" }] }] } },
     { id: "date", type: "date", editorName: "Date 1" },
     { id: "media", type: "media", editorName: "Media 1", items: [] },
     { id: "divider", type: "divider", editorName: "Divider 1" },
@@ -42,16 +43,16 @@ describe("Section child-flow schema", () => {
   });
 
   it("enforces blank and 80-Unicode-character editor names without adding identity to functional elements", () => {
-    expect(websiteElementSchema.safeParse({ id: "text", type: "text", editorName: "   \n ", text: "" }).success).toBe(false);
-    expect(websiteElementSchema.safeParse({ id: "text", type: "text", editorName: "😀".repeat(80), text: "" }).success).toBe(true);
-    expect(websiteElementSchema.safeParse({ id: "text", type: "text", editorName: "😀".repeat(81), text: "" }).success).toBe(false);
+    expect(websiteElementSchema.safeParse({ id: "text", type: "text", editorName: "   \n ", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: ""  }] }] }}).success).toBe(false);
+    expect(websiteElementSchema.safeParse({ id: "text", type: "text", editorName: "😀".repeat(80), document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: ""  }] }] }}).success).toBe(true);
+    expect(websiteElementSchema.safeParse({ id: "text", type: "text", editorName: "😀".repeat(81), document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: ""  }] }] }}).success).toBe(false);
     expect(websiteElementSchema.safeParse({ id: "heading", type: "heading", editorName: "Heading 1", text: "Heading" }).success).toBe(false);
   });
 
   it("hydrates complete direct and nested canonical Text without changing state", () => {
     const appearance = { fontFamilyId: "inter", fontSize: "xl" as const, fontWeight: 600 as const, lineHeight: "relaxed" as const, letterSpacing: "wide" as const, alignment: "center" as const, colorId: "terracotta-text", italic: true, underline: true, strikethrough: true, textTransform: "uppercase" as const, responsive: { tablet: { fontSize: "l" as const, alignment: "start" as const }, mobile: { fontSize: "s" as const, alignment: "end" as const } } };
-    const direct = { id: "direct-text", type: "text" as const, editorName: "Text 1", text: "Direct", isHidden: true, appearance };
-    const nested = { id: "nested-text", type: "text" as const, editorName: "Text 1", text: "Nested", appearance };
+    const direct = { id: "direct-text", type: "text" as const, editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Direct" }] }] }, isHidden: true, appearance };
+    const nested = { id: "nested-text", type: "text" as const, editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Nested" }] }] }, appearance };
     const candidate: SectionChildFlow = { elements: [direct, { id: "outer", type: "compositionGroup", editorName: "Group 1", children: [{ id: "inner", type: "compositionGroup", editorName: "Group 1", children: [nested] }] }], order: [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "direct-text" }, { kind: "element", id: "outer" }] };
     const hydrated = sectionChildFlowSchema.parse(candidate);
     expect(findSectionElement(hydrated, "direct-text")).toEqual(direct);
@@ -81,28 +82,27 @@ describe("Section child-flow schema", () => {
     expect(sectionChildFlowSchema.safeParse(candidate).success).toBe(false);
   });
 });
-
 describe("Section child-flow operations", () => {
   const movableFlow = (): SectionChildFlow => ({
     elements: [
-      { id: "root-text", type: "text", editorName: "Welcome message", text: "Keep me", isHidden: true, appearance: { fontSize: "l" } },
+      { id: "root-text", type: "text", editorName: "Welcome message", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Keep me" }] }] }, isHidden: true, appearance: { fontSize: "l" } },
       { id: "group-a", type: "compositionGroup", editorName: "Group A", children: [
-        { id: "a-1", type: "text", editorName: "Text A", text: "A" },
-        { id: "inner", type: "compositionGroup", editorName: "Inner", children: [{ id: "nested", type: "text", editorName: "Nested copy", text: "Nested" }] },
+        { id: "a-1", type: "text", editorName: "Text A", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "A"  }] }] }},
+        { id: "inner", type: "compositionGroup", editorName: "Inner", children: [{ id: "nested", type: "text", editorName: "Nested copy", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Nested"  }] }] }}] },
       ] },
-      { id: "group-b", type: "compositionGroup", editorName: "Group B", children: [{ id: "b-1", type: "text", editorName: "Text B", text: "B" }] },
-      { id: "shallow-group", type: "compositionGroup", editorName: "Shallow", children: [{ id: "shallow-copy", type: "text", editorName: "Shallow copy", text: "Subtree" }] },
+      { id: "group-b", type: "compositionGroup", editorName: "Group B", children: [{ id: "b-1", type: "text", editorName: "Text B", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "B"  }] }] }}] },
+      { id: "shallow-group", type: "compositionGroup", editorName: "Shallow", children: [{ id: "shallow-copy", type: "text", editorName: "Shallow copy", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Subtree"  }] }] }}] },
     ],
     order: [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "root-text" }, { kind: "element", id: "group-a" }, { kind: "element", id: "group-b" }, { kind: "element", id: "shallow-group" }],
   });
 
-  it.each(["direct", "group", "nested group"] as const)("round-trips the complete canonical Rich Text fixture at the %s placement", (placement) => {
+  it.each(["direct", "group", "nested group"] as const)("round-trips the complete canonical Text fixture at the %s placement", (placement) => {
     const document = { type: "doc" as const, children: [
       { type: "paragraph" as const, children: [{ text: "Bold", marks: { bold: true } }, { text: " italic", marks: { italic: true } }, { text: " under", marks: { underline: true } }, { text: " strike", marks: { strikethrough: true } }] },
       { type: "paragraph" as const, children: [{ text: "Second paragraph" }] },
     ] };
     const rich = {
-      id: "rich-fixture", type: "richText" as const, editorName: "Ceremony copy", isHidden: true, document,
+      id: "rich-fixture", type: "text" as const, editorName: "Ceremony copy", isHidden: true, document,
       appearance: {
         fontFamilyId: "inter", fontWeight: 600 as const, fontSize: "l" as const,
         lineHeight: "relaxed" as const, letterSpacing: "wide" as const, alignment: "center" as const, colorId: "ink",
@@ -217,7 +217,7 @@ describe("Section child-flow operations", () => {
     const subtree = structuredClone(findSectionElement(initial, "shallow-group"));
     const groupMoved = moveSectionElement(initial, "shallow-group", { parentId: "group-b", index: 0 });
     expect(groupMoved.ok && findSectionElement(groupMoved.flow, "shallow-group")).toEqual(subtree);
-    expect(groupMoved.ok && findSectionElement(groupMoved.flow, "shallow-copy")).toMatchObject({ id: "shallow-copy", editorName: "Shallow copy", text: "Subtree" });
+    expect(groupMoved.ok && findSectionElement(groupMoved.flow, "shallow-copy")).toMatchObject({ id: "shallow-copy", editorName: "Shallow copy", document: { children: [{ children: [{ text: "Subtree" }] }] } });
   });
 
   it("rejects cycles, invalid types, depth, and capacity without partial mutation", () => {
@@ -233,11 +233,11 @@ describe("Section child-flow operations", () => {
 
     const fullGroup = movableFlow();
     const groupB = findSectionElement(fullGroup, "group-b") as import("../websiteElements/types").CompositionGroup;
-    groupB.children = Array.from({ length: 20 }, (_, index) => ({ id: `full-${index}`, type: "text", editorName: `Full ${index}`, text: "" }));
+    groupB.children = Array.from({ length: 20 }, (_, index) => ({ id: `full-${index}`, type: "text", editorName: `Full ${index}`, document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "" }] }] } }));
     expect(moveSectionElement(fullGroup, "root-text", { parentId: "group-b", index: 20 })).toMatchObject({ ok: false, reason: "invalid-destination" });
 
     const fullRoot = movableFlow();
-    fullRoot.elements.push(...Array.from({ length: 16 }, (_, index) => ({ id: `root-${index}`, type: "text" as const, editorName: `Root ${index}`, text: "" })));
+    fullRoot.elements.push(...Array.from({ length: 16 }, (_, index) => ({ id: `root-${index}`, type: "text" as const, editorName: `Root ${index}`, document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "" }] }] } })));
     fullRoot.order.push(...Array.from({ length: 16 }, (_, index) => ({ kind: "element" as const, id: `root-${index}` })));
     expect(moveSectionElement(fullRoot, "a-1", { parentId: null, index: fullRoot.order.length })).toMatchObject({ ok: false, reason: "invalid-destination" });
     expect(initial).toEqual(snapshot);
@@ -255,7 +255,7 @@ describe("Section child-flow operations", () => {
       if (moved.ok) current = moved.flow;
     }
     const reloaded = sectionChildFlowSchema.parse(JSON.parse(JSON.stringify(current)));
-    expect(findSectionElement(reloaded, "root-text")).toMatchObject({ id: "root-text", editorName: "Welcome message", isHidden: true, text: "Keep me", appearance: { fontSize: "l" } });
+    expect(findSectionElement(reloaded, "root-text")).toMatchObject({ id: "root-text", editorName: "Welcome message", isHidden: true, document: { children: [{ children: [{ text: "Keep me" }] }] }, appearance: { fontSize: "l" } });
     expect((findSectionElement(reloaded, "group-b") as import("../websiteElements/types").CompositionGroup).children.map(({ id }) => id)).toContain("root-text");
     expect(reloaded.order[1]).toEqual({ kind: "element", id: "nested" });
   });
@@ -283,7 +283,7 @@ describe("Section child-flow operations", () => {
 
     const full = movableFlow();
     const groupB = findSectionElement(full, "group-b") as import("../websiteElements/types").CompositionGroup;
-    groupB.children = Array.from({ length: 20 }, (_, index) => ({ id: `limit-${index}`, type: "text", editorName: `Limit ${index}`, text: "" }));
+    groupB.children = Array.from({ length: 20 }, (_, index) => ({ id: `limit-${index}`, type: "text", editorName: `Limit ${index}`, document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "" }] }] } }));
     expect(getValidSectionElementMoveDestinations(full, "root-text").map(({ parentId }) => parentId)).not.toContain("group-b");
   });
 
@@ -302,9 +302,9 @@ describe("Section child-flow operations", () => {
   it("allocates independent Section-wide names across nested Groups", () => {
     const existing: SectionChildFlow = {
       elements: [
-        { id: "text-1", type: "text", editorName: "Text 1", text: "" },
+        { id: "text-1", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: ""  }] }] }},
         { id: "group", type: "compositionGroup", editorName: "Group 1", children: [
-          { id: "text-3", type: "text", editorName: "Text 3", text: "" },
+          { id: "text-3", type: "text", editorName: "Text 3", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: ""  }] }] }},
           { id: "inner", type: "compositionGroup", editorName: "Group 2", children: [{ id: "media", type: "media", editorName: "Media 1", items: [] }] },
         ] },
       ],
@@ -329,30 +329,30 @@ describe("Section child-flow operations", () => {
 
   it("duplicates a Group subtree with fresh deterministic preorder identities", () => {
     const group = { id: "group", type: "compositionGroup" as const, editorName: "Group 1", isHidden: true, layout: { gap: "m" as const }, children: [
-      { id: "text", type: "text" as const, editorName: "Welcome", text: "Keep", appearance: { fontSize: "l" as const } },
+      { id: "text", type: "text" as const, editorName: "Welcome", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Keep", colorId: "project-color-01M00000000000000000000000" }] }] }, appearance: { fontSize: "l" as const } },
       { id: "date", type: "date" as const, editorName: "Ceremony date", isHidden: true },
-      { id: "inner", type: "compositionGroup" as const, editorName: "Details", children: [{ id: "nested", type: "text" as const, editorName: "Text 4", text: "Nested" }] },
+      { id: "inner", type: "compositionGroup" as const, editorName: "Details", children: [{ id: "nested", type: "text" as const, editorName: "Text 4", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Nested"  }] }] }}] },
     ] };
     const current: SectionChildFlow = { elements: [group], order: [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "group" }] };
     const result = duplicateSectionElement(current, "group")!;
     const copy = findSectionElement(result.flow, result.elementId);
     expect(copy).toMatchObject({ type: "compositionGroup", editorName: "Group 2", isHidden: true, layout: { gap: "m" }, children: [
-      { type: "text", editorName: "Text 5", text: "Keep", appearance: { fontSize: "l" } },
+      { type: "text", editorName: "Text 5", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Keep", colorId: "project-color-01M00000000000000000000000" }] }] }, appearance: { fontSize: "l" } },
       { type: "date", editorName: "Date 1", isHidden: true },
-      { type: "compositionGroup", editorName: "Group 3", children: [{ type: "text", editorName: "Text 6", text: "Nested" }] },
+      { type: "compositionGroup", editorName: "Group 3", children: [{ type: "text", editorName: "Text 6", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Nested"  }] }] }}] },
     ] });
     expect(copy?.id).not.toBe(group.id);
     expect(copy?.type === "compositionGroup" ? copy.children[0].id : null).not.toBe("text");
   });
 
-  it("rejects noncanonical Rich Text runs nested inside Groups before saving", () => {
-    const candidate = flow([{ id: "group", type: "compositionGroup", editorName: "Group 1", children: [{ id: "rich", type: "richText", editorName: "Rich Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "Copy", marks: { bold: true, italic: false }, editorMetadata: true }] }] } }], layout: {} } as never], [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "group" }]);
+  it("rejects noncanonical Text runs nested inside Groups before saving", () => {
+    const candidate = flow([{ id: "group", type: "compositionGroup", editorName: "Group 1", children: [{ id: "rich", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Copy", marks: { bold: true, italic: false }, editorMetadata: true }] }] } }], layout: {} } as never], [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "group" }]);
     expect(sectionChildFlowSchema.safeParse(candidate).success).toBe(false);
   });
 
-  it.each(["tablet", "mobile"] as const)("preserves nested Rich Text document through every %s appearance update", (viewport) => {
+  it.each(["tablet", "mobile"] as const)("preserves nested Text document through every %s appearance update", (viewport) => {
     const document = { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Existing nested content", marks: { bold: true } }] }, { type: "paragraph" as const, children: [{ text: "First" }] }, { type: "paragraph" as const, children: [{ text: "Second", marks: { italic: true } }] }] };
-    const nested = flow([{ id: "group", type: "compositionGroup", editorName: "Group 1", children: [{ id: "rich", type: "richText", editorName: "Rich Text 1", document }], layout: {} } as never], [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "group" }]);
+    const nested = flow([{ id: "group", type: "compositionGroup", editorName: "Group 1", children: [{ id: "rich", type: "text", editorName: "Text 1", document }], layout: {} } as never], [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "group" }]);
     const originalBytes = JSON.stringify(document);
     const appearances = [
       { fontFamilyId: "body-font" },
@@ -365,28 +365,28 @@ describe("Section child-flow operations", () => {
     ];
 
     for (const appearance of appearances) {
-      const updated = updateSectionRichTextAppearance(nested, "rich", appearance);
+      const updated = updateSectionTextAppearance(nested, "rich", appearance);
       expect(updated).not.toBeNull();
       const rich = findSectionElement(updated ?? undefined, "rich");
-      expect(rich?.type).toBe("richText");
-      if (rich?.type !== "richText") continue;
+      expect(rich?.type).toBe("text");
+      if (rich?.type !== "text") continue;
       expect(JSON.stringify(rich.document)).toBe(originalBytes);
       expect(rich.appearance).toEqual(appearance);
       expect(JSON.stringify((findSectionElement(nested, "rich") as { document: unknown }).document)).toBe(originalBytes);
     }
   });
 
-  it("preserves top-level Rich Text while applying appearance-only updates", () => {
+  it("preserves top-level Text while applying appearance-only updates", () => {
     const document = { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Top-level content" }] }] };
-    const topLevel = flow([{ id: "rich", type: "richText", editorName: "Rich Text 1", document } as never], [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "rich" }]);
-    const updated = updateSectionRichTextAppearance(topLevel, "rich", { responsive: { mobile: { alignment: "center" } } });
-    expect(findSectionElement(updated ?? undefined, "rich")).toEqual({ id: "rich", type: "richText", editorName: "Rich Text 1", document, appearance: { responsive: { mobile: { alignment: "center" } } } });
+    const topLevel = flow([{ id: "rich", type: "text", editorName: "Text 1", document } as never], [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "rich" }]);
+    const updated = updateSectionTextAppearance(topLevel, "rich", { responsive: { mobile: { alignment: "center" } } });
+    expect(findSectionElement(updated ?? undefined, "rich")).toEqual({ id: "rich", type: "text", editorName: "Text 1", document, appearance: { responsive: { mobile: { alignment: "center" } } } });
   });
 
-  it.each(["direct", "group child", "nested group child"] as const)("merges a canvas document commit into the latest Rich Text %s without replacing sibling state", (placement) => {
+  it.each(["direct", "group child", "nested group child"] as const)("merges a canvas document commit into the latest Text %s without replacing sibling state", (placement) => {
     const before = { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Before" }] }] };
     const after = { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "After", marks: { bold: true } }] }] };
-    const rich = { id: "rich", type: "richText" as const, editorName: "Latest name", isHidden: true, appearance: { fontFamilyId: "body-font", responsive: { mobile: { fontSize: "s" as const } } }, document: before };
+    const rich = { id: "rich", type: "text" as const, editorName: "Latest name", isHidden: true, appearance: { fontFamilyId: "body-font", responsive: { mobile: { fontSize: "s" as const } } }, document: before };
     const elements = placement === "direct"
       ? [rich]
       : placement === "group child"
@@ -394,42 +394,42 @@ describe("Section child-flow operations", () => {
         : [{ id: "outer", type: "compositionGroup" as const, editorName: "Group 1", children: [{ id: "inner", type: "compositionGroup" as const, editorName: "Group 2", children: [rich] }] }];
     const current = flow(elements as never, [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: elements[0].id }]);
 
-    const updated = updateSectionRichTextDocument(current, "rich", after);
+    const updated = updateSectionTextDocument(current, "rich", after);
     const result = findSectionElement(updated ?? undefined, "rich");
     expect(result).toEqual({ ...rich, document: after });
   });
 
-  it("merges panel appearance into the latest canonical nested Rich Text node", () => {
+  it("merges panel appearance into the latest canonical nested Text node", () => {
     const document = { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Latest canvas content" }] }] };
-    const nested = flow([{ id: "group", type: "compositionGroup", editorName: "Group 1", children: [{ id: "rich", type: "richText", editorName: "Rich Text 1", document }], layout: {} } as never], [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "group" }]);
-    const updated = updateSectionRichTextAppearance(nested, "rich", { responsive: { mobile: { fontSize: "s" } } });
+    const nested = flow([{ id: "group", type: "compositionGroup", editorName: "Group 1", children: [{ id: "rich", type: "text", editorName: "Text 1", document }], layout: {} } as never], [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "group" }]);
+    const updated = updateSectionTextAppearance(nested, "rich", { responsive: { mobile: { fontSize: "s" } } });
     const rich = findSectionElement(updated ?? undefined, "rich");
-    expect(rich?.type === "richText" ? rich.document : null).toEqual(document);
+    expect(rich?.type === "text" ? rich.document : null).toEqual(document);
   });
 
-  it("save and reload preserve nested Rich Text after Mobile appearance edits", () => {
+  it("save and reload preserve nested Text after Mobile appearance edits", () => {
     const document = { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Persist me", marks: { underline: true } }] }] };
-    const nested = flow([{ id: "group", type: "compositionGroup", editorName: "Group 1", children: [{ id: "rich", type: "richText", editorName: "Rich Text 1", document }], layout: {} } as never], [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "group" }]);
-    const updated = updateSectionRichTextAppearance(nested, "rich", { responsive: { mobile: { fontSize: "s", alignment: "center" } } });
+    const nested = flow([{ id: "group", type: "compositionGroup", editorName: "Group 1", children: [{ id: "rich", type: "text", editorName: "Text 1", document }], layout: {} } as never], [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "group" }]);
+    const updated = updateSectionTextAppearance(nested, "rich", { responsive: { mobile: { fontSize: "s", alignment: "center" } } });
     const saved = sectionChildFlowSchema.parse(updated!);
     const reloaded = sectionChildFlowSchema.parse(JSON.parse(JSON.stringify(saved)));
     const rich = findSectionElement(reloaded, "rich");
-    expect(rich?.type === "richText" ? rich.document : null).toEqual(document);
-    expect(rich?.type === "richText" ? rich.appearance : null).toEqual({ responsive: { mobile: { fontSize: "s", alignment: "center" } } });
+    expect(rich?.type === "text" ? rich.document : null).toEqual(document);
+    expect(rich?.type === "text" ? rich.appearance : null).toEqual({ responsive: { mobile: { fontSize: "s", alignment: "center" } } });
   });
 
-  it.each(["top-level", "nested"] as const)("Tablet %s Rich Text commits only dirty document changes", (_placement) => {
+  it.each(["top-level", "nested"] as const)("Tablet %s Text commits only dirty document changes", (_placement) => {
     const original = { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Original Tablet content" }] }] };
-    const rich = { id: "rich", type: "richText" as const, editorName: "Rich Text 1", document: original };
+    const rich = { id: "rich", type: "text" as const, editorName: "Text 1", document: original };
     let current: SectionChildFlow = _placement === "nested"
       ? flow([{ id: "group", type: "compositionGroup", editorName: "Group 1", children: [rich], layout: {} } as never], [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "group" }])
       : flow([rich as never], [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "rich" }]);
-    const session = createRichTextEditSession();
+    const session = createTextEditSession();
     const update = vi.fn((document: typeof original) => {
       const latest = findSectionElement(current, "rich");
-      if (latest?.type === "richText") current = updateSectionElement(current, { ...latest, document });
+      if (latest?.type === "text") current = updateSectionElement(current, { ...latest, document });
     });
-    const blur = (document: typeof original) => commitPendingRichTextEdit(session, () => document, update);
+    const blur = (document: typeof original) => commitPendingTextEdit(session, () => document, update);
 
     expect(blur({ type: "doc", children: [{ type: "paragraph", children: [{ text: "stale empty snapshot" }] }] })).toBe(false);
     expect((findSectionElement(current, "rich") as typeof rich).document).toEqual(original);
@@ -453,7 +453,7 @@ describe("Section child-flow operations", () => {
     expect(added.order).toEqual([SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "a" }]);
     const edited = updateSectionElement(added, text("a", "edited"));
     expect(edited.order).toEqual(added.order);
-    expect(edited.elements[0]).toMatchObject({ id: "a", text: "edited" });
+    expect(edited.elements[0]).toMatchObject({ id: "a", document: { children: [{ children: [{ text: "edited" }] }] } });
   });
 
   it("stores hidden state sparsely and preserves it through save/reload", () => {
@@ -490,6 +490,12 @@ describe("Section child-flow operations", () => {
     expect(deleteSectionElement(flow(), "a")).toEqual({ flow: undefined, selection: SECTION_SPECIALIZED_REFERENCE });
   });
 
+  it("persists an empty generic-only flow after deleting its final block", () => {
+    const generic = { elements: [text("a")], order: [{ kind: "element" as const, id: "a" }] };
+    expect(deleteGenericSectionElement(generic, "a")).toEqual({ flow: { elements: [], order: [] } });
+    expect(genericTextSectionChildFlowSchema.safeParse(deleteGenericSectionElement(generic, "a").flow).success).toBe(true);
+  });
+
   it("moves specialized content around Text without changing elements", () => {
     const candidate = flow([text("a"), text("b")], [SECTION_SPECIALIZED_REFERENCE, { kind: "element", id: "a" }, { kind: "element", id: "b" }]);
     const moved = moveSectionChild(candidate, SECTION_SPECIALIZED_REFERENCE, 1);
@@ -497,5 +503,5 @@ describe("Section child-flow operations", () => {
     expect(moved.elements).toEqual(candidate.elements);
   });
 
-  it("creates semantic Text IDs without persisted defaults", () => expect(createTextElement("Text 1")).toMatchObject({ type: "text", editorName: "Text 1", text: "" }));
+  it("creates semantic Text IDs without persisted defaults", () => expect(createTextElement("Text 1")).toMatchObject({ type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: ""  }] }] }}));
 });

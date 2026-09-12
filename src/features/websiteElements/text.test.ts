@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 import { textElementSchema } from "./schemas";
 import { changeTextFontFamily, normalizeTextAppearanceForFont, resetTextResponsiveDevice, resolveTextResponsiveAppearance, selectTextGlobalAppearanceProperty, selectTextResponsiveProperty, setTextFontWeight, setTextResponsiveProperty, textFontCapabilities, toggleTextBold, toggleTextItalic } from "./text";
 
-const base = { id: "text-1", type: "text" as const, editorName: "Text 1", text: "Hello" };
+const base = { id: "text-1", type: "text" as const, editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Hello"  }] }] }};
 
 describe("Text schema", () => {
-  it("keeps the minimal canonical shape and normalizes pasted line breaks", () => {
-    expect(textElementSchema.parse({ ...base, text: "one\r\n\ntwo\u2029three" })).toEqual({ ...base, text: "one two three" });
+  it("accepts only the canonical document shape", () => {
+    expect(textElementSchema.parse(base)).toEqual(base);
+    expect(textElementSchema.safeParse({ id: "text-1", type: "text", editorName: "Text 1", text: "legacy" }).success).toBe(false);
   });
 
   it("accepts the complete strict vocabulary", () => {
@@ -14,8 +15,9 @@ describe("Text schema", () => {
   });
 
   it("counts Unicode code points consistently with the API character limit", () => {
-    expect(textElementSchema.safeParse({ ...base, text: "😀".repeat(5000) }).success).toBe(true);
-    expect(textElementSchema.safeParse({ ...base, text: "😀".repeat(5001) }).success).toBe(false);
+    const withText = (text: string) => ({ ...base, document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text }] }] } });
+    expect(textElementSchema.safeParse(withText("😀".repeat(20000))).success).toBe(true);
+    expect(textElementSchema.safeParse(withText("😀".repeat(20001))).success).toBe(false);
   });
 
   it.each([

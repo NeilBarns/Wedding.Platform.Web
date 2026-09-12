@@ -45,5 +45,5 @@ export function WebsiteRenderer(props: WebsiteRendererProps) {
     }),
   }
 
-  return <div ref={rootRef}><WebsiteElementChangeContext.Provider value={{ onElementChange: props.onElementChange, onRichTextDocumentChange: props.onRichTextDocumentChange }}><Renderer {...props} website={website} targetViewport={targetViewport} /></WebsiteElementChangeContext.Provider></div>
+  return <div ref={rootRef}><WebsiteElementChangeContext.Provider value={{ onElementChange: props.onElementChange, onTextDocumentChange: props.onTextDocumentChange, onAddColor: props.onAddColor }}><Renderer {...props} website={website} targetViewport={targetViewport} /></WebsiteElementChangeContext.Provider></div>
 }

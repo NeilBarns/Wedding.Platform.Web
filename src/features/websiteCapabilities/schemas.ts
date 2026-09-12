@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import { WEBSITE_ELEMENT_TYPES } from '../websiteElements/constants'
-
 export const APPEARANCE_CONTROL_IDS = [
   'headingAlignment',
   'bodyAlignment',
@@ -19,12 +18,6 @@ export const APPEARANCE_CONTROL_IDS = [
 ] as const
 
 const optionSchema = z.object({ key: z.string().min(1), displayName: z.string().min(1) }).strict()
-const narrativeMediaFrameStyleSchema = z.object({
-  key: z.string().min(1),
-  displayName: z.string().min(1),
-  supportsColor: z.boolean().optional(),
-  sizes: z.array(z.enum(['small', 'medium', 'large'])).min(1).optional(),
-}).strict()
 const globalDesignControlBase = {
   default: z.string().min(1),
   options: z.array(optionSchema).min(1),
@@ -55,7 +48,6 @@ export const globalDesignControlCapabilitySchema = z.discriminatedUnion('type', 
     context.addIssue({ code: 'custom', message: 'Global design default must be an allowed option', path: ['default'] })
   }
 })
-
 export const globalDesignCapabilitySchema = z.object({
   controls: z.tuple([
     globalDesignControlCapabilitySchema,
@@ -275,65 +267,22 @@ const elementColorCapabilitySchema = z.object({
   allowedColorIds: z.array(z.string().min(1)).min(1),
   scope: z.literal('shared'),
 }).strict()
-const narrativePresentations = z.enum(['editorial', 'mediaFirst', 'quoteLed', 'textOnly'])
-const narrativePlacements = z.enum(['leading', 'trailing', 'above', 'below', 'splitStart', 'splitEnd', 'inset'])
-const narrativeTreatments = z.enum(['standard', 'wide', 'cinematic', 'fullBleed'])
-const narrativeSlots = z.tuple([z.literal('eyebrow'), z.literal('heading'), z.literal('divider'), z.literal('body'), z.literal('quote'), z.literal('media'), z.literal('caption'), z.literal('cta')])
 export const elementCapabilitySchema = z.object({
   type: z.enum(WEBSITE_ELEMENT_TYPES),
   appearance: z.object({
     typography: z.array(elementTypographyCapabilitySchema),
     colors: z.array(elementColorCapabilitySchema),
   }).strict().nullable(),
-  narrativeBlock: z.object({
-    slots: narrativeSlots,
-    appearance: z.object({
-      controls: z.tuple([z.literal('fontFamilyId'), z.literal('fontSize'), z.literal('lineSpacing'), z.literal('letterSpacing'), z.literal('colorId')]),
-      backgroundColorIds: z.array(z.string().min(1)).min(1),
-      decorativeAppearance: z.object({
-        textures: z.array(z.enum(['none', 'paper', 'fabric', 'grain'])).min(1),
-        patterns: z.array(z.enum(['none', 'botanical', 'geometric', 'heritage'])).min(1),
-      }).strict(),
-      media: z.object({
-        cornerStyles: z.array(z.enum(['square', 'soft', 'rounded'])).min(1),
-        frameStyles: z.array(narrativeMediaFrameStyleSchema),
-        frameColorIds: z.array(z.string().min(1)),
-        defaultFrameStyle: z.string().min(1).optional(),
-      }).strict(),
-      fontSizeOptions: z.tuple([z.literal('xs'), z.literal('s'), z.literal('m'), z.literal('l'), z.literal('xl')]),
-      responsiveFontSizeViewports: z.tuple([z.literal('desktop'), z.literal('tablet'), z.literal('mobile')]),
-    }).strict(),
-    composition: z.object({
-      presentations: z.tuple([z.literal('editorial'), z.literal('mediaFirst'), z.literal('quoteLed'), z.literal('textOnly')]),
-      mediaPlacements: z.array(narrativePlacements),
-      mediaTreatmentsByPlacement: z.partialRecord(narrativePlacements, z.array(narrativeTreatments)),
-      mediaPlacementsByPresentation: z.object({ editorial: z.array(narrativePlacements), mediaFirst: z.array(narrativePlacements), quoteLed: z.array(narrativePlacements), textOnly: z.array(narrativePlacements) }).strict(),
-      mediaTreatmentsByPresentationAndPlacement: z.object({ editorial: z.partialRecord(narrativePlacements, z.array(narrativeTreatments)), mediaFirst: z.partialRecord(narrativePlacements, z.array(narrativeTreatments)), quoteLed: z.partialRecord(narrativePlacements, z.array(narrativeTreatments)), textOnly: z.partialRecord(narrativePlacements, z.array(narrativeTreatments)) }).strict(),
-      textAlignments: z.tuple([z.literal('start'), z.literal('center'), z.literal('end')]),
-      surfaces: z.tuple([z.literal('none'), z.literal('soft'), z.literal('feature')]),
-      defaults: z.object({
-        presentation: z.literal('editorial'),
-        mediaPlacement: narrativePlacements,
-        textAlignment: z.enum(['start', 'center', 'end']),
-        mediaPlacementByPresentation: z.object({ editorial: narrativePlacements, mediaFirst: narrativePlacements, quoteLed: narrativePlacements }).strict(),
-        mediaTreatment: narrativeTreatments,
-        textAlignmentByPresentation: z.record(narrativePresentations, z.enum(['start', 'center', 'end'])),
-        surface: z.enum(['none', 'soft', 'feature']),
-      }).strict(),
-    }).strict(),
-  }).strict().nullable(),
 }).strict()
 
 const expectedElementAppearanceRoles = {
   heading: { typography: ['heading'], colors: ['headingColor'] },
   text: { typography: ['body'], colors: ['textColor'] },
-  richText: { typography: ['body'], colors: ['textColor'] },
   date: null,
   accordion: null,
   schedule: null,
   people: null,
   quote: { typography: ['body'], colors: ['textColor'] },
-  narrativeBlock: { typography: ['heading', 'body'], colors: ['headingColor', 'textColor'] },
   image: null,
   media: { typography: [], colors: [] },
   divider: null,

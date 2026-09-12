@@ -32,7 +32,7 @@ export function resolveClassicFilipinianaSectionAppearance(
   const body = appearance.bodyAlignment === 'inherit' ? defaultBodyAlignment : appearance.bodyAlignment
   const customBackground = resolveSectionCustomBackground(appearance, library, projectColors)
   const background = appearance.backgroundTreatment === 'inherit' || appearance.backgroundTreatment === 'custom' ? classicBackgroundDefault(sectionType) : appearance.backgroundTreatment
-  const emphasis = sectionType === 'story' || appearance.emphasis === 'inherit' ? 'standard' : appearance.emphasis
+  const emphasis = appearance.emphasis === 'inherit' ? 'standard' : appearance.emphasis
 
   const backgroundResult = resolveBackground(background)
   const emphasisClass = emphasis === 'featured'
@@ -45,7 +45,7 @@ export function resolveClassicFilipinianaSectionAppearance(
 }
 
 function classicBackgroundDefault(sectionType: string): 'plain' | 'soft' {
-  return ['people', 'rsvp'].includes(sectionType) ? 'soft' : 'plain'
+  return sectionType === 'rsvp' ? 'soft' : 'plain'
 }
 
 function resolveBackground(background: 'plain' | 'soft' | 'accent'): { className: string; style?: CSSProperties } {

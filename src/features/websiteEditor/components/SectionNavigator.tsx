@@ -34,26 +34,12 @@ import { Button } from "../../../components/ui/Button";
 import { IconButton } from "../../../components/ui/IconButton";
 import { Text } from "../../../components/ui/Text";
 import { Tooltip } from "../../../components/ui/Tooltip";
-import {
-  STORY_BLOCK_LIMIT,
-  addStoryBlock,
-  duplicateStoryBlock,
-  moveStoryBlock,
-  removeStoryBlock,
-  reorderStoryBlocks,
-} from "../storyBlockOperations";
-import type { StoryContent, StoryHeaderField, WebsiteSection } from "../types";
-import type { StoryStructureReference } from "../types";
-import {
-  narrativeIdFromStoryReference,
-  narrativeStoryReference,
-  storyFieldFromReference,
-} from "../storyStructure";
-import { StoryBlockList } from "./StoryBlockList";
+import type { WebsiteSection } from "../types";
 import { SectionChildList } from "./SectionChildList";
 import {
   SECTION_SPECIALIZED_REFERENCE,
   createSectionElement,
+  deleteGenericSectionElement,
   deleteSectionElement,
   duplicateSectionElement,
   insertSectionElement,
@@ -71,30 +57,14 @@ import {
 } from "./sectionAccordion";
 import { revealStructureRow } from "./structureReveal";
 import type { GenericBlockType } from "../../websiteElements/blockIdentity";
-
 type Props = {
   sections: WebsiteSection[];
   selectedId: string | null;
-  selectedNarrativeBlockId: string | null;
-  selectedStoryHeaderField: StoryHeaderField | null;
-  workingStory: { sectionId: string; content: StoryContent } | null;
   workingChildFlow: { sectionId: string; flow?: SectionChildFlow } | null;
   selectedChild: { sectionId: string; reference: SectionChildReference } | null;
-  genericChildTypesBySectionType: Readonly<
-    Record<string, readonly GenericBlockType[]>
-  >;
+  genericChildTypesBySectionType: Readonly<Record<string, readonly GenericBlockType[]>>;
   pending: boolean;
   onSelect: (id: string, requestCanvasScroll?: boolean) => void;
-  onNarrativeBlockSelect: (
-    blockId: string | null,
-    requestCanvasScroll?: boolean,
-  ) => void;
-  onStoryHeaderSelect: (
-    sectionId: string,
-    field: StoryHeaderField,
-    requestCanvasScroll?: boolean,
-  ) => void;
-  onStoryChange: (sectionId: string, content: StoryContent) => boolean;
   onChildFlowChange: (
     sectionId: string,
     flow: SectionChildFlow | undefined,
@@ -132,11 +102,7 @@ export function SectionNavigator(props: Props) {
   );
   const selectionKey = props.selectedChild
     ? `${props.selectedChild.sectionId}:${props.selectedChild.reference.kind}:${props.selectedChild.reference.kind === "element" ? props.selectedChild.reference.id : props.selectedChild.reference.key}`
-    : props.selectedNarrativeBlockId
-      ? `${props.selectedId}:narrative:${props.selectedNarrativeBlockId}`
-      : props.selectedStoryHeaderField
-        ? `${props.selectedId}:story:${props.selectedStoryHeaderField}`
-        : `${props.selectedId}:section`;
+    : `${props.selectedId}:section`;
   const [expandedSectionId, setExpandedSectionId] = useState<string | null>(
     () => resolveExpandedSectionId(sectionIds, selectedOwnerId),
   );
@@ -258,15 +224,9 @@ function SortableSection(
     id: sortableSectionId(section.id),
     disabled: props.pending,
   });
-  const isStory = section.type === "story";
   const allowedGenericTypes =
     props.genericChildTypesBySectionType[section.type] ?? [];
   const supportsGenericChildren = allowedGenericTypes.length > 0;
-  const storyContent = isStory
-    ? props.workingStory?.sectionId === section.id
-      ? props.workingStory.content
-      : (section.content as StoryContent)
-    : null;
   const childFlow = supportsGenericChildren
     ? props.workingChildFlow?.sectionId === section.id
       ? props.workingChildFlow.flow
@@ -274,45 +234,9 @@ function SortableSection(
     : undefined;
   const resolvedChildFlow: SectionChildFlow = childFlow ?? {
     elements: [],
-    order: section.type === "blank" ? [] : [SECTION_SPECIALIZED_REFERENCE],
+    order: section.type === "blank" || section.type === "hero" ? [] : [SECTION_SPECIALIZED_REFERENCE],
   };
   const hasSelectedChild = props.selectedChild?.sectionId === section.id;
-  const mutateStory = (
-    content: StoryContent,
-    nextSelection?: StoryStructureReference | null,
-  ) => {
-    if (!props.onStoryChange(section.id, content)) return;
-    if (nextSelection !== undefined) selectStoryReference(nextSelection);
-  };
-  const selectedReference: StoryStructureReference | null =
-    props.selectedId !== section.id
-      ? null
-      : props.selectedStoryHeaderField
-        ? `story:${props.selectedStoryHeaderField}`
-        : props.selectedNarrativeBlockId
-          ? narrativeStoryReference(props.selectedNarrativeBlockId)
-          : null;
-  const hasSelectedStoryChild =
-    props.selectedId === section.id && Boolean(selectedReference);
-  const selectStoryReference = (
-    reference: StoryStructureReference | null,
-    requestCanvasScroll = false,
-  ) => {
-    if (reference === null) {
-      props.onSelect(section.id, requestCanvasScroll);
-      return;
-    }
-    const field = storyFieldFromReference(reference);
-    if (field)
-      props.onStoryHeaderSelect(section.id, field, requestCanvasScroll);
-    else {
-      const blockId = narrativeIdFromStoryReference(reference);
-      if (blockId) {
-        props.onSelect(section.id);
-        props.onNarrativeBlockSelect(blockId, requestCanvasScroll);
-      }
-    }
-  };
   return (
     <div
       ref={setNodeRef}
@@ -320,7 +244,7 @@ function SortableSection(
       className={isDragging ? "relative z-20 opacity-70 shadow-lg" : ""}
     >
       <div
-        className={`group flex min-w-0 items-center gap-0.5 rounded-lg border px-1 py-1 ${props.selectedId === section.id && !selectedReference && !hasSelectedChild ? "border-accent border-2 bg-surface-muted" : "border-transparent hover:bg-surface-muted"}`}
+        className={`group flex min-w-0 items-center gap-0.5 rounded-lg border px-1 py-1 ${props.selectedId === section.id && !hasSelectedChild ? "border-accent border-2 bg-surface-muted" : "border-transparent hover:bg-surface-muted"}`}
       >
         <IconButton
           type="button"
@@ -342,7 +266,6 @@ function SortableSection(
           }}
           aria-current={
             props.selectedId === section.id &&
-            !selectedReference &&
             !hasSelectedChild
               ? "true"
               : undefined
@@ -363,29 +286,6 @@ function SortableSection(
             </span>
           </span>
         </button>
-        {isStory && storyContent && (
-          <ElementAddControl
-            triggerLabel="Add to Story"
-            items={[
-              {
-                label: "Narrative Block",
-                onAdd: () => {
-                  const result = addStoryBlock(storyContent, selectedReference);
-                  if (!result) return;
-                  props.onExpandedChange(true);
-                  mutateStory(
-                    result.content,
-                    narrativeStoryReference(result.blockId),
-                  );
-                },
-              },
-            ]}
-            disabled={storyContent.elements.length >= STORY_BLOCK_LIMIT}
-            onOpen={() => {
-              if (props.selectedId !== section.id) props.onSelect(section.id);
-            }}
-          />
-        )}
         {supportsGenericChildren && (
           <ElementAddControl
             triggerLabel={`Add to ${sectionLabel}`}
@@ -395,7 +295,6 @@ function SortableSection(
             }}
             items={[
               { type: "text" as const, label: "Text" },
-              { type: "richText" as const, label: "Rich Text" },
               { type: "date" as const, label: "Date" },
               { type: "accordion" as const, label: "Accordion" },
               { type: "schedule" as const, label: "Schedule" },
@@ -411,13 +310,13 @@ function SortableSection(
               }))}
           />
         )}
-        {(isStory || supportsGenericChildren) && (
+        {supportsGenericChildren && (
           <IconButton
             size="sm"
             type="button"
             onClick={() => {
               if (props.expanded) {
-                if (hasSelectedChild || hasSelectedStoryChild)
+                if (hasSelectedChild)
                   props.onSelect(section.id);
                 props.onExpandedChange(false);
                 return;
@@ -486,61 +385,6 @@ function SortableSection(
           </StructureMenuAction>
         </StructureActionMenu>
       </div>
-      {isStory && props.expanded && storyContent && (
-        <div className="ml-5 mt-0.5">
-          <StoryBlockList
-            content={storyContent}
-            selectedReference={selectedReference}
-            limitReached={storyContent.elements.length >= STORY_BLOCK_LIMIT}
-            onSelect={(reference) => selectStoryReference(reference, true)}
-            onDuplicate={(blockId) => {
-              const result = duplicateStoryBlock(storyContent, blockId);
-              if (result)
-                mutateStory(
-                  result.content,
-                  narrativeStoryReference(result.blockId),
-                );
-            }}
-            onRemove={(blockId) => {
-              const result = removeStoryBlock(storyContent, blockId);
-              if (result) mutateStory(result.content, result.selectedReference);
-            }}
-            onMove={(reference, direction) =>
-              mutateStory(
-                moveStoryBlock(storyContent, reference, direction),
-                reference,
-              )
-            }
-            onToggleHidden={(reference) => {
-              const field = storyFieldFromReference(reference);
-              const blockId = narrativeIdFromStoryReference(reference);
-              mutateStory(
-                field
-                  ? {
-                      ...storyContent,
-                      [`${field}IsHidden`]:
-                        storyContent[`${field}IsHidden`] !== true,
-                    }
-                  : {
-                      ...storyContent,
-                      elements: storyContent.elements.map((block) =>
-                        block.id === blockId
-                          ? { ...block, isHidden: !block.isHidden }
-                          : block,
-                      ),
-                    },
-                reference,
-              );
-            }}
-            onReorder={(active, over) =>
-              mutateStory(
-                reorderStoryBlocks(storyContent, active, over),
-                active,
-              )
-            }
-          />
-        </div>
-      )}
       {supportsGenericChildren && props.expanded && (
         <div className="mt-0.5 min-w-0 pl-5">
           <SectionChildList
@@ -576,16 +420,14 @@ function SortableSection(
                 });
             }}
             onDelete={(elementId) => {
-              const result = deleteSectionElement(resolvedChildFlow, elementId);
+              const genericOnly = section.type === "blank" || section.type === "hero";
+              const result = genericOnly
+                ? deleteGenericSectionElement(resolvedChildFlow, elementId)
+                : deleteSectionElement(resolvedChildFlow, elementId);
               props.onChildFlowChange(
                 section.id,
-                result.flow ??
-                  (section.type === "blank"
-                    ? { elements: [], order: [] }
-                    : undefined),
-                section.type === "blank" && !result.flow
-                  ? undefined
-                  : result.selection,
+                result.flow,
+                result.selection,
               );
             }}
           />

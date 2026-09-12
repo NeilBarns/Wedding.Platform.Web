@@ -25,6 +25,10 @@ import { WebsiteColorSwatchControl } from "./WebsiteColorSwatchControl";
 import { DecorativeStrengthControl } from "./DecorativeStrengthControl";
 import { decorativeHelpers, decorativeLabel } from "./decorativeAppearanceOptions";
 import { applySectionBackgroundColor, legacySectionBackgroundState } from "../sectionBackgroundAuthoring";
+import { resolveHeroContentPosition, type HeroContentPosition } from "../../websiteRenderer/heroContentPosition";
+import { resolveInnerSpacing, type InnerSpacing, type InnerSpacingPreset } from "../../websiteElements/group";
+import { FourSidedSpacingControl as InnerSpacingControl } from "./FourSidedSpacingControl";
+import { ContentPositionControl } from "./ContentPositionControl";
 
 export function AppearancePanel({
   appearance,
@@ -66,16 +70,12 @@ export function AppearancePanel({
     delete responsive[targetViewport]
     onChange(pruneResponsiveAppearance({ ...appearance, responsive }))
   }
-  if (sectionCapability.id === 'story') {
+  if (sectionCapability.id === 'blank' || sectionCapability.id === 'hero') {
     return <div className="space-y-5">
       {error && <p className="rounded-xl bg-danger-muted p-3 text-sm text-danger" role="alert">{error}</p>}
-      <SectionDecorativeAppearanceControls sectionLabel="Story" templateKey={templateKey} sectionCapability={sectionCapability} appearance={appearance} library={library} projectColors={projectColors} onAddColor={onAddColor} onChange={onChange} />
-    </div>
-  }
-  if (sectionCapability.id === 'blank') {
-    return <div className="space-y-5">
-      {error && <p className="rounded-xl bg-danger-muted p-3 text-sm text-danger" role="alert">{error}</p>}
-      <SectionDecorativeAppearanceControls sectionLabel="Section" templateKey={templateKey} sectionCapability={sectionCapability} appearance={appearance} library={library} projectColors={projectColors} onAddColor={onAddColor} onChange={onChange} />
+      {sectionCapability.id === 'hero' && <HeroSurfaceControls appearance={appearance} targetViewport={targetViewport} onChange={onChange} />}
+      {sectionCapability.id === 'blank' && <BlankInnerSpacingControls appearance={appearance} targetViewport={targetViewport} onChange={onChange} />}
+      <SectionDecorativeAppearanceControls sectionLabel={sectionCapability.id === 'hero' ? 'Hero' : 'Section'} templateKey={templateKey} sectionCapability={sectionCapability} appearance={appearance} library={library} projectColors={projectColors} onAddColor={onAddColor} onChange={onChange} />
     </div>
   }
   return (
@@ -88,11 +88,11 @@ export function AppearancePanel({
           {error}
         </p>
       )}
-      {sectionCapability.id !== 'story' && targetViewport !== 'desktop' && <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface-muted p-3">
+      {targetViewport !== 'desktop' && <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface-muted p-3">
         <div><p className="text-sm font-semibold">Editing {targetViewport} layout</p><p className="text-xs text-foreground-muted">{activeOverride ? 'Custom overrides are active.' : 'Using Template defaults.'}</p></div>
         <Button size="sm" variant="secondary" type="button" disabled={!activeOverride} onClick={resetResponsive}>Restore {targetViewport} defaults</Button>
       </div>}
-      {sectionCapability.id !== 'story' && sectionCapability.defaultPresentation && <InspectorSection title="Layout">{supportsControl(sectionCapability, 'presentation', presentation) && <PresentationPicker
+      {sectionCapability.defaultPresentation && <InspectorSection title="Layout">{supportsControl(sectionCapability, 'presentation', presentation) && <PresentationPicker
         capability={sectionCapability}
         value={appearance.presentation ?? sectionCapability.defaultPresentation ?? ''}
         onChange={(presentation) => {
@@ -153,6 +153,97 @@ export function AppearancePanel({
       <SectionAppearanceControls sectionCapability={sectionCapability} presentation={presentation} appearance={appearance} onChange={onChange} />
     </div>
   );
+}
+
+function BlankInnerSpacingControls({ appearance, targetViewport, onChange }: { appearance: WebsiteSectionAppearance; targetViewport: ResponsiveViewport; onChange: (appearance: WebsiteSectionAppearance) => void }) {
+  const effectiveSpacing = resolveInnerSpacing(appearance.innerSpacing, targetViewport === 'desktop' ? undefined : appearance.responsive?.[targetViewport]?.innerSpacing)
+  const setSide = (side: keyof InnerSpacing, value: InnerSpacingPreset) => {
+    if (targetViewport === 'desktop') {
+      const innerSpacing = { ...appearance.innerSpacing }
+      if (value === 'none') delete innerSpacing[side]; else innerSpacing[side] = value
+      const next = { ...appearance }
+      if (Object.keys(innerSpacing).length) next.innerSpacing = innerSpacing; else delete next.innerSpacing
+      return onChange(next)
+    }
+    const responsive = { ...appearance.responsive }
+    const override = { ...responsive[targetViewport] }
+    const innerSpacing = { ...override.innerSpacing }
+    if (value === (appearance.innerSpacing?.[side] ?? 'none')) delete innerSpacing[side]; else innerSpacing[side] = value
+    if (Object.keys(innerSpacing).length) override.innerSpacing = innerSpacing; else delete override.innerSpacing
+    if (Object.keys(override).length) responsive[targetViewport] = override; else delete responsive[targetViewport]
+    onChange(pruneResponsiveAppearance({ ...appearance, responsive }))
+  }
+  return <InspectorSection title="Layout"><fieldset><legend className="mb-2 text-sm font-semibold">Inner spacing · {targetViewport}</legend><InnerSpacingControl spacing={effectiveSpacing} subject="Section" onChange={setSide} /></fieldset></InspectorSection>
+}
+
+function HeroSurfaceControls({ appearance, targetViewport, onChange }: { appearance: WebsiteSectionAppearance; targetViewport: ResponsiveViewport; onChange: (appearance: WebsiteSectionAppearance) => void }) {
+  const setHeight = (height: 'auto' | 'screen') => {
+    const next = { ...appearance }
+    if (height === 'auto') delete next.height
+    else next.height = height
+    onChange(next)
+  }
+  const setOpacity = (value: number) => {
+    const next = { ...appearance }
+    if (value === 100) delete next.backgroundImageOpacity
+    else next.backgroundImageOpacity = value
+    onChange(next)
+  }
+  const effectivePosition = resolveHeroContentPosition(appearance, targetViewport)
+  const activePosition = targetViewport === 'desktop' ? appearance.contentPosition : appearance.responsive?.[targetViewport]?.contentPosition
+  const setPosition = (contentPosition: HeroContentPosition) => {
+    if (targetViewport === 'desktop') {
+      const next = { ...appearance }
+      if (contentPosition === 'center') delete next.contentPosition
+      else next.contentPosition = contentPosition
+      return onChange(next)
+    }
+    const responsive = { ...appearance.responsive }
+    const override = { ...responsive[targetViewport] }
+    if (contentPosition === (appearance.contentPosition ?? 'center')) delete override.contentPosition
+    else override.contentPosition = contentPosition
+    if (Object.keys(override).length) responsive[targetViewport] = override
+    else delete responsive[targetViewport]
+    onChange(pruneResponsiveAppearance({ ...appearance, responsive }))
+  }
+  const resetPosition = () => {
+    if (targetViewport === 'desktop') return setPosition('center')
+    const responsive = { ...appearance.responsive }
+    const override = { ...responsive[targetViewport] }
+    delete override.contentPosition
+    if (Object.keys(override).length) responsive[targetViewport] = override
+    else delete responsive[targetViewport]
+    onChange(pruneResponsiveAppearance({ ...appearance, responsive }))
+  }
+  const effectiveSpacing = resolveInnerSpacing(appearance.innerSpacing, targetViewport === 'desktop' ? undefined : appearance.responsive?.[targetViewport]?.innerSpacing)
+  const setSpacingSide = (side: keyof InnerSpacing, value: string) => {
+    if (targetViewport === 'desktop') {
+      const innerSpacing = { ...appearance.innerSpacing }
+      if (value === 'none') delete innerSpacing[side]
+      else innerSpacing[side] = value as InnerSpacingPreset
+      const next = { ...appearance }
+      if (Object.keys(innerSpacing).length) next.innerSpacing = innerSpacing
+      else delete next.innerSpacing
+      return onChange(next)
+    }
+    const responsive = { ...appearance.responsive }
+    const override = { ...responsive[targetViewport] }
+    const innerSpacing = { ...override.innerSpacing }
+    const desktopValue = appearance.innerSpacing?.[side] ?? 'none'
+    if (value === desktopValue) delete innerSpacing[side]
+    else innerSpacing[side] = value as InnerSpacingPreset
+    if (Object.keys(innerSpacing).length) override.innerSpacing = innerSpacing
+    else delete override.innerSpacing
+    if (Object.keys(override).length) responsive[targetViewport] = override
+    else delete responsive[targetViewport]
+    onChange(pruneResponsiveAppearance({ ...appearance, responsive }))
+  }
+  return <InspectorSection title="Hero">
+    <fieldset><legend className="mb-2 text-sm font-semibold">Height</legend><div className="grid grid-cols-2 gap-2">{(['auto', 'screen'] as const).map((value) => <Button key={value} size="sm" variant="secondary" type="button" aria-pressed={(appearance.height ?? 'auto') === value} className={(appearance.height ?? 'auto') === value ? 'border-accent! border-2 bg-surface-muted' : ''} onClick={() => setHeight(value)}>{value === 'auto' ? 'Automatic' : 'Screen'}</Button>)}</div></fieldset>
+    <fieldset><div className="mb-2 flex items-center justify-between gap-2"><legend className="text-sm font-semibold">Content position</legend>{activePosition !== undefined && <InspectorResetAction onClick={resetPosition} />}</div><ContentPositionControl value={effectivePosition} onChange={setPosition} />{targetViewport !== 'desktop' && <p className="mt-2 text-xs text-foreground-muted">{activePosition === undefined ? 'Using Desktop position' : `${targetViewport[0].toUpperCase() + targetViewport.slice(1)} override`}</p>}</fieldset>
+    <fieldset><legend className="mb-2 text-sm font-semibold">Inner spacing · {targetViewport}</legend><InnerSpacingControl spacing={effectiveSpacing} subject="Hero" onChange={setSpacingSide} /></fieldset>
+    <fieldset><div className="flex items-center justify-between gap-3"><legend className="text-sm font-semibold">Image opacity</legend><span className="text-xs tabular-nums text-foreground-muted">{appearance.backgroundImageOpacity ?? 100}%</span></div><input className="mt-2 w-full cursor-pointer accent-accent" type="range" aria-label="Background image opacity" min={0} max={100} step={5} value={appearance.backgroundImageOpacity ?? 100} onChange={(event) => setOpacity(Number(event.target.value))} /></fieldset>
+  </InspectorSection>
 }
 
 export function SectionDecorativeAppearanceControls({ sectionLabel, templateKey, sectionCapability, appearance, library, projectColors, onAddColor, onChange }: { sectionLabel: string; templateKey: string; sectionCapability: SectionCapability; appearance: WebsiteSectionAppearance; library: TemplateDesignLibrary; projectColors: ProjectColor[]; onAddColor: (value: string) => Promise<ProjectColor>; onChange: (appearance: WebsiteSectionAppearance) => void }) {

@@ -3,6 +3,7 @@ import type { TemplateDesignLibrary } from '../websiteCapabilities/types'
 import type { ProjectColor } from '../websiteColors/projectColors'
 import { SectionChildFlowRenderer } from './SectionChildFlowRenderer'
 import { SectionContentInset } from './SectionContentInset'
+import { INNER_SPACING_CSS, resolveInnerSpacing } from '../websiteElements/group'
 
 export function BlankSectionRenderer({
   section,
@@ -31,7 +32,10 @@ export function BlankSectionRenderer({
 }) {
   const flow = (section.content as BlankContent).childFlow
   const hasEditorChildren = flow.elements.length > 0
+  const spacing = resolveInnerSpacing(section.appearance.innerSpacing, viewport === 'desktop' ? undefined : section.appearance.responsive?.[viewport]?.innerSpacing)
+  const foregroundStyle = { paddingTop: INNER_SPACING_CSS[spacing.top ?? 'none'], paddingRight: INNER_SPACING_CSS[spacing.right ?? 'none'], paddingBottom: INNER_SPACING_CSS[spacing.bottom ?? 'none'], paddingLeft: INNER_SPACING_CSS[spacing.left ?? 'none'] }
   return <SectionContentInset className="relative">
+    <div data-blank-foreground className="box-border w-full" style={foregroundStyle}>
     {mode === 'editor' && !hasEditorChildren && <div data-empty-blank-section className="grid min-h-40 place-items-center rounded-md border border-dashed border-current/30 px-6 py-10 text-center">
       <div><p className="text-sm font-semibold">Empty Section</p><p className="mt-1 text-xs opacity-70">Add a block to get started</p></div>
     </div>}
@@ -51,5 +55,6 @@ export function BlankSectionRenderer({
       onElementSelect={onElementSelect}
       onElementEdit={onElementEdit}
     />}
+    </div>
   </SectionContentInset>
 }

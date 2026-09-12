@@ -9,6 +9,7 @@ import { SectionRootFlow } from "./SectionRootFlow";
 import { WebsiteLeafElementRenderer } from "./WebsiteLeafElementRenderer";
 import { WebsiteElementFrame } from "./WebsiteElementFrame";
 import { GroupElementRenderer } from "./GroupElementRenderer";
+import { OuterSpacingWrapper } from "./OuterSpacingWrapper";
 
 export function SectionChildFlowRenderer({ sectionId, flow, specialized, mode, viewport, templateKey, library, projectColors, media = {}, eventDate = null, context, selectedElementId, onElementSelect, onElementEdit }: {
   sectionId: string;
@@ -26,8 +27,8 @@ export function SectionChildFlowRenderer({ sectionId, flow, specialized, mode, v
     const element = elements.get(reference.id);
     if (!element || !isElementRenderable(element, templateKey, mode, media, eventDate)) return null;
     const selected = selectedElementId === element.id;
-    return <WebsiteElementFrame key={element.id} mode={mode} sectionId={sectionId} elementId={element.id} elementType={element.type === "compositionGroup" ? "Group" : element.type === "media" ? "Media" : element.type} selected={selected} onSelect={onElementSelect} onEdit={element.type === "text" ? onElementEdit : undefined}>
+    return <OuterSpacingWrapper key={element.id} element={element} viewport={viewport} sectionId={sectionId} selected={selected} onSelect={onElementSelect} onEdit={element.type === "text" ? onElementEdit : undefined}><WebsiteElementFrame mode={mode} sectionId={sectionId} elementId={element.id} elementType={element.type === "compositionGroup" ? "Group" : element.type === "media" ? "Media" : element.type} selected={selected} onSelect={onElementSelect} onEdit={element.type === "text" ? onElementEdit : undefined}>
       {element.type === "compositionGroup" ? <GroupElementRenderer media={media} eventDate={eventDate} group={element} sectionId={sectionId} mode={mode} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} selectedElementId={selectedElementId} onElementSelect={onElementSelect} onElementEdit={onElementEdit} /> : <WebsiteLeafElementRenderer media={media} eventDate={eventDate} element={element} mode={mode} sectionId={sectionId} selected={selected} viewport={viewport} templateKey={templateKey} library={library} projectColors={projectColors} context={context} />}
-    </WebsiteElementFrame>;
+    </WebsiteElementFrame></OuterSpacingWrapper>;
   })}</SectionRootFlow>;
 }

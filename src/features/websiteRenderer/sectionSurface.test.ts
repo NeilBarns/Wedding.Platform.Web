@@ -43,14 +43,8 @@ describe("Section custom background", () => {
   });
   it("applies the same mechanism in Classic and Modern", () => {
     const custom = appearance("custom", "#234567");
-    expect(resolveClassicFilipinianaSectionAppearance("story", {} as WebsiteDesignSettings, custom, library, projectColors).sectionStyle?.backgroundColor).toBe("#234567");
-    expect(resolveModernEditorialSectionAppearance("story", custom, library, projectColors).sectionStyle?.backgroundColor).toBe("#234567");
-  });
-  it.each(["plain", "soft", "accent"] as const)("preserves legacy %s rendering", (treatment) => {
-    const legacy = appearance(treatment);
-    expect(resolveClassicFilipinianaSectionAppearance("story", {} as WebsiteDesignSettings, legacy, library, projectColors).sectionClass).toBeTruthy();
-    expect(resolveModernEditorialSectionAppearance("story", legacy, library, projectColors).sectionClass).toBeTruthy();
+    expect(resolveClassicFilipinianaSectionAppearance("blank", {} as WebsiteDesignSettings, custom, library, projectColors).sectionStyle?.backgroundColor).toBe("#234567");
+    expect(resolveModernEditorialSectionAppearance("blank", custom, library, projectColors).sectionStyle?.backgroundColor).toBe("#234567");
   });
 });
-
 

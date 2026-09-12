@@ -1,9 +1,11 @@
 import { createContext, useContext } from "react";
-import type { RichTextDocument, WebsiteElement } from "../websiteElements/types";
+import type { TextDocument, WebsiteElement } from "../websiteElements/types";
+import type { ProjectColor } from "../websiteColors/projectColors";
 
 type WebsiteElementChangeContextValue = {
   onElementChange?: (sectionId: string, element: WebsiteElement) => void;
-  onRichTextDocumentChange?: (sectionId: string, elementId: string, document: RichTextDocument) => void;
+  onTextDocumentChange?: (sectionId: string, elementId: string, document: TextDocument) => void;
+  onAddColor?: (value: string) => Promise<ProjectColor>;
 };
 export const WebsiteElementChangeContext = createContext<WebsiteElementChangeContextValue>({});
 export const useWebsiteElementChange = () => useContext(WebsiteElementChangeContext);

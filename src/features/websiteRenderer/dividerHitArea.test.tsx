@@ -37,9 +37,9 @@ describe("Divider editor hit area", () => {
 
   it.each(["small", "medium", "large", "full"] as const)("preserves %s artwork in narrow zero-gap cells across selection and mode", (width) => {
     const percentages = { small: 25, medium: 50, large: 75, full: 100 };
-    for (const columns of ["equal-2", "content-wide", "content-narrow", "equal-3"] as const) {
+    for (const division of ["50-50", "60-40", "40-60", "thirds"] as const) {
       const child = { id: "divider", type: "divider" as const, editorName: "Divider 1", appearance: { width } };
-      const group = { id: "group", type: "compositionGroup" as const, editorName: "Group 1", children: [child, { ...child, id: "second" }, ...(columns === "equal-3" ? [{ ...child, id: "third" }] : [])], layout: { direction: "horizontal" as const, columns, width: "narrow" as const, gap: "none" as const } };
+      const group = { id: "group", type: "compositionGroup" as const, editorName: "Group 1", children: [child, { ...child, id: "second" }, ...(division === "thirds" ? [{ ...child, id: "third" }] : [])], layout: { direction: "horizontal" as const, division, width: "narrow" as const, gap: "none" as const } };
       const render = (mode: "editor" | "public", selectedElementId: string | null) => renderToStaticMarkup(<GroupElementRenderer group={group} mode={mode} selectedElementId={selectedElementId} sectionId="date" viewport="desktop" templateKey="classic-filipiniana-v1" library={{ colors: [] } as unknown as TemplateDesignLibrary} projectColors={[]} />);
       const results = [render("public", null), render("editor", null), render("editor", "divider")];
       for (const html of results) {
@@ -53,7 +53,7 @@ describe("Divider editor hit area", () => {
     }
   });
 
-  it.each(["Text", "Rich Text", "Media", "Divider"])("prefers actual adjacent %s bounds at zero gap", () => {
+  it.each(["Text", "Text", "Media", "Divider"])("prefers actual adjacent %s bounds at zero gap", () => {
     const divider = frame(20, 23);
     const above = frame(0, 20);
     const below = frame(23, 26);

@@ -1,7 +1,8 @@
 import type { EventDetail } from '../events/types'
 import type { WebsiteDraft } from '../websiteEditor/types'
 import type { ResponsiveViewport } from '../websiteEditor/types'
-import type { RichTextDocument, WebsiteElement } from '../websiteElements/types'
+import type { TextDocument, WebsiteElement } from '../websiteElements/types'
+import type { ProjectColor } from '../websiteColors/projectColors'
 
 export type WebsiteRenderScope =
   | { kind: 'full' }
@@ -15,11 +16,10 @@ export type WebsiteRendererProps = {
   onSectionSelect?: (sectionId: string) => void
   targetViewport?: ResponsiveViewport
   scope?: WebsiteRenderScope
-  selectedNarrativeBlockId?: string | null
-  onNarrativeBlockSelect?: (blockId: string) => void
   selectedElementId?: string | null
   onElementSelect?: (sectionId: string, elementId: string) => void
   onElementEdit?: (sectionId: string, elementId: string) => void
   onElementChange?: (sectionId: string, element: WebsiteElement) => void
-  onRichTextDocumentChange?: (sectionId: string, elementId: string, document: RichTextDocument) => void
+  onTextDocumentChange?: (sectionId: string, elementId: string, document: TextDocument) => void
+  onAddColor?: (value: string) => Promise<ProjectColor>
 }

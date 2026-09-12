@@ -1,80 +1,62 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import type { RichTextElement, TextElement } from "../../websiteElements/types";
-import { RichTextCanvasEditor } from "./RichTextCanvasEditor";
-import { preserveRichTextToolbarPointerDown } from "../richTextSelection";
-import { RichTextElementEditor } from "./RichTextElementEditor";
-import { TextCanvasEditor } from "./TextCanvasEditor";
+import type { TextElement } from "../../websiteElements/types";
+import { TextCanvasEditor, TextInlineColorControl } from "./TextCanvasEditor";
+import { preserveTextToolbarPointerDown } from "../textSelection";
 import { TextElementEditor } from "./TextElementEditor";
 import { resolveFloatingToolbarPosition, resolveFloatingToolbarResizeObserver, resolveRangeToolbarAnchor, translateToolbarAnchorToHost } from "../floatingToolbarPosition";
 
-const text: TextElement = { id: "text", type: "text", editorName: "Text 1", text: "Existing text" };
-const rich: RichTextElement = { id: "rich", type: "richText", editorName: "Rich Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "Existing rich content" }] }] } };
+const text: TextElement = { id: "text", type: "text", editorName: "Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "Existing text" }] }] } };
 const library = { colors: [], fontFamilies: [], fontRecommendations: { heading: [], body: [], accent: [] }, palettePresets: [], typographyPresets: [] } as never;
 
 describe("shared responsive formatting toolbar", () => {
-  it.each(["desktop", "tablet", "mobile"] as const)("renders a horizontal themed Text toolbar on %s", (viewport) => {
-    const html = renderToStaticMarkup(<TextCanvasEditor element={text} sectionId="section" viewport={viewport} onChange={() => undefined} inputStyle={{}} renderValue={(value) => value} effectiveFontFamilyId="inter" />);
-    expectThemeToolbar(html, "Text formatting");
-    expectHorizontalToolbar(html, viewport);
-    expectCommandOrder(html, ["Bold", "Italic", "Underline", "Strikethrough"]);
-    expect(html).toContain("Existing text");
+  it("includes the selection Text Color trigger and exposes mixed state without choosing a color", () => {
+    const html = renderToStaticMarkup(<TextInlineColorControl state={{ kind: "mixed" }} library={library} projectColors={[]} onAddColor={async () => ({ id: "project-color-00000000000000000000000000", value: "#000000" })} onChange={() => undefined} />);
+    expect(html).toContain('aria-label="Text Color"');
+    expect(html).toContain('data-inline-color-state="mixed"');
+    expect(html).toContain('aria-expanded="false"');
+  });
+  it.each(["desktop", "tablet", "mobile"] as const)("hides the Text toolbar without a text range on %s", (viewport) => {
+    const html = renderToStaticMarkup(<TextCanvasEditor library={library} projectColors={[]} onAddColor={async () => ({ id: "project-color-00000000000000000000000000", value: "#000000" })} element={text} viewport={viewport} onDocumentChange={() => undefined} />);
+    expect(html).not.toContain("Text formatting");
   });
 
-  it("disables unsupported Bold and Italic with native button semantics", () => {
-    const normalOnly = renderToStaticMarkup(<TextCanvasEditor element={text} sectionId="section" viewport="desktop" onChange={() => undefined} inputStyle={{}} renderValue={(value) => value} effectiveFontFamilyId="great-vibes" />);
-    expect(normalOnly).toMatch(/aria-label="Bold"[^>]*disabled=""/);
-    expect(normalOnly).toMatch(/aria-label="Italic"[^>]*disabled=""/);
+  it.each(["desktop", "tablet", "mobile"] as const)("uses the shared font capabilities for Text commands on %s", (viewport) => {
+    const normalOnly = renderToStaticMarkup(<TextCanvasEditor library={library} projectColors={[]} onAddColor={async () => ({ id: "project-color-00000000000000000000000000", value: "#000000" })} element={text} viewport={viewport} effectiveFontFamilyId="great-vibes" onDocumentChange={() => undefined} />);
+    expect(normalOnly).not.toContain("Text formatting");
   });
 
-  it.each(["desktop", "tablet", "mobile"] as const)("hides the Rich Text toolbar without a text range on %s", (viewport) => {
-    const html = renderToStaticMarkup(<RichTextCanvasEditor element={rich} viewport={viewport} onDocumentChange={() => undefined} />);
-    expect(html).not.toContain("Rich Text formatting");
-  });
-
-  it.each(["desktop", "tablet", "mobile"] as const)("uses the shared font capabilities for Rich Text commands on %s", (viewport) => {
-    const normalOnly = renderToStaticMarkup(<RichTextCanvasEditor element={rich} viewport={viewport} effectiveFontFamilyId="great-vibes" onDocumentChange={() => undefined} />);
-    expect(normalOnly).not.toContain("Rich Text formatting");
-  });
-
-  it("does not expose formatting toggles before a Rich Text range is selected", () => {
-    const html = renderToStaticMarkup(<RichTextCanvasEditor element={rich} viewport="desktop" onDocumentChange={() => undefined} />);
+  it("does not expose formatting toggles before a Text range is selected", () => {
+    const html = renderToStaticMarkup(<TextCanvasEditor library={library} projectColors={[]} onAddColor={async () => ({ id: "project-color-00000000000000000000000000", value: "#000000" })} element={text} viewport="desktop" onDocumentChange={() => undefined} />);
     for (const action of ["Bold", "Italic", "Underline", "Strikethrough"]) expect(html).not.toContain(`aria-label="${action}"`);
   });
 
   it("preserves the editor range on pointer activation while leaving keyboard click activation available", () => {
     const event = { preventDefault: vi.fn(), stopPropagation: vi.fn() };
-    preserveRichTextToolbarPointerDown(event as never);
+    preserveTextToolbarPointerDown(event as never);
     expect(event.preventDefault).toHaveBeenCalledOnce();
     expect(event.stopPropagation).toHaveBeenCalledOnce();
   });
 
   it("uses the existing Mobile inspector path for every Text formatting action", () => {
-    const canvas = renderToStaticMarkup(<TextCanvasEditor element={text} sectionId="section" viewport="mobile" onChange={() => undefined} inputStyle={{}} renderValue={(value) => value} />);
-    const panel = renderToStaticMarkup(<TextElementEditor element={text} viewport="mobile" templateKey="modern-editorial-v1" library={library} allowedFontIds={[]} allowedColorIds={[]} projectColors={[]} onAddColor={async () => ({ id: "color", value: "#000000" })} onChange={() => undefined} />);
-    expect(canvas).toContain("data-floating-formatting-toolbar");
-    for (const action of ["Bold", "Italic", "Underline", "Strikethrough"]) expect(panel).toContain(`aria-label="${action}"`);
-  });
-
-  it("uses the existing Mobile inspector path for every Rich Text formatting action", () => {
-    const canvas = renderToStaticMarkup(<RichTextCanvasEditor element={rich} viewport="mobile" onDocumentChange={() => undefined} />);
-    const panel = renderToStaticMarkup(<RichTextElementEditor element={rich} viewport="mobile" library={library} allowedFontIds={[]} allowedColorIds={[]} projectColors={[]} onAddColor={async () => ({ id: "color", value: "#000000" })} onAppearanceChange={() => undefined} />);
+    const canvas = renderToStaticMarkup(<TextCanvasEditor library={library} projectColors={[]} onAddColor={async () => ({ id: "project-color-00000000000000000000000000", value: "#000000" })} element={text} viewport="mobile" onDocumentChange={() => undefined} />);
+    const panel = renderToStaticMarkup(<TextElementEditor element={text} viewport="mobile" library={library} allowedFontIds={[]} allowedColorIds={[]} projectColors={[]} onAddColor={async () => ({ id: "color", value: "#000000" })} onAppearanceChange={() => undefined} />);
     expect(canvas).not.toContain("data-floating-formatting-toolbar");
     for (const action of ["Bold", "Italic", "Underline", "Strikethrough"]) expect(panel).toContain(`aria-label="${action}"`);
     for (const removed of ["Link", "Bulleted list", "Numbered list"]) expect(panel).not.toContain(`aria-label="${removed}"`);
-    expect(JSON.stringify(rich.document)).toContain("Existing rich content");
+    expect(JSON.stringify(text.document)).toContain("Existing text");
   });
 
-  it("does not render a legacy Rich Text responsive reset control", () => {
-    const panel = renderToStaticMarkup(<RichTextElementEditor element={rich} viewport="mobile" library={library} allowedFontIds={[]} allowedColorIds={[]} projectColors={[]} onAddColor={async () => ({ id: "color", value: "#000000" })} onAppearanceChange={() => undefined} />);
+  it("does not render a legacy Text responsive reset control", () => {
+    const panel = renderToStaticMarkup(<TextElementEditor element={text} viewport="mobile" library={library} allowedFontIds={[]} allowedColorIds={[]} projectColors={[]} onAddColor={async () => ({ id: "color", value: "#000000" })} onAppearanceChange={() => undefined} />);
     expect(panel).not.toContain("Reset mobile overrides");
     expect(panel).not.toContain("Use desktop");
   });
 
-  it("keeps the same element content across Desktop, Tablet, Mobile, and Desktop renders", () => {
-    const textMarkup = (["desktop", "tablet", "mobile", "desktop"] as const).map((viewport) => renderToStaticMarkup(<TextCanvasEditor element={text} sectionId="section" viewport={viewport} onChange={() => undefined} inputStyle={{}} renderValue={(value) => value} />));
-    expect(textMarkup.every((html) => html.includes("Existing text"))).toBe(true);
-    expect(rich.document.children[0]).toEqual({ type: "paragraph", children: [{ text: "Existing rich content" }] });
+  it("keeps the same document across responsive renders", () => {
+    const markup = (["desktop", "tablet", "mobile", "desktop"] as const).map((viewport) => renderToStaticMarkup(<TextCanvasEditor library={library} projectColors={[]} onAddColor={async () => ({ id: "project-color-00000000000000000000000000", value: "#000000" })} element={text} viewport={viewport} onDocumentChange={() => undefined} />));
+    expect(markup.every((html) => html.includes('data-text-canvas-editor="true"'))).toBe(true);
+    expect(text.document.children[0]).toEqual({ type: "paragraph", children: [{ text: "Existing text" }] });
   });
 
   it("clamps the toolbar inside the viewport near both horizontal edges", () => {
@@ -118,26 +100,3 @@ describe("shared responsive formatting toolbar", () => {
     expect(translateToolbarAnchorToHost({ left: 100, top: 80, width: 60, height: 20 }, source, host)).toEqual({ left: 40 + 100 * scale, top: 30 + 80 * scale, width: 60 * scale, height: 20 * scale });
   });
 });
-
-function expectThemeToolbar(html: string, label: string) {
-  expect(html).toContain(`aria-label="${label}"`);
-  expect(html).toContain("border-border");
-  expect(html).toContain("bg-surface");
-  expect(html).toContain("text-foreground");
-  expect(html).toContain("shadow-[var(--shadow-dialog)]");
-  expect(html).not.toMatch(/bg-white|text-black|border-white/);
-}
-
-function expectHorizontalToolbar(html: string, viewport: "desktop" | "tablet" | "mobile") {
-  expect(html).toContain(`data-toolbar-viewport="${viewport}"`);
-  expect(html).toContain("flex-row");
-  expect(html).toContain("flex-nowrap");
-  expect(html).toContain("whitespace-nowrap");
-  expect(html).not.toMatch(/flex-wrap(?!:)|flex-col/);
-}
-
-function expectCommandOrder(html: string, commands: string[]) {
-  const positions = commands.map((command) => html.indexOf(`aria-label="${command}"`));
-  expect(positions.every((position) => position >= 0)).toBe(true);
-  expect(positions).toEqual([...positions].sort((first, second) => first - second));
-}

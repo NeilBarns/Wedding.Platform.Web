@@ -11,6 +11,7 @@ import type { ResponsiveViewport } from "../websiteEditor/types";
 import { fontStackForTemplate } from "../websiteTemplates/design/catalogs";
 import { formatDateOnly } from "./formatDateOnly";
 import { elementFontSizes, elementLetterSpacings, elementLineHeights } from "./elementTypography";
+import { resolveTextEffects } from "../websiteElements/textEffects";
 
 export function DateElementRenderer({
   element,
@@ -22,6 +23,8 @@ export function DateElementRenderer({
   context,
   viewport,
   previewColor,
+  previewTextShadowColor,
+  previewGlowColor,
 }: {
   element: DateElement;
   eventDate: string | null;
@@ -32,6 +35,8 @@ export function DateElementRenderer({
   context?: ResolvedDesignContext | null;
   viewport: ResponsiveViewport;
   previewColor?: string;
+  previewTextShadowColor?: string;
+  previewGlowColor?: string;
 }) {
   const appearance = element.appearance ?? {};
   const label = formatDateOnly(eventDate, appearance);
@@ -72,6 +77,7 @@ export function DateElementRenderer({
       (mode === "editor" ? previewColor : undefined) ??
       resolveWebsiteColor(appearance.colorId ?? context?.headingColorId, library, projectColors) ??
       "inherit",
+    textShadow: resolveTextEffects(appearance.textShadow, previewTextShadowColor ?? resolveWebsiteColor(appearance.textShadowColorId, library, projectColors), appearance.glow, previewGlowColor ?? resolveWebsiteColor(appearance.glowColorId, library, projectColors)),
   };
 
   return (

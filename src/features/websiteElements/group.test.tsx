@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { addGroupChild, createGroupElement, findSectionElement, ungroupSectionElement, updateGroupChildren, updateSectionTextElement, type SectionChildFlow } from "../websiteEditor/sectionChildFlow";
+import { addGroupChild, createGroupElement, findSectionElement, ungroupSectionElement, updateGroupChildren, updateSectionTextDocument, type SectionChildFlow } from "../websiteEditor/sectionChildFlow";
 import { GroupElementRenderer } from "../websiteRenderer/GroupElementRenderer";
 import { WebsiteElementFrame } from "../websiteRenderer/WebsiteElementFrame";
 import { resolveGroupLayout, selectGroupLayoutProperty, selectGroupPaddingSide, setGroupLayoutProperty } from "./group";
@@ -9,22 +9,37 @@ import type { CompositionGroup } from "./types";
 
 const library = { colors: [], fontFamilies: [], fontRecommendations: { heading: [], body: [], accent: [] }, palettePresets: [], typographyPresets: [] } as never;
 const childJustification = { start: "flex-start", center: "center", end: "flex-end" } as const;
-const group: CompositionGroup = { id: "group", type: "compositionGroup", editorName: "Group 1", children: [{ id: "a", type: "text", editorName: "Text 1", text: "First" }, { id: "b", type: "text", editorName: "Text 1", text: "Second" }], layout: { width: "narrow", direction: "horizontal", gap: "l", padding: { top: "s" }, alignment: "center", columns: "content-wide", responsive: { mobile: { direction: "vertical", gap: "s" } } } };
+const group: CompositionGroup = { id: "group", type: "compositionGroup", editorName: "Group 1", children: [{ id: "a", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "First"  }] }] }}, { id: "b", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Second"  }] }] }}], layout: { width: "narrow", direction: "horizontal", gap: "l", padding: { top: "s" }, alignment: "center", division: "40-60", responsive: { mobile: { direction: "vertical", gap: "s" } } } };
 
 describe("Group", () => {
-  it.each(["equal-2", "content-wide", "content-narrow", "equal-3"] as const)("removes unresolved Media before %s orphan geometry", (columns) => {
+  it("renders a clipped decorative background layer without clipping or resizing foreground content", () => {
+    const candidate: CompositionGroup = { ...group, backgroundMedia: { assetId: "01M00000000000000000000000", focalPoint: { x: 0.2, y: 0.8 }, zoom: 1.7 }, appearance: { backgroundColorId: "surface", backgroundImageOpacity: 45 }, layout: { direction: "horizontal", division: "60-40", gap: "l", padding: { top: "m" } }, children: [{ id: "large-text", type: "text", editorName: "Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "Large" }] }] }, appearance: { fontSize: "5xl", textShadow: "soft", glow: "medium" } }, group.children[1]] };
+    const media = { "01M00000000000000000000000": { id: "01M00000000000000000000000", originalFilename: "group.jpg", width: 1200, height: 800, web: { url: "/group.jpg", width: 1200, height: 800 } } };
+    const html = renderToStaticMarkup(<GroupElementRenderer group={candidate} sectionId="hero" mode="public" viewport="desktop" templateKey="modern-editorial-v1" library={library} projectColors={[]} media={media} />);
+    expect(html).toContain('data-group-background-image="true"');
+    expect(html).toContain('class="pointer-events-none absolute inset-0 overflow-hidden" style="opacity:0.45"');
+    expect(html).toContain('data-media-focal-x="0.2" data-media-focal-y="0.8" data-media-zoom="1.7"');
+    expect(html).toContain("grid-template-columns:minmax(0,3fr) minmax(0,2fr)");
+    expect(html).toContain("gap:1.5rem");
+    expect(html).toContain("padding-top:1rem");
+    expect(html).toContain("font-size:6rem");
+    expect(html).toContain("text-shadow:");
+    expect(html).not.toMatch(/data-website-element="group"[^>]*overflow-hidden/);
+    expect(html).not.toContain("min-height");
+  });
+  it.each(["50-50", "40-60", "60-40", "thirds"] as const)("removes unresolved Media before %s orphan geometry", (division) => {
     const candidate: CompositionGroup = {
-      id: `group-${columns}`, type: "compositionGroup", editorName: "Group 1",
+      id: `group-${division}`, type: "compositionGroup", editorName: "Group 1",
       children: [
-        { id: "text", type: "text", editorName: "Text 1", text: "Remaining" },
+        { id: "text", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Remaining"  }] }] }},
         { id: "missing", type: "media", editorName: "Media 1", items: [{ id: "image", type: "image", mediaId: "01J00000000000000000000000", alt: "Missing" }] },
       ],
-      layout: { direction: "horizontal", columns, gap: "l" },
+      layout: { direction: "horizontal", division, gap: "l" },
     };
     const html = renderToStaticMarkup(<GroupElementRenderer group={candidate} sectionId="date" mode="public" viewport="desktop" templateKey="modern-editorial-v1" library={library} projectColors={[]} media={{}} />);
     expect(html).toContain("Remaining");
     expect(html).not.toContain('data-section-child-element="missing"');
-    expect(html).toContain("grid-column:1 / -1");
+    expect(html).not.toContain("grid-column:1 / -1");
     expect(html.match(/data-section-generic-child/g)).toHaveLength(1);
   });
 
@@ -33,7 +48,7 @@ describe("Group", () => {
       id: "outer", type: "compositionGroup", editorName: "Group 1",
       children: [
         { id: "nested", type: "compositionGroup", editorName: "Group 2", children: [{ id: "empty", type: "media", editorName: "Media 1", items: [] }] },
-        { id: "text", type: "text", editorName: "Text 1", text: "Only public child" },
+        { id: "text", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Only public child"  }] }] }},
       ],
       layout: { direction: "vertical", gap: "l" },
     };
@@ -75,10 +90,10 @@ describe("Group", () => {
   });
 
   it("resolves each viewport from base plus only its own sparse override", () => {
-    const layout = { width: "wide", direction: "horizontal", gap: "l", padding: { top: "xl" }, alignment: "center", columns: "content-wide", responsive: { tablet: { width: "medium", gap: "m", alignment: "end", columns: "equal-3" }, mobile: { width: "full", direction: "vertical", gap: "s", padding: { top: "xs" } } } } as const;
-    expect(resolveGroupLayout(layout, "desktop")).toMatchObject({ width: "wide", direction: "horizontal", gap: "l", alignment: "center", columns: "content-wide" });
-    expect(resolveGroupLayout(layout, "tablet")).toMatchObject({ width: "medium", direction: "horizontal", gap: "m", alignment: "end", columns: "equal-3" });
-    expect(resolveGroupLayout(layout, "mobile")).toMatchObject({ width: "full", direction: "vertical", gap: "s", alignment: "center", columns: "content-wide", padding: { top: "xs" } });
+    const layout = { width: "wide", direction: "horizontal", gap: "l", padding: { top: "xl" }, alignment: "center", division: "40-60", responsive: { tablet: { width: "medium", gap: "m", alignment: "end", division: "thirds" }, mobile: { width: "full", direction: "vertical", gap: "s", padding: { top: "xs" } } } } as const;
+    expect(resolveGroupLayout(layout, "desktop")).toMatchObject({ width: "wide", direction: "horizontal", gap: "l", alignment: "center", division: "40-60" });
+    expect(resolveGroupLayout(layout, "tablet")).toMatchObject({ width: "medium", direction: "horizontal", gap: "m", alignment: "end", division: "thirds" });
+    expect(resolveGroupLayout(layout, "mobile")).toMatchObject({ width: "full", direction: "vertical", gap: "s", alignment: "center", division: "40-60", padding: { top: "xs" } });
   });
 
   it("does not force or inherit a Tablet direction on Mobile", () => {
@@ -117,7 +132,7 @@ describe("Group", () => {
 
   it.each(["desktop", "tablet", "mobile"] as const)("keeps Vertical Group children bounded under every alignment on %s", (viewport) => {
     const children: CompositionGroup["children"] = [
-      { id: "rich", type: "richText", editorName: "Rich Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "A long wrapping Rich Text value that must remain inside the Group bounds." }] }] } },
+      { id: "rich", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "A long wrapping Text value that must remain inside the Group bounds." }] }] } },
       { id: "media", type: "media", editorName: "Media 1", items: [{ id: "video", type: "video", url: "https://example.com/video.mp4" }] },
       { id: "divider", type: "divider", editorName: "Divider 1", appearance: { width: "medium" } },
     ];
@@ -134,7 +149,7 @@ describe("Group", () => {
       expect(html).toContain("width:100%;max-width:100%;flex:0 1 auto");
       if (alignment === "stretch") expect(html).toContain("--website-element-inline-justify:initial");
       else expect(html).toContain(`--website-element-inline-justify:${childJustification[alignment]}`);
-      expect(html).toContain('data-website-element="richText"');
+      expect(html).toContain('data-website-element="text"');
       expect(html).toContain('data-media-presentation="single"');
       expect(html).toContain('data-website-element="divider"');
       expect(html).toContain("max-width:100%");
@@ -157,7 +172,7 @@ describe("Group", () => {
       children: [
         { id: "media", type: "media", editorName: "Media 1", items: [{ id: "video", type: "video", url: "https://example.com/video.mp4" }], presentation: { width: "small" } },
         { id: "divider", type: "divider", editorName: "Divider 1", appearance: { width: "medium" } },
-        { id: "rich", type: "richText", editorName: "Rich Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "Bounded copy" }] }] } },
+        { id: "rich", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Bounded copy" }] }] } },
       ],
       layout: { direction: "vertical" },
     };
@@ -191,7 +206,7 @@ describe("Group", () => {
   });
 
   it.each(["tablet", "mobile"] as const)("creates and removes sparse %s selections against Desktop", (viewport) => {
-    const base = { width: "wide", direction: "horizontal", gap: "l", alignment: "center", columns: "content-wide" } as const;
+    const base = { width: "wide", direction: "horizontal", gap: "l", alignment: "center", division: "40-60" } as const;
     const overridden = selectGroupLayoutProperty(base, viewport, "gap", "none");
     expect(overridden.responsive?.[viewport]?.gap).toBe("none");
     const restored = selectGroupLayoutProperty(overridden, viewport, "gap", "l");
@@ -245,27 +260,27 @@ describe("Group", () => {
   });
 
   it("uses safe tracks, shrinkable children, and authored DOM order", () => {
-    const html = renderToStaticMarkup(<GroupElementRenderer group={{ ...group, children: [...group.children, { id: "c", type: "text", editorName: "Text 1", text: "Third" }], layout: { direction: "horizontal", columns: "equal-3", gap: "none" } }} sectionId="date" mode="public" viewport="mobile" templateKey="modern-editorial-v1" library={library} projectColors={[]} />);
-    expect(html).toContain("grid-template-columns:repeat(6,minmax(0,1fr))");
+    const html = renderToStaticMarkup(<GroupElementRenderer group={{ ...group, children: [...group.children, { id: "c", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Third"  }] }] }}], layout: { direction: "horizontal", division: "thirds", gap: "none" } }} sectionId="date" mode="public" viewport="mobile" templateKey="modern-editorial-v1" library={library} projectColors={[]} />);
+    expect(html).toContain("grid-template-columns:repeat(3,minmax(0,1fr))");
     expect(html).toContain('class="min-w-0 max-w-full [overflow-wrap:anywhere]"');
-    expect(html).toMatch(/<p data-website-element="text" style="[^"]*min-width:0;max-width:100%;[^"]*overflow-wrap:anywhere/);
+    expect(html).toMatch(/<div data-website-element="text" class="[^"]*min-w-0 max-w-full[^"]*overflow-wrap:anywhere/);
     expect(html.indexOf("First")).toBeLessThan(html.indexOf("Second"));
     expect(html.indexOf("Second")).toBeLessThan(html.indexOf("Third"));
     expect(html).not.toMatch(/100vw|w-screen|margin-left:-|margin-right:-|position:absolute/);
   });
 
   it("keeps nested geometry independent and relative to its parent", () => {
-    const nested: CompositionGroup = { id: "outer", type: "compositionGroup", editorName: "Group 1", children: [{ id: "inner", type: "compositionGroup", editorName: "Group 1", children: [{ id: "copy", type: "text", editorName: "Text 1", text: "Nested" }], layout: { width: "narrow", gap: "s", padding: { left: "m" }, responsive: { mobile: { width: "full", gap: "none", padding: { left: "none" } } } } }], layout: { width: "medium", gap: "l", padding: { right: "xl" } } };
+    const nested: CompositionGroup = { id: "outer", type: "compositionGroup", editorName: "Group 1", children: [{ id: "inner", type: "compositionGroup", editorName: "Group 1", children: [{ id: "copy", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Nested"  }] }] }}], layout: { width: "narrow", gap: "s", padding: { left: "m" }, responsive: { mobile: { width: "full", gap: "none", padding: { left: "none" } } } } }], layout: { width: "medium", gap: "l", padding: { right: "xl" } } };
     const html = renderToStaticMarkup(<GroupElementRenderer group={nested} sectionId="date" mode="public" viewport="mobile" templateKey="modern-editorial-v1" library={library} projectColors={[]} />);
     expect(html).toContain("max-width:48rem");
     expect(html).toContain("padding-right:2rem");
     expect(html).toContain("max-width:100%");
     expect(html).toContain("padding-left:0");
     expect(html).toContain("box-sizing:border-box;min-width:0;width:100%");
-    expect(html).toMatch(/<p data-website-element="text" style="[^"]*min-width:0;max-width:100%;[^"]*overflow-wrap:anywhere/);
+    expect(html).toMatch(/<div data-website-element="text" class="[^"]*min-w-0 max-w-full[^"]*overflow-wrap:anywhere/);
   });
 
-  it("contains long unbroken Rich Text beside Media in a nested 50 / 50 Group", () => {
+  it("contains long unbroken Text beside Media in a nested 50 / 50 Group", () => {
     const token = "WeddingPlatform".repeat(80);
     const nested: CompositionGroup = {
       id: "outer",
@@ -273,9 +288,9 @@ describe("Group", () => {
       children: [{
         id: "inner",
         type: "compositionGroup", editorName: "Group 1",
-        layout: { direction: "horizontal", columns: "equal-2" },
+        layout: { direction: "horizontal", division: "50-50" },
         children: [
-          { id: "rich", type: "richText", editorName: "Rich Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: token }] }] } },
+          { id: "rich", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: token }] }] } },
           { id: "media", type: "media", editorName: "Media 1", items: [{ id: "photo", type: "image", mediaId: "01J00000000000000000000000", alt: "Photo" }] },
         ],
       }],
@@ -290,72 +305,44 @@ describe("Group", () => {
     expect(html).not.toMatch(/data-website-element="group"[^>]*overflow-hidden/);
   });
 
-  it.each(["equal-2", "content-wide", "content-narrow"] as const)("spans the orphan child across both %s columns for 1, 3, and 5 children", (columns) => {
-    for (const count of [1, 3, 5]) {
-      const children = Array.from({ length: count }, (_, index) => ({ id: `child-${index + 1}`, type: "text" as const, editorName: "Text 1", text: `Authored ${index + 1}` }));
-      const candidate: CompositionGroup = { id: `group-${columns}-${count}`, type: "compositionGroup", editorName: "Group 1", children, layout: { direction: "horizontal", columns } };
+  it.each(["50-50", "60-40", "40-60", "thirds"] as const)("auto-places 1, 2, 3, and 4 children for %s without persisted track assignments", (division) => {
+    for (const count of [1, 2, 3, 4]) {
+      const children = Array.from({ length: count }, (_, index) => ({ id: `child-${index + 1}`, type: "text" as const, editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: `Authored ${index + 1}` }] }] } }));
+      const candidate: CompositionGroup = { id: `group-${division}-${count}`, type: "compositionGroup", editorName: "Group 1", children, layout: { direction: "horizontal", division } };
       const html = renderToStaticMarkup(<GroupElementRenderer group={candidate} sectionId="date" mode="public" viewport="desktop" templateKey="modern-editorial-v1" library={library} projectColors={[]} />);
 
-      expect(html.match(/grid-column:1 \/ -1/g)).toHaveLength(1);
-      expect(html.lastIndexOf("grid-column:1 / -1")).toBeLessThan(html.indexOf(`Authored ${count}`));
+      expect(html).not.toContain("grid-column");
       for (let index = 1; index < count; index += 1) expect(html.indexOf(`Authored ${index}`)).toBeLessThan(html.indexOf(`Authored ${index + 1}`));
       expect(html).toContain("min-w-0 max-w-full [overflow-wrap:anywhere]");
       expect(html).not.toMatch(/overflow-hidden|100vw|w-screen/);
     }
   });
 
-  it("leaves even two-column rows unchanged", () => {
-    const children = [1, 2, 3].map((index) => ({ id: `third-${index}`, type: "text" as const, editorName: "Text 1", text: `Third ${index}` }));
-    const even = renderToStaticMarkup(<GroupElementRenderer group={{ id: "even", type: "compositionGroup", editorName: "Group 1", children: children.slice(0, 2), layout: { direction: "horizontal", columns: "equal-2" } }} sectionId="date" mode="public" viewport="desktop" templateKey="modern-editorial-v1" library={library} projectColors={[]} />);
-    expect(even).not.toContain("grid-column");
-  });
-
-  it.each([1, 2, 3, 4, 5, 6, 7, 8])("balances %i authored children in Thirds", (count) => {
-    const children = Array.from({ length: count }, (_, index) => ({ id: `third-${index + 1}`, type: "text" as const, editorName: "Text 1", text: `Authored third ${index + 1}` }));
-    const html = renderToStaticMarkup(<GroupElementRenderer group={{ id: `thirds-${count}`, type: "compositionGroup", editorName: "Group 1", children, layout: { direction: "horizontal", columns: "equal-3" } }} sectionId="date" mode="public" viewport="desktop" templateKey="modern-editorial-v1" library={library} projectColors={[]} />);
-
-    expect(html).toContain("grid-template-columns:repeat(6,minmax(0,1fr))");
-    if (count % 3 === 0) {
-      expect(html.match(/grid-column:span 2/g)).toHaveLength(count);
-      expect(html).not.toContain("grid-column:1 / -1");
-      expect(html).not.toContain("grid-column:span 3");
-    } else if (count % 3 === 1) {
-      expect(html.match(/grid-column:span 2/g) ?? []).toHaveLength(count - 1);
-      expect(html.match(/grid-column:1 \/ -1/g)).toHaveLength(1);
-    } else {
-      expect(html.match(/grid-column:span 2/g) ?? []).toHaveLength(count - 2);
-      expect(html.match(/grid-column:span 3/g)).toHaveLength(2);
-    }
-    for (let index = 1; index < count; index += 1) expect(html.indexOf(`Authored third ${index}`)).toBeLessThan(html.indexOf(`Authored third ${index + 1}`));
-    expect(html).toContain("min-w-0 max-w-full [overflow-wrap:anywhere]");
-    expect(html).not.toMatch(/overflow-hidden|100vw|w-screen/);
-  });
-
-  it("balances Thirds from the resolved viewport override without affecting two-column behavior", () => {
-    const children = [1, 2, 3, 4, 5].map((index) => ({ id: `responsive-third-${index}`, type: "text" as const, editorName: "Text 1", text: `Responsive ${index}` }));
-    const candidate: CompositionGroup = { id: "responsive-thirds", type: "compositionGroup", editorName: "Group 1", children, layout: { direction: "horizontal", columns: "equal-2", responsive: { tablet: { columns: "equal-3" }, mobile: { direction: "vertical", columns: "equal-3" } } } };
+  it("resolves Division from independent viewport overrides and leaves Vertical unchanged", () => {
+    const children = [1, 2, 3, 4, 5].map((index) => ({ id: `responsive-third-${index}`, type: "text" as const, editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: `Responsive ${index}` }] }] } }));
+    const candidate: CompositionGroup = { id: "responsive-thirds", type: "compositionGroup", editorName: "Group 1", children, layout: { direction: "horizontal", division: "50-50", responsive: { tablet: { division: "thirds" }, mobile: { direction: "vertical", division: "thirds" } } } };
     const render = (viewport: "desktop" | "tablet" | "mobile") => renderToStaticMarkup(<GroupElementRenderer group={candidate} sectionId="date" mode="public" viewport={viewport} templateKey="modern-editorial-v1" library={library} projectColors={[]} />);
     const desktop = render("desktop");
     const tablet = render("tablet");
     const mobile = render("mobile");
     expect(desktop).toContain("grid-template-columns:repeat(2,minmax(0,1fr))");
-    expect(desktop.match(/grid-column:1 \/ -1/g)).toHaveLength(1);
-    expect(tablet).toContain("grid-template-columns:repeat(6,minmax(0,1fr))");
-    expect(tablet.match(/grid-column:span 3/g)).toHaveLength(2);
+    expect(desktop).not.toContain("grid-column");
+    expect(tablet).toContain("grid-template-columns:repeat(3,minmax(0,1fr))");
+    expect(tablet).not.toContain("grid-column");
     expect(mobile).not.toContain("grid-template-columns");
     expect(mobile).not.toContain("grid-column");
   });
 
-  it("derives orphan spanning from the active responsive layout", () => {
-    const candidate: CompositionGroup = { id: "responsive-orphan", type: "compositionGroup", editorName: "Group 1", children: [{ id: "only", type: "text", editorName: "Text 1", text: "Only" }], layout: { direction: "vertical", columns: "equal-3", responsive: { tablet: { direction: "horizontal", columns: "content-wide" }, mobile: { direction: "horizontal", columns: "equal-3" } } } };
+  it("uses the active responsive layout without implicit stacking", () => {
+    const candidate: CompositionGroup = { id: "responsive-orphan", type: "compositionGroup", editorName: "Group 1", children: [{ id: "only", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Only"  }] }] }}], layout: { direction: "vertical", division: "thirds", responsive: { tablet: { direction: "horizontal", division: "40-60" }, mobile: { direction: "horizontal", division: "thirds" } } } };
     const render = (viewport: "desktop" | "tablet" | "mobile") => renderToStaticMarkup(<GroupElementRenderer group={candidate} sectionId="date" mode="public" viewport={viewport} templateKey="modern-editorial-v1" library={library} projectColors={[]} />);
     expect(render("desktop")).not.toContain("grid-column");
-    expect(render("tablet")).toContain("grid-column:1 / -1");
-    expect(render("mobile")).toContain("grid-column:1 / -1");
+    expect(render("tablet")).not.toContain("grid-column:1 / -1");
+    expect(render("mobile")).not.toContain("grid-column:1 / -1");
   });
 
   it("removes hidden children from Vertical layout without placeholder geometry", () => {
-    const candidate: CompositionGroup = { id: "vertical-hidden", type: "compositionGroup", editorName: "Group 1", children: [{ id: "first", type: "text", editorName: "Text 1", text: "Visible first" }, { id: "hidden", type: "text", editorName: "Text 1", text: "Hidden middle", isHidden: true }, { id: "last", type: "text", editorName: "Text 1", text: "Visible last" }], layout: { direction: "vertical", gap: "xl" } };
+    const candidate: CompositionGroup = { id: "vertical-hidden", type: "compositionGroup", editorName: "Group 1", children: [{ id: "first", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Visible first"  }] }] }}, { id: "hidden", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Hidden middle" }] }] }, isHidden: true }, { id: "last", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Visible last"  }] }] }}], layout: { direction: "vertical", gap: "xl" } };
     const html = renderToStaticMarkup(<GroupElementRenderer group={candidate} sectionId="date" mode="public" viewport="desktop" templateKey="modern-editorial-v1" library={library} projectColors={[]} />);
     expect(html).toContain("Visible first");
     expect(html).toContain("Visible last");
@@ -363,26 +350,25 @@ describe("Group", () => {
     expect(html.match(/data-group-child-containment/g)).toHaveLength(2);
   });
 
-  it("balances two-column orphans from visible children only", () => {
-    for (const columns of ["equal-2", "content-wide", "content-narrow"] as const) {
-      const candidate: CompositionGroup = { id: `hidden-${columns}`, type: "compositionGroup", editorName: "Group 1", children: [1, 2, 3, 4].map((index) => ({ id: `child-${index}`, type: "text" as const, editorName: "Text 1", text: `Visible order ${index}`, ...(index === 2 ? { isHidden: true } : {}) })), layout: { direction: "horizontal", columns } };
+  it("auto-places only visible children in two-track divisions", () => {
+    for (const division of ["50-50", "40-60", "60-40"] as const) {
+      const candidate: CompositionGroup = { id: `hidden-${division}`, type: "compositionGroup", editorName: "Group 1", children: [1, 2, 3, 4].map((index) => ({ id: `child-${index}`, type: "text" as const, editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: `Visible order ${index}` }] }] }, ...(index === 2 ? { isHidden: true } : {}) })), layout: { direction: "horizontal", division } };
       const html = renderToStaticMarkup(<GroupElementRenderer group={candidate} sectionId="date" mode="public" viewport="tablet" templateKey="modern-editorial-v1" library={library} projectColors={[]} />);
       expect(html).not.toContain("Visible order 2");
-      expect(html.match(/grid-column:1 \/ -1/g)).toHaveLength(1);
+      expect(html).not.toContain("grid-column");
       expect(html.indexOf("Visible order 1")).toBeLessThan(html.indexOf("Visible order 3"));
     }
   });
 
-  it("balances Thirds from visible children only", () => {
-    const candidate: CompositionGroup = { id: "hidden-thirds", type: "compositionGroup", editorName: "Group 1", children: [1, 2, 3, 4, 5].map((index) => ({ id: `third-${index}`, type: "text" as const, editorName: "Text 1", text: `Third visible ${index}`, ...(index === 2 ? { isHidden: true } : {}) })), layout: { direction: "horizontal", columns: "equal-3" } };
+  it("auto-places only visible children in Thirds", () => {
+    const candidate: CompositionGroup = { id: "hidden-thirds", type: "compositionGroup", editorName: "Group 1", children: [1, 2, 3, 4, 5].map((index) => ({ id: `third-${index}`, type: "text" as const, editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: `Third visible ${index}` }] }] }, ...(index === 2 ? { isHidden: true } : {}) })), layout: { direction: "horizontal", division: "thirds" } };
     const html = renderToStaticMarkup(<GroupElementRenderer group={candidate} sectionId="date" mode="public" viewport="mobile" templateKey="modern-editorial-v1" library={library} projectColors={[]} />);
     expect(html).not.toContain("Third visible 2");
-    expect(html.match(/grid-column:span 2/g)).toHaveLength(3);
-    expect(html.match(/grid-column:1 \/ -1/g)).toHaveLength(1);
+    expect(html).not.toContain("grid-column");
   });
 
   it("omits a hidden nested Group and all of its geometry", () => {
-    const candidate: CompositionGroup = { id: "outer-visible", type: "compositionGroup", editorName: "Group 1", children: [{ id: "nested-hidden", type: "compositionGroup", editorName: "Group 1", isHidden: true, children: [{ id: "nested-copy", type: "text", editorName: "Text 1", text: "Never rendered" }], layout: { padding: { top: "xl" }, gap: "xl" } }, { id: "visible", type: "text", editorName: "Text 1", text: "Still rendered" }], layout: { direction: "vertical" } };
+    const candidate: CompositionGroup = { id: "outer-visible", type: "compositionGroup", editorName: "Group 1", children: [{ id: "nested-hidden", type: "compositionGroup", editorName: "Group 1", isHidden: true, children: [{ id: "nested-copy", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Never rendered"  }] }] }}], layout: { padding: { top: "xl" }, gap: "xl" } }, { id: "visible", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Still rendered"  }] }] }}], layout: { direction: "vertical" } };
     const html = renderToStaticMarkup(<GroupElementRenderer group={candidate} sectionId="date" mode="public" viewport="desktop" templateKey="modern-editorial-v1" library={library} projectColors={[]} />);
     expect(html).toContain("Still rendered");
     expect(html).not.toContain("Never rendered");
@@ -421,7 +407,7 @@ describe("Group", () => {
 
   it("supports child insertion, reordering updates, nested lookup, and stable ungroup order", () => {
     let flow: SectionChildFlow = { elements: [group], order: [{ kind: "specialized", key: "content" }, { kind: "element", id: group.id }] };
-    flow = addGroupChild(flow, group.id, { id: "c", type: "text", editorName: "Text 1", text: "Third" });
+    flow = addGroupChild(flow, group.id, { id: "c", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Third"  }] }] }});
     expect(findSectionElement(flow, "c")?.type).toBe("text");
     flow = updateGroupChildren(flow, group.id, [...group.children].reverse());
     expect((findSectionElement(flow, group.id) as CompositionGroup).children.map(({ id }) => id)).toEqual(["b", "a"]);
@@ -438,8 +424,8 @@ describe("Group", () => {
 
   it("updates nested Text without replacing its Group or identity", () => {
     const flow: SectionChildFlow = { elements: [group], order: [{ kind: "specialized", key: "content" }, { kind: "element", id: "group" }] };
-    const updated = updateSectionTextElement(flow, "a", "Typing works");
-    expect(findSectionElement(updated ?? undefined, "a")).toMatchObject({ id: "a", type: "text", editorName: "Text 1", text: "Typing works" });
+    const updated = updateSectionTextDocument(flow, "a", { type: "doc", children: [{ type: "paragraph", children: [{ text: "Typing works" }] }] });
+    expect(findSectionElement(updated ?? undefined, "a")).toMatchObject({ id: "a", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Typing works"  }] }] }});
     expect(findSectionElement(updated ?? undefined, "group")?.type).toBe("compositionGroup");
   });
 });

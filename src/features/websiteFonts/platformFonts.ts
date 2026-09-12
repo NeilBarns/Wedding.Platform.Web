@@ -1,4 +1,4 @@
-import type { StoryContent, WebsiteDraft } from "../websiteEditor/types";
+import type { WebsiteDraft } from "../websiteEditor/types";
 import type { WebsiteElement } from "../websiteElements/types";
 import type { SectionChildFlow } from "../websiteEditor/sectionChildFlow";
 
@@ -50,7 +50,6 @@ export function collectRequiredFontIds(website: WebsiteDraft): string[] {
     if (section.resolvedDesignContext) { ids.add(section.resolvedDesignContext.headingFontId); ids.add(section.resolvedDesignContext.bodyFontId); }
     if (section.designDefaults.headingFontId) ids.add(section.designDefaults.headingFontId);
     if (section.designDefaults.bodyFontId) ids.add(section.designDefaults.bodyFontId);
-    if (section.type === "story") for (const block of (section.content as StoryContent).elements) for (const slot of Object.values(block.slots)) if ("appearance" in slot && slot.appearance && "fontFamilyId" in slot.appearance && slot.appearance.fontFamilyId) ids.add(slot.appearance.fontFamilyId);
     const childFlow = (section.content as { childFlow?: SectionChildFlow }).childFlow;
     if (childFlow) {
       childFlow.elements.forEach((element) => collectElementFontIds(element, ids));

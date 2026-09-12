@@ -12,7 +12,7 @@ const childFlow = (groupId: string, childId: string) => ({
   elements: [{
     id: groupId,
     type: "compositionGroup" as const, editorName: "Group 1",
-    children: [{ id: childId, type: "text" as const, editorName: "Text 1", text: childId }],
+    children: [{ id: childId, type: "text" as const, editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: childId  }] }] }}],
   }],
   order: [
     { kind: "element" as const, id: groupId },
@@ -28,17 +28,11 @@ const renderNavigator = (selectedId: string, childSectionId?: string, childId?: 
   <SectionNavigator
     sections={sections}
     selectedId={selectedId}
-    selectedNarrativeBlockId={null}
-    selectedStoryHeaderField={null}
-    workingStory={null}
     workingChildFlow={null}
     selectedChild={childSectionId && childId ? { sectionId: childSectionId, reference: { kind: "element", id: childId } } : null}
-    genericChildTypesBySectionType={{ blank: ["text", "richText", "date", "accordion", "divider", "media", "compositionGroup"] }}
+    genericChildTypesBySectionType={{ blank: ["text", "text", "date", "accordion", "divider", "media", "compositionGroup"] }}
     pending={false}
     onSelect={vi.fn()}
-    onNarrativeBlockSelect={vi.fn()}
-    onStoryHeaderSelect={vi.fn()}
-    onStoryChange={vi.fn(() => true)}
     onChildFlowChange={vi.fn(() => true)}
     onChildRenameSave={vi.fn(async () => null)}
     onChildSelect={vi.fn()}
@@ -55,10 +49,8 @@ describe("Section Structure accordion", () => {
       { ...sections[0], id: "blank-2", type: "blank", displayName: "Section", editorName: "Travel notes", content: { childFlow: { elements: [], order: [] } } },
     ] as unknown as WebsiteSection[];
     const html = renderToStaticMarkup(<SectionNavigator {...{
-      sections: blanks, selectedId: "blank-2", selectedNarrativeBlockId: null, selectedStoryHeaderField: null,
-      workingStory: null, workingChildFlow: null, selectedChild: null, genericChildTypesBySectionType: { blank: ["text", "richText", "date", "divider", "media", "compositionGroup"] }, pending: false,
-      onSelect: vi.fn(), onNarrativeBlockSelect: vi.fn(), onStoryHeaderSelect: vi.fn(), onStoryChange: vi.fn(() => true),
-      onChildFlowChange: vi.fn(() => true), onChildRenameSave: vi.fn(async () => null), onChildSelect: vi.fn(), onToggle: vi.fn(), onMove: vi.fn(), onReorder: vi.fn(), onCreate: vi.fn(),
+      sections: blanks, selectedId: "blank-2", workingChildFlow: null, selectedChild: null, genericChildTypesBySectionType: { blank: ["text", "text", "date", "divider", "media", "compositionGroup"] }, pending: false,
+      onSelect: vi.fn(), onChildFlowChange: vi.fn(() => true), onChildRenameSave: vi.fn(async () => null), onChildSelect: vi.fn(), onToggle: vi.fn(), onMove: vi.fn(), onReorder: vi.fn(), onCreate: vi.fn(),
     }} />);
     expect(html).toContain("Section 1");
     expect(html).toContain("Travel notes");

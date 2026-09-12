@@ -1,21 +1,20 @@
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "../../../components/ui/Button";
 import { Dialog, DialogFooter, DialogHeader } from "../../../components/ui/Dialog";
 import { IconButton } from "../../../components/ui/IconButton";
 import { Input } from "../../../components/ui/Input";
 import { Textarea } from "../../../components/ui/Textarea";
-import type { StoryHeaderField as StoryHeaderFieldName, WebsiteSection } from "../types";
-import type { ResolvedWebsiteMedia, SectionMedia } from "../types";
-import type { MediaAsset } from "../../media/types";
+import type { WebsiteSection } from "../types";
+import type { ResolvedWebsiteMedia, ResponsiveViewport, SectionMedia } from "../types";
 import { useEventWorkspace } from "../../events/workspace/EventWorkspaceContext";
 import { MediaPickerDialog } from "./MediaPickerDialog";
 import { FocalPointEditor } from "./FocalPointEditor";
 import { ZoomedMediaImage } from "../../websiteRenderer/ZoomedMediaImage";
 import { createSemanticId } from "../createSemanticId";
-import type { PeopleContent, PeopleGroup, PeoplePerson, StoryContent } from "../types";
+import type { PeopleGroup, PeoplePerson } from "../types";
 import { useRevealNewItem } from "../useRevealNewItem";
-import { SemanticTextContentField } from "./SemanticTextContentField";
+import { BackgroundMediaEditor } from "./BackgroundMediaEditor";
 
 type EditorProps = {
   section: WebsiteSection;
@@ -23,7 +22,7 @@ type EditorProps = {
   onChange: (content: Record<string, unknown>) => void;
   resolvedMedia: Record<string, ResolvedWebsiteMedia>;
   onMediaResolved: (media: ResolvedWebsiteMedia) => void;
-  storyHeaderFocus?: { field: StoryHeaderFieldName; requestId: number; focusInspector: boolean } | null;
+  viewport?: ResponsiveViewport;
 };
 type Field = {
   name: string;
@@ -54,42 +53,9 @@ function SimpleEditor(props: EditorProps & { fields: Field[] }) {
 }
 
 function SectionMediaEditor(props: EditorProps) {
-  const event = useEventWorkspace();
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [chosen, setChosen] = useState<MediaAsset | null>(null);
-  const media = (props.content.media ?? null) as SectionMedia;
-  const resolved = media ? props.resolvedMedia[media.assetId] : undefined;
-  const chosenMatches = chosen !== null && chosen.id === media?.assetId;
-  const url = chosenMatches ? chosen?.variants.web.url : resolved?.web.url;
-  const filename = chosenMatches ? chosen?.originalFilename : resolved?.originalFilename;
-  const point = media?.focalPoint ?? { x: 0.5, y: 0.5 };
-  return <section className="rounded-lg border border-border bg-surface-muted p-3">
-    <h3 className="text-sm font-semibold">Image</h3>
-    {media && url ? <div className="mt-3"><FocalPointEditor url={url} point={point} zoom={media.zoom} onChange={({ point: focalPoint, zoom }) => props.onChange({ ...props.content, media: { assetId: media.assetId, focalPoint, zoom } })} /><p className="mt-1 truncate text-xs text-foreground-muted">{filename}</p><div className="mt-2 flex gap-2"><Button size="sm" type="button" variant="secondary" onClick={() => setPickerOpen(true)}>Change image</Button><Button size="sm" type="button" variant="ghost" onClick={() => { setChosen(null); props.onChange({ ...props.content, media: null }) }}>Remove image</Button></div></div> : <div className="mt-2"><p className="text-xs text-foreground-muted">No image selected</p><Button className="mt-2" size="sm" type="button" variant="secondary" onClick={() => setPickerOpen(true)}>Choose from Media</Button></div>}
-    <MediaPickerDialog open={pickerOpen} eventId={event.id} selectedAssetId={media?.assetId} onClose={() => setPickerOpen(false)} onSelect={(asset) => { setChosen(asset); props.onMediaResolved({ id: asset.id, originalFilename: asset.originalFilename, width: asset.width, height: asset.height, web: asset.variants.web }); props.onChange({ ...props.content, media: { assetId: asset.id } }); setPickerOpen(false) }} />
-  </section>;
-}
-
-function StoryEditor(props: EditorProps) {
-  const content = props.content as StoryContent;
-
-  useEffect(() => {
-    if (!props.storyHeaderFocus) return;
-    if (!props.storyHeaderFocus.focusInspector) return;
-    const frame = window.requestAnimationFrame(() => {
-      const control = document.getElementById(`${props.section.id}-${props.storyHeaderFocus!.field}`);
-      control?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" });
-      control?.focus({ preventScroll: true });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [props.section.id, props.storyHeaderFocus]);
-
-  if (!props.storyHeaderFocus) return <div className="rounded-md border border-border bg-surface-muted px-3 py-3 text-xs text-foreground-muted">Select a Story item to edit its content.</div>;
-  const field = props.storyHeaderFocus.field;
-  const value = field === "eyebrow" ? content.eyebrow ?? "" : field === "heading" ? content.heading : content.intro ?? "";
-  const hidden = field === "eyebrow" ? content.eyebrowIsHidden === true : field === "heading" ? content.headingIsHidden === true : content.introIsHidden === true;
-  const label = field === "eyebrow" ? "Eyebrow" : field === "heading" ? "Heading" : "Intro";
-  return <EditorForm><SemanticTextContentField label={label} id={`${props.section.id}-${field}`} value={value} hidden={hidden} multiline={field === "intro"} onChange={(next) => props.onChange({ ...props.content, [field]: field === "heading" ? next : next || null })} /></EditorForm>;
+  const mediaKey = props.section.type === "hero" ? "backgroundMedia" : "media";
+  const media = (props.content[mediaKey] ?? null) as SectionMedia;
+  return <BackgroundMediaEditor ownerId={props.section.id} viewport={props.viewport ?? "desktop"} media={media} resolvedMedia={props.resolvedMedia} onMediaResolved={props.onMediaResolved} onChange={(next) => props.onChange({ ...props.content, [mediaKey]: next })} />;
 }
 
 export function PeopleEditor(props: EditorProps & { hideHeading?: boolean; itemMediaEnabled?: boolean }) {
@@ -97,7 +63,7 @@ export function PeopleEditor(props: EditorProps & { hideHeading?: boolean; itemM
   const reveal = useRevealNewItem();
   const [pickerPersonId, setPickerPersonId] = useState<string | null>(null);
   const [focalPersonId, setFocalPersonId] = useState<string | null>(null);
-  const content = props.content as PeopleContent;
+  const content = props.content as { heading?: string; groups: PeopleGroup[] };
   const groups = Array.isArray(content.groups) ? content.groups : [];
   const changeGroups = (next: PeopleGroup[]) => props.onChange({ ...props.content, groups: next });
   const updateGroup = (index: number, change: Partial<PeopleGroup>) => changeGroups(groups.map((group, current) => current === index ? { ...group, ...change } : group));
@@ -289,19 +255,7 @@ export function SectionEditor(props: EditorProps) {
     case "blank":
       return <div className="rounded-xl border border-dashed border-border bg-surface-muted p-4 text-sm text-foreground-muted">Add and arrange blocks from the Section row in Structure.</div>;
     case "hero":
-      return (
-        <SimpleEditor
-          {...props}
-          fields={[
-            { name: "headline", label: "Headline" },
-            { name: "subheadline", label: "Subheadline" },
-          ]}
-        />
-      );
-    case "story":
-      return <StoryEditor {...props} />;
-    case "people":
-      return <PeopleEditor {...props} />;
+      return <EditorForm><SectionMediaEditor {...props} /><p className="text-sm text-foreground-muted">Add and arrange Hero content blocks from the Structure panel.</p></EditorForm>;
     case "gallery":
       return (
         <SimpleEditor

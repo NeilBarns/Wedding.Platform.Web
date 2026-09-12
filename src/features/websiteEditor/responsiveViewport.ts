@@ -4,9 +4,15 @@ import type { ResponsiveViewport } from './types'
 const TABLET_MIN_WIDTH = 768
 const DESKTOP_MIN_WIDTH = 1280
 
+export const EDITOR_DEVICE_VIEWPORTS: Record<ResponsiveViewport, Readonly<{ width: number; height: number }>> = {
+  desktop: { width: 1280, height: 800 },
+  tablet: { width: 768, height: 1024 },
+  mobile: { width: 390, height: 844 },
+}
+
 export const PREVIEW_WIDTHS: Record<Exclude<ResponsiveViewport, 'desktop'>, number> = {
-  tablet: 768,
-  mobile: 390,
+  tablet: EDITOR_DEVICE_VIEWPORTS.tablet.width,
+  mobile: EDITOR_DEVICE_VIEWPORTS.mobile.width,
 }
 
 export function editorDeviceCategory(width: number): ResponsiveViewport {

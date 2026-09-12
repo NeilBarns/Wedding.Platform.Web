@@ -68,10 +68,10 @@ describe("nearest Group inline alignment boundary", () => {
     });
 
     it.each(widths)("bounds %s in nested Horizontal cells without inherited inline alignment", (width) => {
-      const presets = { "equal-2": "repeat(2,minmax(0,1fr))", "content-wide": "minmax(0,2fr) minmax(0,3fr)", "content-narrow": "minmax(0,3fr) minmax(0,2fr)", "equal-3": "repeat(6,minmax(0,1fr))" } as const;
-      for (const [columns, tracks] of Object.entries(presets)) for (const outer of alignments) for (const alignment of leafAlignments) {
+      const presets = { "50-50": "repeat(2,minmax(0,1fr))", "60-40": "minmax(0,3fr) minmax(0,2fr)", "40-60": "minmax(0,2fr) minmax(0,3fr)", thirds: "repeat(3,minmax(0,1fr))" } as const;
+      for (const [division, tracks] of Object.entries(presets)) for (const outer of alignments) for (const alignment of leafAlignments) {
         const element = divider(width, alignment);
-        const inner = { ...group("inner", "stretch", [element, { ...element, id: "second" }, ...(columns === "equal-3" ? [{ ...element, id: "third" }] : [])]), layout: { direction: "horizontal", columns: columns as keyof typeof presets, gap: "m" } } satisfies CompositionGroup;
+        const inner = { ...group("inner", "stretch", [element, { ...element, id: "second" }, ...(division === "thirds" ? [{ ...element, id: "third" }] : [])]), layout: { direction: "horizontal", division: division as keyof typeof presets, gap: "m" } } satisfies CompositionGroup;
         const html = renderToStaticMarkup(<GroupElementRenderer {...props} mode={mode} viewport="desktop" group={group("outer", outer, [inner])} />);
         assertArtwork(html, width, alignment);
         const innerHtml = html.slice(html.indexOf('data-website-element="group"', html.indexOf('data-website-element="group"') + 1));

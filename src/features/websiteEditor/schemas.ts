@@ -2,23 +2,20 @@ import { isDividerAssetForTemplate } from "../websiteElements/divider";
 import { z } from 'zod'
 import type { WebsiteDraft, WebsiteSection, WebsiteSectionAppearance } from './types'
 import { CURRENT_WEBSITE_SCHEMA_VERSION } from './schema'
-import { narrativeBlockElementSchema } from '../websiteElements/schemas'
 import { templateCapabilitiesSchema } from '../websiteCapabilities/schemas'
 import { matchesCurrentDesignCatalog } from '../websiteTemplates/design/catalogs'
 import { controlsForViewport, globalDesignCapability, presentationCapability, supportsGlobalDesignValue, sectionCapability } from '../websiteCapabilities/lookup'
 import type { AppearanceControlCapability, SectionCapability } from '../websiteCapabilities/types'
-import { isCanonicalStoryStructure } from './storyStructure'
 import { projectColorsSchema } from '../websiteColors/projectColors'
 import { genericTextSectionChildFlowSchema, textSectionChildFlowSchema } from './sectionChildFlow'
+import { backgroundMediaSchema } from '../websiteMedia/backgroundMedia'
+import { groupPaddingSchema } from '../websiteElements/schemas'
 
 const text = z.string()
 const nonEmptyString = z.string().refine((value) => value.trim().length > 0, 'Required')
 export const backgroundTreatmentSchema = z.enum(['inherit', 'plain', 'soft', 'accent', 'custom'])
 export const opaqueHexColorSchema = z.string().regex(/^#[0-9A-Fa-f]{6}$/).transform((value) => value.toUpperCase())
-const semanticId = z.string().max(255).refine((value) => value.trim().length > 0, 'Required')
-const requiredLabel = z.string().max(255).refine((value) => value.trim().length > 0, 'Required')
 const designOptionSchema = z.object({ key: nonEmptyString, displayName: nonEmptyString }).strict()
-const sectionMediaSchema = z.object({ assetId: nonEmptyString, focalPoint: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().optional(), zoom: z.number().min(1).max(3).optional() }).strict().nullable().optional()
 const responsiveMediaSpacingSchema = z.object({
   top: nonEmptyString,
   right: nonEmptyString,
@@ -26,6 +23,8 @@ const responsiveMediaSpacingSchema = z.object({
   left: nonEmptyString,
 }).strict()
 const responsiveAppearanceSchema = z.object({
+  contentPosition: z.enum(['top-start', 'top-center', 'top-end', 'center-start', 'center', 'center-end', 'bottom-start', 'bottom-center', 'bottom-end']).optional(),
+  innerSpacing: groupPaddingSchema.optional(),
   mediaPlacement: nonEmptyString.optional(),
   mediaSize: nonEmptyString.optional(),
   mediaContentGap: nonEmptyString.optional(),
@@ -44,70 +43,13 @@ const responsiveControlSchema = z.object({
     options: z.array(designOptionSchema).min(1),
   }).strict().optional(),
 }).strict()
-export const heroContentSchema = z.object({ headline: text, subheadline: text, media: sectionMediaSchema }).strict()
-const storyMediaFramingSchema = z.object({
-  focalPoint: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().optional(),
-  zoom: z.number().min(1).max(3).optional(),
-}).strict()
-const storyTextAppearanceSchema = z.object({
-  fontFamilyId: z.string().min(1).max(255).optional(),
-  fontSize: z.object({ desktop: z.enum(['xs', 's', 'm', 'l', 'xl']).optional(), tablet: z.enum(['xs', 's', 'm', 'l', 'xl']).optional(), mobile: z.enum(['xs', 's', 'm', 'l', 'xl']).optional() }).strict().optional(),
-  lineSpacing: z.enum(['tight', 'normal', 'relaxed']).optional(),
-  letterSpacing: z.enum(['tight', 'normal', 'wide']).optional(),
-  colorId: z.string().min(1).max(255).optional(),
-  alignment: z.enum(['start', 'center', 'end']).optional(),
-}).strict()
-export const storyContentSchema = z.object({
-  eyebrow: text.max(255).nullable().optional(),
-  eyebrowIsHidden: z.boolean().optional(),
-  heading: text.max(255),
-  intro: text.max(5000).nullable(),
-  headingIsHidden: z.boolean().optional(),
-  introIsHidden: z.boolean().optional(),
-  singletonAppearance: z.object({ eyebrow: storyTextAppearanceSchema.optional(), heading: storyTextAppearanceSchema.optional(), intro: storyTextAppearanceSchema.optional() }).strict().optional(),
-  elements: z.array(narrativeBlockElementSchema).max(20),
-  mediaFraming: z.record(z.string(), storyMediaFramingSchema),
-  structureOrder: z.array(z.string().min(1)).max(23).optional(),
-}).strict().superRefine((content, context) => {
-  const ids = new Set<string>()
-  const imageIds = new Set<string>()
-  content.elements.forEach((element, index) => {
-    if (ids.has(element.id)) context.addIssue({ code: 'custom', message: 'Story element IDs must be unique', path: ['elements', index, 'id'] })
-    ids.add(element.id)
-    if (element.slots.media.content?.type === 'image') imageIds.add(element.id)
-  })
-  Object.keys(content.mediaFraming).forEach((id) => {
-    if (!imageIds.has(id)) context.addIssue({ code: 'custom', message: 'Framing must reference a Story element with image media', path: ['mediaFraming', id] })
-  })
-  if (content.structureOrder && !isCanonicalStoryStructure(content, content.structureOrder)) {
-    context.addIssue({ code: 'custom', message: 'Story structure order must be a complete canonical permutation', path: ['structureOrder'] })
-  }
-})
-const peoplePersonSchema = z.object({ id: semanticId, name: requiredLabel, role: text.max(255).nullable().optional(), media: sectionMediaSchema }).strict()
-const peopleGroupSchema = z.object({ id: semanticId, name: requiredLabel, people: z.array(peoplePersonSchema).max(100) }).strict()
-export const peopleContentSchema = z.object({
-  heading: text.max(255),
-  groups: z.array(peopleGroupSchema).max(30),
-}).strict().superRefine((content, context) => {
-  const groupIds = new Set<string>()
-  const personIds = new Set<string>()
-  content.groups.forEach((group, groupIndex) => {
-    if (groupIds.has(group.id)) context.addIssue({ code: 'custom', message: 'Group IDs must be unique', path: ['groups', groupIndex, 'id'] })
-    groupIds.add(group.id)
-    group.people.forEach((person, personIndex) => {
-      if (personIds.has(person.id)) context.addIssue({ code: 'custom', message: 'Person IDs must be unique', path: ['groups', groupIndex, 'people', personIndex, 'id'] })
-      personIds.add(person.id)
-    })
-  })
-})
+export const heroContentSchema = z.object({ backgroundMedia: backgroundMediaSchema, childFlow: genericTextSectionChildFlowSchema }).strict()
 export const galleryContentSchema = z.object({ heading: text, items: z.tuple([]) }).strict()
 export const rsvpContentSchema = z.object({ heading: text, description: text, buttonLabel: text }).strict()
 export const blankContentSchema = z.object({ childFlow: genericTextSectionChildFlowSchema }).strict()
 
 const contentSchemas: Record<string, z.ZodType> = {
   hero: heroContentSchema,
-  story: storyContentSchema,
-  people: peopleContentSchema,
   gallery: galleryContentSchema,
   rsvp: rsvpContentSchema,
   blank: blankContentSchema,
@@ -167,7 +109,7 @@ export function validateSectionContent(type: string, content: Record<string, unk
   const schema = contentSchemas[type]
   return schema ? schema.superRefine((value, context) => {
     if (!templateKey || typeof value !== "object" || value === null || !("childFlow" in value)) return;
-    const flow = (type === 'blank' ? genericTextSectionChildFlowSchema : textSectionChildFlowSchema).safeParse(value.childFlow);
+    const flow = (type === 'blank' || type === 'hero' ? genericTextSectionChildFlowSchema : textSectionChildFlowSchema).safeParse(value.childFlow);
     if (!flow.success) return;
     const visit = (element: import("../websiteElements/types").WebsiteElement, path: (string | number)[]) => {
       if (element.type === "divider" && element.appearance?.assetId !== undefined && !isDividerAssetForTemplate(templateKey, element.appearance.assetId)) {
@@ -180,7 +122,7 @@ export function validateSectionContent(type: string, content: Record<string, unk
 }
 
 const sectionSchema = z.object({
-  id: z.string(), type: z.enum(['hero', 'story', 'people', 'gallery', 'rsvp', 'blank']), displayName: z.string(), editorName: z.string().min(1).max(80).nullable(), sortOrder: z.number(),
+  id: z.string(), type: z.enum(['hero', 'gallery', 'rsvp', 'blank']), displayName: z.string(), editorName: z.string().min(1).max(80).nullable(), sortOrder: z.number(),
   isEnabled: z.boolean(), content: z.record(z.string(), z.unknown()),
   appearance: z.object({
     headingAlignment: z.enum(['inherit', 'left', 'center', 'right']),
@@ -218,6 +160,10 @@ const sectionSchema = z.object({
       tablet: responsiveAppearanceSchema.optional(),
       mobile: responsiveAppearanceSchema.optional(),
     }).strict().optional(),
+    backgroundImageOpacity: z.number().int().min(0).max(100).optional(),
+    height: z.enum(['auto', 'screen']).optional(),
+    contentPosition: z.enum(['top-start', 'top-center', 'top-end', 'center-start', 'center', 'center-end', 'bottom-start', 'bottom-center', 'bottom-end']).optional(),
+    innerSpacing: groupPaddingSchema.optional(),
   }).strict(),
   designDefaults: z.object({
     headingFontId: nonEmptyString.optional(),

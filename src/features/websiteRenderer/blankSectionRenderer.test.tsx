@@ -52,9 +52,9 @@ describe.each(templates)('%s Blank Section', (templateKey, Renderer) => {
     const emptySurface = renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, blank({ childFlow: { elements: [], order: [] } }, 'accent'))} mode="public" />)
     expect(emptySurface).toContain('data-section-surface')
     const elements = [
-      { id: 'second', type: 'text', editorName: 'Text 2', text: 'Second' },
-      { id: 'first', type: 'text', editorName: 'Text 1', text: 'First' },
-      { id: 'group', type: 'compositionGroup', editorName: 'Group 1', children: [{ id: 'nested', type: 'richText', editorName: 'Rich Text 1', document: { type: 'doc', children: [{ type: 'paragraph', children: [{ text: 'Nested' }] }] } }] },
+      { id: 'second', type: 'text', editorName: 'Text 2', document: { type: 'doc' as const, children: [{ type: 'paragraph' as const, children: [{ text: 'Second'  }] }] }},
+      { id: 'first', type: 'text', editorName: 'Text 1', document: { type: 'doc' as const, children: [{ type: 'paragraph' as const, children: [{ text: 'First'  }] }] }},
+      { id: 'group', type: 'compositionGroup', editorName: 'Group 1', children: [{ id: 'nested', type: 'text', editorName: 'Text 1', document: { type: 'doc' as const, children: [{ type: 'paragraph' as const, children: [{ text: 'Nested' }] }] } }] },
     ]
     const content = { childFlow: { elements, order: [{ kind: 'element', id: 'first' }, { kind: 'element', id: 'group' }, { kind: 'element', id: 'second' }] } }
     const html = renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, blank(content))} mode="public" />)
@@ -88,7 +88,7 @@ describe.each(templates)('%s Blank Section', (templateKey, Renderer) => {
 
   it('publishes only flows with a renderable descendant', () => {
     const cases = [
-      [{ id: 'hidden', type: 'text', editorName: 'Text 1', text: 'Hidden', isHidden: true }],
+      [{ id: 'hidden', type: 'text', editorName: 'Text 1', document: { type: 'doc' as const, children: [{ type: 'paragraph' as const, children: [{ text: 'Hidden' }] }] }, isHidden: true }],
       [{ id: 'media', type: 'media', editorName: 'Media 1', items: [] }],
       [{ id: 'media', type: 'media', editorName: 'Media 1', items: [{ id: 'item', type: 'image', mediaId: 'missing', alt: '' }] }],
       [{ id: 'group', type: 'compositionGroup', editorName: 'Group 1', children: [] }],
@@ -98,7 +98,7 @@ describe.each(templates)('%s Blank Section', (templateKey, Renderer) => {
       const html = renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, blank(content))} mode="public" />)
       expect(html).not.toContain('data-preview-section="blank-id"')
     }
-    const content = { childFlow: { elements: [{ id: 'group', type: 'compositionGroup', editorName: 'Group 1', children: [{ id: 'text', type: 'text', editorName: 'Text 1', text: 'Visible' }] }], order: [{ kind: 'element', id: 'group' }] } }
+    const content = { childFlow: { elements: [{ id: 'group', type: 'compositionGroup', editorName: 'Group 1', children: [{ id: 'text', type: 'text', editorName: 'Text 1', document: { type: 'doc' as const, children: [{ type: 'paragraph' as const, children: [{ text: 'Visible'  }] }] }}] }], order: [{ kind: 'element', id: 'group' }] } }
     const html = renderToStaticMarkup(<Renderer event={event} website={draft(templateKey, blank(content))} mode="public" />)
     expect(html).toContain('Visible')
   })

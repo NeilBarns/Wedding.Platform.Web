@@ -1,7 +1,8 @@
 import type { ResponsiveViewport } from "../websiteEditor/types";
 import { platformFont } from "../websiteFonts/platformFonts";
 
-export const TEXT_SIZES = ["xs", "s", "m", "l", "xl"] as const;
+export const TEXT_SIZES = ["xs", "s", "m", "l", "xl", "2xl", "3xl", "4xl", "5xl"] as const;
+export const TEXT_EFFECT_STRENGTHS = ["none", "soft", "medium", "strong"] as const;
 export const TEXT_LINE_HEIGHTS = ["tight", "normal", "relaxed"] as const;
 export const TEXT_LETTER_SPACINGS = ["tight", "normal", "wide"] as const;
 export const TEXT_ALIGNMENTS = ["start", "center", "end"] as const;
@@ -11,16 +12,27 @@ export const TEXT_FONT_WEIGHTS = [400, 600, 700] as const;
 export type TextSize = typeof TEXT_SIZES[number];
 export type TextAlignment = typeof TEXT_ALIGNMENTS[number];
 export type TextFontWeight = typeof TEXT_FONT_WEIGHTS[number];
+export type TextEffectStrength = typeof TEXT_EFFECT_STRENGTHS[number];
 export type TextResponsiveAppearance = { fontSize?: TextSize; alignment?: TextAlignment };
 export type TextAppearance = {
   fontFamilyId?: string; fontSize?: TextSize; fontWeight?: 400 | 600 | 700;
   lineHeight?: typeof TEXT_LINE_HEIGHTS[number];
   letterSpacing?: typeof TEXT_LETTER_SPACINGS[number];
   alignment?: TextAlignment; colorId?: string; italic?: boolean;
+  textShadow?: TextEffectStrength; textShadowColorId?: string;
+  glow?: TextEffectStrength; glowColorId?: string;
   underline?: boolean; strikethrough?: boolean;
   textTransform?: typeof TEXT_TRANSFORMS[number];
   responsive?: { tablet?: TextResponsiveAppearance; mobile?: TextResponsiveAppearance };
 };
+
+export function setTextEffect(appearance: TextAppearance, effect: "textShadow" | "glow", value: TextEffectStrength): TextAppearance {
+  const next = { ...appearance };
+  const colorKey = effect === "textShadow" ? "textShadowColorId" : "glowColorId";
+  if (value === "none") { delete next[effect]; delete next[colorKey]; }
+  else next[effect] = value;
+  return next;
+}
 
 export function selectTextGlobalAppearanceProperty<K extends keyof TextAppearance>(
   appearance: TextAppearance,

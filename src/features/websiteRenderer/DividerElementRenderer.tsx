@@ -8,10 +8,12 @@ import { resolveDividerColors } from "../websiteElements/dividerColor";
 import { dividerRegistryForTemplate, resolveDividerAsset, resolveDividerWidthPercent } from "../websiteElements/divider";
 import type { DividerElement } from "../websiteElements/types";
 import { resolveElementInlineAlignment } from "./elementInlineAlignment";
+import { resolveDropShadowEffects } from "../websiteElements/textEffects";
+import { resolveWebsiteColor } from "../websiteColors/projectColors";
 
 const alignmentStyles = { start: "flex-start", center: "center", end: "flex-end" } as const;
 
-export function DividerElementRenderer({ element, templateKey, library, projectColors = [], context, previewColor, mode = "public" }: { element: DividerElement; previewColor?: string; templateKey: string; library: TemplateDesignLibrary; projectColors?: readonly ProjectColor[]; context?: ResolvedDesignContext | null; mode?: "editor" | "public" }) {
+export function DividerElementRenderer({ element, templateKey, library, projectColors = [], context, previewColor, previewShadowColor, previewGlowColor, mode = "public" }: { element: DividerElement; previewColor?: string; previewShadowColor?: string; previewGlowColor?: string; templateKey: string; library: TemplateDesignLibrary; projectColors?: readonly ProjectColor[]; context?: ResolvedDesignContext | null; mode?: "editor" | "public" }) {
   useDecorativeSourceAvailability();
   const appearance = element.appearance ?? {};
   const registry = dividerRegistryForTemplate(templateKey);
@@ -29,6 +31,7 @@ export function DividerElementRenderer({ element, templateKey, library, projectC
     width: `${resolveDividerWidthPercent(width)}%`,
     aspectRatio: `${asset.intrinsicWidth} / ${asset.intrinsicHeight}`,
     ...getDecorativeAssetStyle({ ...decoration, tint: color, execution: { ...decoration.execution, opacity: (appearance.opacity ?? 100) / 100 } }),
+    filter: resolveDropShadowEffects(appearance.shadow, previewShadowColor ?? resolveWebsiteColor(appearance.shadowColorId, library, projectColors), appearance.glow, previewGlowColor ?? resolveWebsiteColor(appearance.glowColorId, library, projectColors)),
   };
 
   return <div data-website-element="divider" data-divider-asset={asset.id} aria-hidden="true" className="flex w-full" style={{ justifyContent: resolveElementInlineAlignment(alignmentStyles[alignment]) }}><span aria-hidden="true" style={visualStyle} /></div>;

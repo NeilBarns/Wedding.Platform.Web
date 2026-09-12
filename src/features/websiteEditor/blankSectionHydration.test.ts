@@ -31,7 +31,7 @@ describe('repeatable Blank Section hydration', () => {
   })
 
   it('keeps generic-only and specialized flow contracts distinct', () => {
-    const element = { id: 'text', type: 'text', editorName: 'Text 1', text: 'Hello' }
+    const element = { id: 'text', type: 'text', editorName: 'Text 1', document: { type: 'doc' as const, children: [{ type: 'paragraph' as const, children: [{ text: 'Hello'  }] }] }}
     expect(genericTextSectionChildFlowSchema.safeParse({ elements: [element], order: [{ kind: 'element', id: 'text' }] }).success).toBe(true)
     expect(genericTextSectionChildFlowSchema.safeParse({ elements: [], order: [{ kind: 'specialized', key: 'content' }] }).success).toBe(false)
     expect(textSectionChildFlowSchema.safeParse({ elements: [], order: [{ kind: 'specialized', key: 'content' }] }).success).toBe(true)
@@ -44,6 +44,17 @@ describe('repeatable Blank Section hydration', () => {
 
   it('does not recognize Date as a Section content contract', () => {
     expect(validateSectionContent('date', { heading: 'When', description: 'At noon' }).success).toBe(false)
+  })
+
+  it('rejects Story as a Section type during content validation and API hydration', () => {
+    expect(validateSectionContent('story', { heading: 'Our Story', body: 'Once upon a time' }).success).toBe(false)
+    expect(() => normalizeWebsiteDraftFromApi(draft([{ ...blank('story', 'Story'), type: 'story', content: { heading: 'Our Story', body: 'Once upon a time' } }]))).toThrow()
+  })
+
+  it('rejects People as a Section type while leaving the People element contract available', () => {
+    const content = { heading: 'Wedding Party', groups: [] }
+    expect(validateSectionContent('people', content).success).toBe(false)
+    expect(() => normalizeWebsiteDraftFromApi(draft([{ ...blank('people', 'Wedding Party'), type: 'people', content }]))).toThrow()
   })
 
   it('rejects FAQ as a Section type during content validation and API hydration', () => {

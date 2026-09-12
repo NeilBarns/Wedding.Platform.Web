@@ -19,8 +19,8 @@ export function ClassicSectionDivider() {
   return <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-0 z-[1] h-7 w-40 -translate-x-1/2 -translate-y-1/2 bg-[var(--cf-border)] opacity-55 sm:h-8 sm:w-64" style={mask(divider.src)} />
 }
 
-export function ClassicFoundationOrnament({ className = '', editorNarrativeSlot, editorNarrativeBlock }: { className?: string; editorNarrativeSlot?: string; editorNarrativeBlock?: string }) {
-  return <span aria-hidden="true" data-editor-narrative-slot={editorNarrativeSlot} data-editor-narrative-block={editorNarrativeBlock} className={`block h-6 w-36 bg-[var(--cf-accent)] ${className}`} style={mask(foundation.src)} />
+export function ClassicFoundationOrnament({ className = '' }: { className?: string }) {
+  return <span aria-hidden="true" className={`block h-6 w-36 bg-[var(--cf-accent)] ${className}`} style={mask(foundation.src)} />
 }
 
 export function ClassicBotanicalSprig({ className = '' }: { className?: string }) {

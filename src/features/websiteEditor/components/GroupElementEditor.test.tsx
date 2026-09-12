@@ -4,13 +4,15 @@ import { selectGroupLayoutProperty } from "../../websiteElements/group";
 import type { CompositionGroup } from "../../websiteElements/types";
 import { GroupElementEditor } from "./GroupElementEditor";
 
-const group: CompositionGroup = { id: "group", type: "compositionGroup", editorName: "Group 1", children: [], layout: { width: "wide", direction: "horizontal", gap: "m", alignment: "start", columns: "equal-2" } };
+const group: CompositionGroup = { id: "group", type: "compositionGroup", editorName: "Group 1", children: [], layout: { width: "wide", direction: "horizontal", gap: "m", alignment: "start", division: "50-50" } };
 
 describe("GroupElementEditor", () => {
   it("groups and orders size, spacing, and layout controls", () => {
     const html = renderToStaticMarkup(<GroupElementEditor group={group} viewport="desktop" onChange={() => undefined} onUngroup={() => undefined} />);
     expect(html).toContain("Size &amp; spacing");
+    expect(html).toContain("Outer spacing · desktop");
     expect(html).toContain("Inner spacing · desktop");
+    expect(html).toContain("Top outer spacing: None. Click to use next value.");
     expect(html).toContain("Top inner spacing: None. Click to use next value.");
     expect(html).not.toContain("Top spacing");
     expect(html).toContain(">Layout<");
@@ -22,7 +24,7 @@ describe("GroupElementEditor", () => {
     expect(html).toContain('>None</button>');
     expect(html).toContain('aria-label="Xs"');
     expect(html).toContain(">XS<");
-    const positions = ["Width · desktop", "Inner spacing", "Direction", "Alignment", "Gap", "Columns"].map((label) => html.indexOf(label));
+    const positions = ["Width · desktop", "Outer spacing", "Inner spacing", "Direction", "Child alignment", "Gap", "Division"].map((label) => html.indexOf(label));
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
   });
@@ -35,13 +37,13 @@ describe("GroupElementEditor", () => {
     expectPressed(html, "Horizontal");
     expectPressed(html, "Start");
     expectPressed(html, "M");
-    expect(html).toContain('aria-checked="true" aria-label="50 / 50 columns"');
+    expect(html).toContain('aria-checked="true" aria-label="50 / 50 division"');
     expect(html).toContain("Top inner spacing: None");
     expect(html).not.toContain("Use desktop setting");
   });
 
   it.each(["tablet", "mobile"] as const)("highlights explicit %s overrides without reset actions", (viewport) => {
-    const overridden: CompositionGroup = { ...group, layout: { ...group.layout, responsive: { [viewport]: { width: "narrow", direction: "vertical", gap: "none", padding: { top: "xl" }, alignment: "end", columns: "content-wide" } } } };
+    const overridden: CompositionGroup = { ...group, layout: { ...group.layout, responsive: { [viewport]: { width: "narrow", direction: "vertical", gap: "none", padding: { top: "xl" }, alignment: "end", division: "40-60" } } } };
     const html = renderToStaticMarkup(<GroupElementEditor group={overridden} viewport={viewport} onChange={() => undefined} onUngroup={() => undefined} />);
     expect(html).toContain(">Narrow</span>");
     expectPressed(html, "Vertical");
@@ -63,7 +65,7 @@ describe("GroupElementEditor", () => {
   });
 
   it("keeps Mobile independent from Tablet in selected control values", () => {
-    const responsive: CompositionGroup = { ...group, layout: { ...group.layout, responsive: { tablet: { direction: "vertical", gap: "xl", alignment: "end", columns: "equal-3" } } } };
+    const responsive: CompositionGroup = { ...group, layout: { ...group.layout, responsive: { tablet: { direction: "vertical", gap: "xl", alignment: "end", division: "thirds" } } } };
     const tablet = renderToStaticMarkup(<GroupElementEditor group={responsive} viewport="tablet" onChange={() => undefined} onUngroup={() => undefined} />);
     const mobile = renderToStaticMarkup(<GroupElementEditor group={responsive} viewport="mobile" onChange={() => undefined} onUngroup={() => undefined} />);
     expectPressed(tablet, "Vertical");
@@ -71,7 +73,7 @@ describe("GroupElementEditor", () => {
     expectPressed(mobile, "Horizontal");
     expectPressed(mobile, "M");
     expectPressed(mobile, "Start");
-    expect(mobile).toContain('aria-checked="true" aria-label="50 / 50 columns"');
+    expect(mobile).toContain('aria-checked="true" aria-label="50 / 50 division"');
   });
 
   it("reflects changed Desktop values in untouched Tablet and Mobile controls", () => {

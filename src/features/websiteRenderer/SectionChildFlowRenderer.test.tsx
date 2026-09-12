@@ -13,7 +13,7 @@ vi.mock("./decorativeSourceAvailability", async (importOriginal) => ({
 
 const props = {
   sectionId: "date-section",
-  flow: { elements: [{ id: "text-1", type: "text" as const, editorName: "Text 1", text: "Click me" }], order: [{ kind: "specialized" as const, key: "content" as const }, { kind: "element" as const, id: "text-1" }] },
+  flow: { elements: [{ id: "text-1", type: "text" as const, editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Click me"  }] }] }}], order: [{ kind: "specialized" as const, key: "content" as const }, { kind: "element" as const, id: "text-1" }] },
   specialized: <div>Section content</div>, viewport: "desktop" as const, templateKey: "classic-filipiniana-v1",
   library: { colors: [], fontFamilies: [], fontRecommendations: { heading: [], body: [], accent: [] }, palettePresets: [], typographyPresets: [] } as never,
   projectColors: [], context: null,
@@ -23,10 +23,10 @@ describe("SectionChildFlowRenderer canvas selection", () => {
   it("omits empty and unresolved root Media frames publicly but keeps editor affordances", () => {
     const flow = {
       elements: [
-        { id: "before", type: "text" as const, editorName: "Text 1", text: "Before" },
+        { id: "before", type: "text" as const, editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Before"  }] }] }},
         { id: "empty", type: "media" as const, editorName: "Media 1", items: [] },
         { id: "missing", type: "media" as const, editorName: "Media 2", items: [{ id: "image", type: "image" as const, mediaId: "01J00000000000000000000000", alt: "Missing" }] },
-        { id: "after", type: "text" as const, editorName: "Text 2", text: "After" },
+        { id: "after", type: "text" as const, editorName: "Text 2", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "After"  }] }] }},
       ],
       order: [{ kind: "element" as const, id: "before" }, { kind: "element" as const, id: "empty" }, { kind: "element" as const, id: "missing" }, { kind: "element" as const, id: "after" }],
     };
@@ -86,13 +86,11 @@ describe("SectionChildFlowRenderer canvas selection", () => {
 
   it("shows friendly, editor-only selection badges for every element type", () => {
     const text = renderToStaticMarkup(<WebsiteElementFrame mode="editor" sectionId="date-section" elementId="text" elementType="text" selected={false}><span /></WebsiteElementFrame>);
-    const richText = renderToStaticMarkup(<WebsiteElementFrame mode="editor" sectionId="date-section" elementId="rich-text" elementType="richText" selected={false}><span /></WebsiteElementFrame>);
     const divider = renderToStaticMarkup(<WebsiteElementFrame mode="editor" sectionId="date-section" elementId="divider" elementType="divider" selected={false}><span /></WebsiteElementFrame>);
     const group = renderToStaticMarkup(<WebsiteElementFrame mode="editor" sectionId="date-section" elementId="group" elementType="Group" selected={false}><span /></WebsiteElementFrame>);
     const published = renderToStaticMarkup(<WebsiteElementFrame mode="public" sectionId="date-section" elementId="text" elementType="text" selected={false}><span /></WebsiteElementFrame>);
 
     expect(text).toContain('aria-label="Select Text"');
-    expect(richText).toContain('aria-label="Select Rich Text"');
     expect(divider).toContain('aria-label="Select Divider"');
     expect(divider).toContain('aria-label="Edit Divider"');
     expect(divider).toContain("w-full");

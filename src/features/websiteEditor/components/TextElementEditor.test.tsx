@@ -21,11 +21,22 @@ const library = {
   palettePresets: [{ id: "default", displayName: "Default", roles: { canvas: "shade", surface: "shade", text: "text", textMuted: "muted", accent: "accent", accentContrast: "shade", border: "muted" } }],
   typographyPresets: [],
 } as unknown as TemplateDesignLibrary;
-const base: TextElement = { id: "text-1", type: "text", editorName: "Text 1", text: "Welcome" };
+const base: TextElement = { id: "text-1", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Welcome"  }] }] }};
 
-const renderEditor = (element: TextElement = base, viewport: "desktop" | "tablet" | "mobile" = "desktop") => renderToStaticMarkup(<TextElementEditor element={element} viewport={viewport} templateKey="classic-filipiniana-v1" library={library} allowedFontIds={["inter"]} allowedColorIds={["primary", "text", "muted", "accent", "shade"]} projectColors={[{ id: "project-red", value: "#ff0000" }]} context={context} onAddColor={vi.fn()} onChange={vi.fn()} />);
+const renderEditor = (element: TextElement = base, viewport: "desktop" | "tablet" | "mobile" = "desktop") => renderToStaticMarkup(<TextElementEditor element={element} viewport={viewport} templateKey="classic-filipiniana-v1" context={context} library={library} allowedFontIds={["inter"]} allowedColorIds={["primary", "text", "muted", "accent", "shade"]} projectColors={[{ id: "project-red", value: "#ff0000" }]} onAddColor={vi.fn()} onAppearanceChange={vi.fn()} />);
 
 describe("TextElementEditor ownership", () => {
+  it("shows bounded block effects sparsely and hides inactive color controls", () => {
+    const inactive = renderEditor(base);
+    expect(inactive).toContain("Effects");
+    expect(inactive).toContain('aria-label="Text Shadow"');
+    expect(inactive).toContain('aria-label="Glow"');
+    expect(inactive).not.toContain('aria-label="Shadow Color"');
+    expect(inactive).not.toContain('aria-label="Glow Color"');
+    const active = renderEditor({ ...base, appearance: { textShadow: "soft", glow: "medium" } });
+    expect(active).toContain('aria-label="Shadow Color"');
+    expect(active).toContain('aria-label="Glow Color"');
+  });
   it("keeps content authoring out of the appearance-only inspector", () => {
     const html = renderEditor();
     expect(html).toContain("Text Style");

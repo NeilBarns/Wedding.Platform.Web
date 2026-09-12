@@ -1,24 +1,14 @@
-import type { NarrativeBlockElement } from '../websiteElements/types'
 import type { ContextDefaultsIntent, ResolvedDesignContext, TemplateCapabilities } from '../websiteCapabilities/types'
 import type { ProjectColor } from '../websiteColors/projectColors'
 import type { SectionChildFlow } from './sectionChildFlow'
+import type { BackgroundMedia } from '../websiteMedia/backgroundMedia'
 
 export type SectionDesignDefaults = ContextDefaultsIntent
 
-export type SectionMedia = { assetId: string; focalPoint?: { x: number; y: number }; zoom?: number } | null
-type WithMedia = { media?: SectionMedia }
-export type HeroContent = { headline: string; subheadline: string } & WithMedia
-export type StoryBlock = NarrativeBlockElement
-export type StoryMediaFraming = { focalPoint?: { x: number; y: number }; zoom?: number }
-export type StoryHeaderField = 'eyebrow' | 'heading' | 'intro'
-export type StorySingletonReference = `story:${StoryHeaderField}`
-export type StoryNarrativeReference = `narrative:${string}`
-export type StoryStructureReference = StorySingletonReference | StoryNarrativeReference
-export type StoryTextAppearance = NonNullable<NarrativeBlockElement['slots']['heading']['appearance']> & { alignment?: 'start' | 'center' | 'end' }
-export type StoryContent = { eyebrow?: string | null; eyebrowIsHidden?: boolean; heading: string; intro: string | null; headingIsHidden?: boolean; introIsHidden?: boolean; singletonAppearance?: Partial<Record<StoryHeaderField, StoryTextAppearance>>; elements: NarrativeBlockElement[]; mediaFraming: Record<string, StoryMediaFraming>; structureOrder?: StoryStructureReference[] }
+export type SectionMedia = BackgroundMedia
+export type HeroContent = { backgroundMedia?: SectionMedia; childFlow: SectionChildFlow }
 export type PeoplePerson = { id: string; name: string; role?: string | null; media?: SectionMedia }
 export type PeopleGroup = { id: string; name: string; people: PeoplePerson[] }
-export type PeopleContent = { heading: string; groups: PeopleGroup[] }
 export type GalleryContent = { heading: string; items: [] }
 export type RsvpContent = { heading: string; description: string; buttonLabel: string }
 export type BlankContent = { childFlow: SectionChildFlow }
@@ -60,6 +50,8 @@ export type MediaSpacing = { top: MediaSpacingValue; right: MediaSpacingValue; b
 export type MediaContentGap = 'tight' | 'comfortable' | 'spacious' | 'generous'
 export type ResponsiveViewport = 'desktop' | 'tablet' | 'mobile'
 export type WebsiteSectionResponsiveAppearance = {
+  contentPosition?: import('../websiteRenderer/heroContentPosition').HeroContentPosition
+  innerSpacing?: import('../websiteElements/group').InnerSpacing
   mediaPlacement?: string
   mediaSize?: string
   mediaContentGap?: string
@@ -68,6 +60,8 @@ export type WebsiteSectionResponsiveAppearance = {
   mediaSpacing?: { top: string; right: string; bottom: string; left: string }
 }
 export type WebsiteSectionAppearance = {
+  contentPosition?: import('../websiteRenderer/heroContentPosition').HeroContentPosition
+  innerSpacing?: import('../websiteElements/group').InnerSpacing
   headingAlignment: SectionAlignment
   bodyAlignment: SectionAlignment
   backgroundTreatment: BackgroundTreatment
@@ -84,6 +78,8 @@ export type WebsiteSectionAppearance = {
   mediaSpacing?: MediaSpacing
   mediaContentGap?: MediaContentGap
   responsive?: Partial<Record<'tablet' | 'mobile', WebsiteSectionResponsiveAppearance>>
+  backgroundImageOpacity?: number
+  height?: 'auto' | 'screen'
 }
 export type WebsiteSectionPresentationOption = {
   key: string
@@ -126,12 +122,9 @@ export type WebsiteSectionAppearanceOptions = {
 
 export type WebsiteSection =
   | SectionBase<'hero', HeroContent>
-  | SectionBase<'story', StoryContent>
-  | SectionBase<'people', PeopleContent>
   | SectionBase<'gallery', GalleryContent>
   | SectionBase<'rsvp', RsvpContent>
   | SectionBase<'blank', BlankContent>
-  | SectionBase<string, Record<string, unknown>>
 
 export type ColorTheme = string
 export type FontSet = string

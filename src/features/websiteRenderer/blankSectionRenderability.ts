@@ -1,4 +1,4 @@
-import type { BlankContent, ResolvedWebsiteMedia, WebsiteSection } from '../websiteEditor/types'
+import type { BlankContent, HeroContent, ResolvedWebsiteMedia, WebsiteSection } from '../websiteEditor/types'
 import type { WebsiteElement } from '../websiteElements/types'
 import { isElementRenderable } from './elementRenderability'
 
@@ -14,6 +14,18 @@ export function hasIntentionalSectionSurface(section: WebsiteSection): boolean {
     || (background?.overlay && background.overlay !== 'none')
     || (decorative?.frame?.style && decorative.frame.style !== 'none'),
   )
+}
+
+export function isHeroSectionRenderable(section: WebsiteSection, templateKey: string, media: Record<string, ResolvedWebsiteMedia>, eventDate: string | null): boolean {
+  if (section.type !== 'hero') return true
+  const content = section.content as HeroContent
+  const isRenderable = (element: WebsiteElement): boolean => element.type === 'compositionGroup'
+    ? element.children.some(isRenderable)
+    : isElementRenderable(element, templateKey, 'public', media, eventDate)
+  return content.childFlow.elements.some(isRenderable)
+    || Boolean(content.backgroundMedia && media[content.backgroundMedia.assetId])
+    || hasIntentionalSectionSurface(section)
+    || section.appearance.height === 'screen'
 }
 
 export function isBlankSectionRenderable(

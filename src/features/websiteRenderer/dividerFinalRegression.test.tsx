@@ -69,7 +69,7 @@ describe("Divider final identity and visibility regressions", () => {
 
   it("preserves empty appearance under the existing generic convention", () => {
     expect(dividerElementSchema.parse({ ...element, appearance: {} }).appearance).toEqual({});
-    expect(textElementSchema.parse({ id: "text", type: "text", editorName: "Text 1", text: "", appearance: {} }).appearance).toEqual({});
+    expect(textElementSchema.parse({ id: "text", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "" }] }] }, appearance: {} }).appearance).toEqual({});
   });
 });
 

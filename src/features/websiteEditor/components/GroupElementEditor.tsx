@@ -2,7 +2,7 @@ import { Button } from "../../../components/ui/Button";
 import { Select } from "../../../components/ui/Select";
 import {
   GROUP_ALIGNMENTS,
-  GROUP_COLUMNS,
+  GROUP_DIVISIONS,
   GROUP_DIRECTIONS,
   GROUP_GAPS,
   GROUP_SHADOWS,
@@ -11,6 +11,8 @@ import {
   selectGroupLayoutProperty,
   selectGroupPaddingSide,
   setGroupBackgroundColor,
+  setGroupBackgroundImageOpacity,
+  setGroupBackgroundMedia,
   setGroupDecoration,
   setGroupShadow,
   setGroupLayoutProperty,
@@ -18,10 +20,7 @@ import {
 } from "../../websiteElements/group";
 import type { CompositionGroup } from "../../websiteElements/types";
 import type { ResponsiveViewport } from "../types";
-import type {
-  ElementCapability,
-  TemplateDesignLibrary,
-} from "../../websiteCapabilities/types";
+import type { SectionCapability, TemplateDesignLibrary } from "../../websiteCapabilities/types";
 import type { ProjectColor } from "../../websiteColors/projectColors";
 import { InspectorResetAction, InspectorSection } from "./InspectorPrimitives";
 import {
@@ -35,6 +34,12 @@ import {
   decorativeLabel,
 } from "./decorativeAppearanceOptions";
 import { resolveDecorativeDefaultStrength } from "../../websiteRenderer/templateDecorativeAssets";
+import type { ResolvedWebsiteMedia } from "../types";
+import { BackgroundMediaEditor } from "./BackgroundMediaEditor";
+import { FourSidedSpacingControl as InnerSpacingControl } from "./FourSidedSpacingControl";
+import { ContentPositionControl } from "./ContentPositionControl";
+import type { HeroContentPosition } from "../../websiteRenderer/heroContentPosition";
+import { resolveFourSidedSpacing, type FourSidedSpacing, type SpacingPreset } from "../../websiteElements/spacing";
 
 const label = (value: string) =>
   value === "none"
@@ -42,10 +47,10 @@ const label = (value: string) =>
     : value === "stretch"
       ? "Fill"
       : value
-          .replace("equal-2", "50 / 50")
-          .replace("content-wide", "40 / 60")
-          .replace("content-narrow", "60 / 40")
-          .replace("equal-3", "Thirds")
+          .replace("50-50", "50 / 50")
+          .replace("40-60", "40 / 60")
+          .replace("60-40", "60 / 40")
+          .replace("thirds", "Thirds")
           .replace(/^./, (letter) => letter.toUpperCase());
 const options = (values: readonly string[]) =>
   values.map((value) => ({ value, label: label(value) }));
@@ -60,21 +65,25 @@ export function GroupElementEditor({
   library,
   projectColors = [],
   onAddColor,
+  resolvedMedia = {},
+  onMediaResolved,
 }: {
   group: CompositionGroup;
   viewport: ResponsiveViewport;
   onChange: (group: CompositionGroup) => void;
   onUngroup: () => void;
   templateKey?: string;
-  capability?: NonNullable<ElementCapability["narrativeBlock"]>;
+  capability?: NonNullable<SectionCapability["decorativeAppearance"]>;
   library?: TemplateDesignLibrary;
   projectColors?: readonly ProjectColor[];
   onAddColor?: (value: string) => Promise<ProjectColor>;
+  resolvedMedia?: Record<string, ResolvedWebsiteMedia>;
+  onMediaResolved?: (media: ResolvedWebsiteMedia) => void;
 }) {
   const layout = group.layout ?? {};
   const effective = resolveGroupLayout(layout, viewport);
   const set = <
-    K extends "width" | "direction" | "gap" | "alignment" | "columns",
+    K extends "width" | "direction" | "gap" | "alignment" | "division" | "contentPosition",
   >(
     key: K,
     value: GroupLayout[K] | undefined,
@@ -87,6 +96,27 @@ export function GroupElementEditor({
           : selectGroupLayoutProperty(layout, viewport, key, value as never),
     });
   const effectiveDirection = effective.direction ?? "vertical";
+  const appearance = group.appearance ?? {};
+  const effectiveOuterSpacing = resolveFourSidedSpacing(appearance.outerSpacing, viewport === "desktop" ? undefined : appearance.responsive?.[viewport]?.outerSpacing);
+  const updateOuterSpacing = (side: keyof FourSidedSpacing, value: SpacingPreset) => {
+    const nextAppearance = structuredClone(appearance);
+    if (viewport === "desktop") {
+      const spacing = { ...nextAppearance.outerSpacing };
+      if (value === "none") delete spacing[side]; else spacing[side] = value;
+      if (Object.keys(spacing).length) nextAppearance.outerSpacing = spacing; else delete nextAppearance.outerSpacing;
+    } else {
+      const responsive = { ...nextAppearance.responsive };
+      const branch = { ...responsive[viewport] };
+      const spacing = { ...branch.outerSpacing };
+      if (value === (nextAppearance.outerSpacing?.[side] ?? "none")) delete spacing[side]; else spacing[side] = value;
+      if (Object.keys(spacing).length) branch.outerSpacing = spacing; else delete branch.outerSpacing;
+      if (Object.keys(branch).length) responsive[viewport] = branch; else delete responsive[viewport];
+      if (Object.keys(responsive).length) nextAppearance.responsive = responsive; else delete nextAppearance.responsive;
+    }
+    const next = { ...group };
+    if (Object.keys(nextAppearance).length) next.appearance = nextAppearance; else delete next.appearance;
+    onChange(next);
+  };
   const updatePadding = (
     side: "top" | "right" | "bottom" | "left",
     value: string,
@@ -114,10 +144,14 @@ export function GroupElementEditor({
             }
           />
         </Field>
+        <Field label={`Outer spacing · ${viewport}`}>
+          <InnerSpacingControl kind="Outer" spacing={effectiveOuterSpacing} subject="Group" onChange={updateOuterSpacing} />
+        </Field>
         <Field label={`Inner spacing · ${viewport}`}>
-          <PaddingSideDiagram
-            padding={effective.padding}
-            onCycle={(side, value) => updatePadding(side, value)}
+          <InnerSpacingControl
+            spacing={effective.padding}
+            subject="Group"
+            onChange={(side, value) => updatePadding(side, value)}
           />
         </Field>
       </InspectorSection>
@@ -137,8 +171,9 @@ export function GroupElementEditor({
             )
           }
         />
+        <Field label={`Content position · ${viewport}`}><ContentPositionControl value={(effective.contentPosition ?? "center") as HeroContentPosition} onChange={(contentPosition) => set("contentPosition", contentPosition)} /></Field>
         <CompactField
-          label={`Alignment · ${viewport}`}
+          label={`Child alignment · ${viewport}`}
           value={effective.alignment ?? "stretch"}
           options={GROUP_ALIGNMENTS.map((value) => ({
             value,
@@ -166,21 +201,21 @@ export function GroupElementEditor({
         />
         {effectiveDirection === "horizontal" && (
           <VisualField
-            label={`Columns · ${viewport}`}
-            value={effective.columns ?? "equal-2"}
+            label={`Division · ${viewport}`}
+            value={effective.division ?? "50-50"}
             columns={2}
             options={[
-              ...GROUP_COLUMNS.map((value) => ({
+              ...GROUP_DIVISIONS.map((value) => ({
                 value,
                 label: label(value),
                 illustration: <ColumnsDiagram value={value} />,
-                ariaLabel: `${label(value)} columns`,
+                ariaLabel: `${label(value)} division`,
               })),
             ]}
             onChange={(value) =>
               set(
-                "columns",
-                value ? (value as GroupLayout["columns"]) : undefined,
+                "division",
+                value ? (value as GroupLayout["division"]) : undefined,
               )
             }
           />
@@ -204,6 +239,12 @@ export function GroupElementEditor({
           />
         </Field>
       </InspectorSection>
+      {onMediaResolved && <InspectorSection title="Background Image">
+        <BackgroundMediaEditor title="Background Image" ownerId={group.id} viewport={viewport} media={group.backgroundMedia} resolvedMedia={resolvedMedia} onMediaResolved={onMediaResolved} onChange={(backgroundMedia) => onChange(setGroupBackgroundMedia(group, backgroundMedia))} />
+        {group.backgroundMedia && <Field label="Image Opacity">
+          <div className="flex items-center gap-3"><input aria-label="Group background image opacity" className="w-full accent-accent" type="range" min="0" max="100" step="1" value={group.appearance?.backgroundImageOpacity ?? 100} onChange={(event) => onChange(setGroupBackgroundImageOpacity(group, Number(event.target.value)))} /><span className="w-10 text-right tabular-nums">{group.appearance?.backgroundImageOpacity ?? 100}%</span></div>
+        </Field>}
+      </InspectorSection>}
       {templateKey && capability && library && onAddColor && (
         <InspectorSection title="Background">
           <div>
@@ -212,7 +253,7 @@ export function GroupElementEditor({
               label="Group background color"
               inheritLabel="No Background"
               colorId={group.appearance?.backgroundColorId}
-              allowedTemplateColorIds={capability.appearance.backgroundColorIds}
+              allowedTemplateColorIds={capability.backgroundColorIds}
               templateColors={library.colors}
               projectColors={projectColors}
               onChange={(colorId) =>
@@ -229,7 +270,7 @@ export function GroupElementEditor({
               kind === "texture" ? "textureStrength" : "patternStrength";
             const strength = background?.[strengthField];
             const decorationOptions =
-              capability.appearance.decorativeAppearance[
+              capability[
                 kind === "texture" ? "textures" : "patterns"
               ];
             return (
@@ -375,12 +416,14 @@ function CompactField({
   );
 }
 
-function PaddingSideDiagram({
+export function InnerSpacingDiagram({
   padding,
   onCycle,
+  subject = "Group",
 }: {
   padding: GroupLayout["padding"];
   onCycle: (side: "top" | "right" | "bottom" | "left", value: string) => void;
+  subject?: string;
 }) {
   type Side = "top" | "right" | "bottom" | "left";
   const values = [...GROUP_GAPS];
@@ -414,7 +457,7 @@ function PaddingSideDiagram({
       {control("top", "col-start-2 row-start-1")}
       {control("left", "col-start-1 row-start-2")}
       <div className="col-start-2 row-start-2 grid place-items-center rounded-sm border-2 border-foreground-muted/45 bg-foreground-muted/10 text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground-muted">
-        Group
+        {subject}
       </div>
       {control("right", "col-start-3 row-start-2")}
       {control("bottom", "col-start-2 row-start-3")}
@@ -424,11 +467,11 @@ function PaddingSideDiagram({
 
 function ColumnsDiagram({ value }: { value: string }) {
   const widths =
-    value === "content-wide"
+    value === "40-60"
       ? [2, 3]
-      : value === "content-narrow"
+      : value === "60-40"
         ? [3, 2]
-        : value === "equal-3"
+        : value === "thirds"
           ? [1, 1, 1]
           : [1, 1];
   return (

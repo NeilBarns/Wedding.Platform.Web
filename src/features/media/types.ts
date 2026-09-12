@@ -2,7 +2,6 @@ export type MediaVariant = { width: number; height: number; url: string };
 
 export type MediaUsageReference =
   | { type: "sectionMedia" }
-  | { type: "storyNarrativeBlock"; elementId: string; label?: string }
   | {
       type: "person";
       personId: string;
@@ -38,19 +37,14 @@ export function mediaUsageDetail(record: MediaUsageV2Record): string | null {
     return [reference.groupLabel, reference.label ?? "Person"]
       .filter(Boolean)
       .join(" - ");
-  if (reference.type === "storyNarrativeBlock")
-    return reference.label?.trim() || "Story block";
   return null;
 }
 
 export function mediaUsageKey(record: MediaUsageV2Record): string {
   const reference = record.reference;
-  const identity =
-    reference.type === "storyNarrativeBlock"
-      ? reference.elementId
-      : reference.type === "person"
-        ? `${reference.groupId ?? ""}:${reference.personId}`
-        : "section";
+  const identity = reference.type === "person"
+    ? `${reference.groupId ?? ""}:${reference.personId}`
+    : "section";
   return `${record.websiteProjectId}:${record.sectionId}:${reference.type}:${identity}`;
 }
 

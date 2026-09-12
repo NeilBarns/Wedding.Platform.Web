@@ -8,15 +8,12 @@ type InlineTargetBase = {
 }
 
 export type InlineEditingTarget = InlineTargetBase & (
-  | { narrativeBlockId: string; slot: 'eyebrow' | 'heading' | 'body' | 'quote' | 'caption'; elementId?: never }
-  | { elementId: string; narrativeBlockId?: never; slot?: never }
-  | { elementId?: never; narrativeBlockId?: never; slot?: never }
+  | { elementId: string }
+  | { elementId?: never }
 )
 
 export function inlineTargetKey(target: InlineEditingTarget) {
-  return target.narrativeBlockId
-    ? `${target.sectionId}:${target.narrativeBlockId}:${target.slot}`
-    : target.elementId
+  return target.elementId
       ? `${target.sectionId}:element:${target.elementId}`
     : `${target.sectionId}:${target.path.join('.')}`
 }

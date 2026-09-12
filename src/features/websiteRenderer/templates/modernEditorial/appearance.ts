@@ -20,7 +20,7 @@ export function resolveModernEditorialSectionAppearance(sectionType: string, app
   const body = appearance.bodyAlignment === 'inherit' ? 'left' : appearance.bodyAlignment
   const customBackground = resolveSectionCustomBackground(appearance, library, projectColors)
   const background = appearance.backgroundTreatment === 'inherit' || appearance.backgroundTreatment === 'custom' ? modernBackgroundDefault(sectionType) : appearance.backgroundTreatment
-  const emphasis = sectionType === 'story' || appearance.emphasis === 'inherit' ? 'standard' : appearance.emphasis
+  const emphasis = appearance.emphasis === 'inherit' ? 'standard' : appearance.emphasis
   const backgroundResult = resolveBackground(background)
 
   return {
@@ -30,7 +30,7 @@ export function resolveModernEditorialSectionAppearance(sectionType: string, app
 }
 
 function modernBackgroundDefault(sectionType: string): 'plain' | 'soft' {
-  return ['people', 'rsvp'].includes(sectionType) ? 'soft' : 'plain'
+  return sectionType === 'rsvp' ? 'soft' : 'plain'
 }
 
 function resolveBackground(background: 'plain' | 'soft' | 'accent'): { className: string; style?: CSSProperties } {

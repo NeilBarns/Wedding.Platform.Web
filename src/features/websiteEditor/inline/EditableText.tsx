@@ -15,7 +15,6 @@ type Props = {
   label: string
   multiline?: boolean
   className?: string
-  narrativeSlot?: { blockId: string; slot: 'eyebrow' | 'heading' | 'body' | 'quote' | 'caption' }
   elementId?: string
   compact?: boolean
   inputStyle?: CSSProperties
@@ -24,9 +23,7 @@ type Props = {
 
 export function EditableText(props: Props) {
   const editor = useInlineEdit()
-  const target: InlineEditingTarget = props.narrativeSlot
-    ? { sectionId: props.sectionId, narrativeBlockId: props.narrativeSlot.blockId, slot: props.narrativeSlot.slot, path: props.path, label: props.label, multiline: props.multiline }
-    : props.elementId
+  const target: InlineEditingTarget = props.elementId
       ? { sectionId: props.sectionId, elementId: props.elementId, path: props.path, label: props.label, multiline: props.multiline }
     : { sectionId: props.sectionId, path: props.path, label: props.label, multiline: props.multiline }
   const active = editor?.activeTarget && inlineTargetKey(editor.activeTarget) === inlineTargetKey(target)

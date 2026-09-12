@@ -20,7 +20,7 @@ export function WebsiteElementFrame({
   onSelect?: (sectionId: string, elementId: string) => void;
   onEdit?: (sectionId: string, elementId: string) => void;
 }) {
-  const stretchesWidth = elementType === "text" || elementType === "richText" || elementType === "accordion" || elementType === "schedule" || elementType === "people" || elementType === "divider";
+  const stretchesWidth = elementType === "text" || elementType === "accordion" || elementType === "schedule" || elementType === "people" || elementType === "divider";
   if (mode === "public")
     return (
       <div
@@ -33,9 +33,7 @@ export function WebsiteElementFrame({
     );
 
   const label =
-    elementType === "richText"
-      ? "Rich Text"
-      : elementType === "text"
+    elementType === "text"
         ? "Text"
         : elementType === "divider"
           ? "Divider"

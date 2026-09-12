@@ -1,7 +1,6 @@
 export const WEBSITE_ELEMENT_TYPES = [
   'heading',
   'text',
-  'richText',
   'date',
   'accordion',
   'schedule',
@@ -12,7 +11,6 @@ export const WEBSITE_ELEMENT_TYPES = [
   'quote',
   'cta',
   'mediaCollection',
-  'narrativeBlock',
   'compositionGroup',
   'eventDate',
   'eventTime',
@@ -38,12 +36,10 @@ export const DEFERRED_WEBSITE_ELEMENT_TYPES = ['video', 'locationSummary', 'logo
 export const WEBSITE_ELEMENT_LIMITS = {
   id: 255,
   shortText: 255,
-  text: 5000,
-  richText: 20000,
+  text: 20000,
   accordionItems: 50,
   scheduleItems: 100,
   peopleGroups: 30,
   peoplePerGroup: 100,
-  narrativeBody: 10000,
   externalUrl: 2048,
 } as const

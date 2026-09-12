@@ -8,7 +8,6 @@ const mediaVariantSchema = z.object({
 
 const mediaUsageReferenceSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('sectionMedia') }).strict(),
-  z.object({ type: z.literal('storyNarrativeBlock'), elementId: z.string().min(1), label: z.string().optional() }).strict(),
   z.object({
     type: z.literal('person'), personId: z.string().min(1), label: z.string().optional(),
     groupId: z.string().optional(), groupLabel: z.string().optional(),

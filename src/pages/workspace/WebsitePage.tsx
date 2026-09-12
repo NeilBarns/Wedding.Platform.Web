@@ -14,7 +14,14 @@ import {
   Smartphone,
   Tablet,
 } from "lucide-react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { createPortal } from "react-dom";
 import { Link, useParams } from "react-router-dom";
 import { Heading } from "../../components/ui/Heading";
@@ -39,12 +46,11 @@ import { AppearancePanel } from "../../features/websiteEditor/components/Appeara
 import { BuilderSaveBar } from "../../features/websiteEditor/components/BuilderSaveBar";
 import { DesignPanel } from "../../features/websiteEditor/components/DesignPanel";
 import { DiscardChangesDialog } from "../../features/websiteEditor/components/DiscardChangesDialog";
-import { PeopleEditor, SectionEditor } from "../../features/websiteEditor/components/SectionEditor";
-import { NarrativeBlockContentPanel } from "../../features/websiteEditor/components/NarrativeBlockContentPanel";
-import { NarrativeBlockAppearancePanel } from "../../features/websiteEditor/components/NarrativeBlockAppearancePanel";
-import { StorySingletonAppearancePanel } from "../../features/websiteEditor/components/StorySingletonAppearancePanel";
+import {
+  PeopleEditor,
+  SectionEditor,
+} from "../../features/websiteEditor/components/SectionEditor";
 import { TextElementEditor } from "../../features/websiteEditor/components/TextElementEditor";
-import { RichTextElementEditor } from "../../features/websiteEditor/components/RichTextElementEditor";
 import { GroupElementEditor } from "../../features/websiteEditor/components/GroupElementEditor";
 import { DividerElementEditor } from "../../features/websiteEditor/components/DividerElementEditor";
 import { DateElementEditor } from "../../features/websiteEditor/components/DateElementEditor";
@@ -53,7 +59,10 @@ import { ScheduleElementEditor } from "../../features/websiteEditor/components/S
 import { MediaElementEditor } from "../../features/websiteEditor/components/MediaElementEditor";
 import { SectionDesignDefaultsPanel } from "../../features/websiteEditor/components/SectionDesignDefaultsPanel";
 import { SectionNavigator } from "../../features/websiteEditor/components/SectionNavigator";
-import { BlankSectionDeleteDialog, BlankSectionRenameDialog } from "../../features/websiteEditor/components/BlankSectionLifecycleDialogs";
+import {
+  BlankSectionDeleteDialog,
+  BlankSectionRenameDialog,
+} from "../../features/websiteEditor/components/BlankSectionLifecycleDialogs";
 import { validateSectionContent } from "../../features/websiteEditor/schemas";
 import { InlineEditProvider } from "../../features/websiteEditor/inline/InlineEditContext";
 import type {
@@ -63,7 +72,6 @@ import type {
 import { isStandaloneTextEditingTarget } from "../../features/websiteEditor/inline/types";
 import type {
   ResponsiveViewport,
-  StoryHeaderField,
   WebsiteDesignSettings,
   WebsiteDraft,
   SectionDesignDefaults,
@@ -74,18 +82,14 @@ import type { ProjectColor } from "../../features/websiteColors/projectColors";
 import {
   appearanceEquals,
   pruneResponsiveAppearance,
-  resolveSectionAppearanceForViewport,
 } from "../../features/websiteEditor/responsiveAppearance";
 import {
   accessiblePreviewViewports,
-  PREVIEW_WIDTHS,
+  EDITOR_DEVICE_VIEWPORTS,
   useEditorDeviceCategory,
 } from "../../features/websiteEditor/responsiveViewport";
 import { useWebsiteDraft } from "../../features/websiteEditor/useWebsiteDraft";
 import { WebsiteRenderer } from "../../features/websiteRenderer/WebsiteRenderer";
-import { EditorSelectionContext } from "../../features/websiteRenderer/EditorSelectionContext";
-import { NarrativeSlotFocusContext } from "../../features/websiteRenderer/NarrativeSlotFocusContext";
-import { isNarrativeTypographySlot, type NarrativeSlotKey, type NarrativeTypographySlotKey } from "../../features/websiteEditor/narrativeSlotFocus";
 import {
   globalDesignCapability,
   sectionCapability,
@@ -93,15 +97,29 @@ import {
 } from "../../features/websiteCapabilities/lookup";
 import type { TemplateCapabilities } from "../../features/websiteCapabilities/types";
 import { ApiError } from "../../lib/api";
-import { findSectionElement, ungroupSectionElement, updateSectionElement, updateSectionRichTextAppearance, updateSectionRichTextDocument, updateSectionTextElement, type SectionChildFlow, type SectionChildReference } from "../../features/websiteEditor/sectionChildFlow";
+import {
+  findSectionElement,
+  ungroupSectionElement,
+  updateSectionElement,
+  updateSectionTextAppearance,
+  updateSectionTextDocument,
+  type SectionChildFlow,
+  type SectionChildReference,
+} from "../../features/websiteEditor/sectionChildFlow";
 import { syncEditorPreviewTheme } from "../../features/websiteEditor/editorPreviewTheme";
 import type { WebsiteElement } from "../../features/websiteElements/types";
-import { findEditorTarget, revealEditorTarget } from "../../features/websiteEditor/canvasReveal";
+import { FourSidedSpacingControl } from "../../features/websiteEditor/components/FourSidedSpacingControl";
+import { resolveFourSidedSpacing, type FourSidedSpacing, type SpacingPreset } from "../../features/websiteElements/spacing";
+import {
+  findEditorTarget,
+  revealEditorTarget,
+} from "../../features/websiteEditor/canvasReveal";
 import { DESKTOP_EDITOR_GRID_COLUMNS } from "../../features/websiteEditor/editorLayout";
 import {
   EDITOR_ZOOM_STEPS,
   browserEditorZoomStorage,
   computeFitScale,
+  resolveEditorCanvasGeometry,
   loadEditorZoomPreferences,
   saveEditorZoomPreferences,
   stepEditorZoom,
@@ -119,9 +137,6 @@ const desktopEditorGridStyle = {
 } as CSSProperties;
 type CanvasSelectionRequest =
   | { kind: "section"; id: string; requestId: number }
-  | { kind: "storyField"; id: StoryHeaderField; sectionId: string; requestId: number }
-  | { kind: "narrative"; id: string; requestId: number }
-  | { kind: "narrativeSlot"; id: string; slot: NarrativeSlotKey; requestId: number }
   | { kind: "element"; id: string; sectionId: string; requestId: number };
 type SectionStructureOverride = {
   order: string[];
@@ -137,11 +152,13 @@ function applySectionStructure(
   return override.order.flatMap((id, index) => {
     const section = byId.get(id);
     return section
-      ? [{
-          ...section,
-          sortOrder: (index + 1) * 10,
-          isEnabled: override.enabledById[id] ?? section.isEnabled,
-        }]
+      ? [
+          {
+            ...section,
+            sortOrder: (index + 1) * 10,
+            isEnabled: override.enabledById[id] ?? section.isEnabled,
+          },
+        ]
       : [];
   });
 }
@@ -162,7 +179,11 @@ function messageFor(error: unknown): string {
 }
 
 export function WebsitePage() {
-  return <ColorPreviewProvider><WebsitePageContent /></ColorPreviewProvider>;
+  return (
+    <ColorPreviewProvider>
+      <WebsitePageContent />
+    </ColorPreviewProvider>
+  );
 }
 
 function WebsitePageContent() {
@@ -172,8 +193,11 @@ function WebsitePageContent() {
     useWebsiteDraft(event.id, projectId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pendingSelection, setPendingSelection] = useState<string | null>(null);
-  const [pendingStoryHeaderSelection, setPendingStoryHeaderSelection] = useState<{ sectionId: string; field: StoryHeaderField; requestId: number; focusInspector: boolean } | null>(null);
-  const [pendingChildSelection, setPendingChildSelection] = useState<{ sectionId: string; reference: SectionChildReference; requestCanvasScroll?: boolean } | null>(null);
+  const [pendingChildSelection, setPendingChildSelection] = useState<{
+    sectionId: string;
+    reference: SectionChildReference;
+    requestCanvasScroll?: boolean;
+  } | null>(null);
   const [pendingMode, setPendingMode] = useState<BuilderMode | null>(null);
   const [mode, setMode] = useState<BuilderMode>("content");
   const [editorMode, setEditorMode] = useState<EditorMode>("edit");
@@ -186,8 +210,10 @@ function WebsitePageContent() {
   );
   const [listPending, setListPending] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
-  const [renameSectionTarget, setRenameSectionTarget] = useState<WebsiteSection | null>(null);
-  const [deleteSectionTarget, setDeleteSectionTarget] = useState<WebsiteSection | null>(null);
+  const [renameSectionTarget, setRenameSectionTarget] =
+    useState<WebsiteSection | null>(null);
+  const [deleteSectionTarget, setDeleteSectionTarget] =
+    useState<WebsiteSection | null>(null);
   const [sectionStructureOverride, setSectionStructureOverride] =
     useState<SectionStructureOverride | null>(null);
   const deviceCategory = useEditorDeviceCategory();
@@ -222,14 +248,11 @@ function WebsitePageContent() {
   );
   const [inlineEditingTarget, setInlineEditingTarget] =
     useState<InlineEditingTarget | null>(null);
-  const [selectedNarrativeBlockId, setSelectedNarrativeBlockId] =
-    useState<string | null>(null);
-  const [selectedChild, setSelectedChild] = useState<{ sectionId: string; reference: SectionChildReference } | null>(null);
-  const [activeNarrativeSlot, setActiveNarrativeSlot] = useState<{ blockId: string; slot: NarrativeSlotKey } | null>(null);
-  const [narrativeContentDisclosure, setNarrativeContentDisclosure] = useState<NarrativeSlotKey | null>(null);
-  const [narrativeAppearanceDisclosure, setNarrativeAppearanceDisclosure] = useState<NarrativeTypographySlotKey | null>(null);
-  const [storyHeaderSelection, setStoryHeaderSelection] = useState<{ sectionId: string; field: StoryHeaderField; requestId: number; focusInspector: boolean } | null>(null);
-  const storyHeaderRequestId = useRef(0);
+  useState<string | null>(null);
+  const [selectedChild, setSelectedChild] = useState<{
+    sectionId: string;
+    reference: SectionChildReference;
+  } | null>(null);
   const canvasSelectionRequestId = useRef(0);
   const [canvasSelectionRequest, setCanvasSelectionRequest] =
     useState<CanvasSelectionRequest | null>(null);
@@ -241,7 +264,8 @@ function WebsitePageContent() {
   );
 
   const workingSections = useMemo(
-    () => applySectionStructure(draft?.sections ?? [], sectionStructureOverride),
+    () =>
+      applySectionStructure(draft?.sections ?? [], sectionStructureOverride),
     [draft?.sections, sectionStructureOverride],
   );
   const effectiveSelectedId = workingSections.some(
@@ -282,9 +306,10 @@ function WebsitePageContent() {
   const workingOrder = workingSections.map(({ id }) => id);
   const sectionOrderDirty =
     JSON.stringify(workingOrder) !== JSON.stringify(authoritativeOrder);
-  const sectionVisibilityDirty = workingSections.some((section) =>
-    draft?.sections.find(({ id }) => id === section.id)?.isEnabled !==
-    section.isEnabled,
+  const sectionVisibilityDirty = workingSections.some(
+    (section) =>
+      draft?.sections.find(({ id }) => id === section.id)?.isEnabled !==
+      section.isEnabled,
   );
   const sectionStructureDirty = sectionOrderDirty || sectionVisibilityDirty;
   const globalDirty = sectionStructureDirty || sectionDirty || designDirty;
@@ -297,24 +322,19 @@ function WebsitePageContent() {
         requestId: ++canvasSelectionRequestId.current,
       });
     }
-    setStoryHeaderSelection(null);
     if (id === effectiveSelectedId) {
       setInlineEditingTarget(null);
-      setSelectedNarrativeBlockId(null);
       setSelectedChild(null);
       return;
     }
     if (sectionDirty) {
-      setPendingStoryHeaderSelection(null);
       setPendingSelection(id);
-    }
-    else {
+    } else {
       setSelectedId(id);
       setSelectedChild(null);
       setContentOverride(null);
       setAppearanceOverride(null);
       setInlineEditingTarget(null);
-      setSelectedNarrativeBlockId(null);
       setAppearanceError(null);
       setSectionDesignError(null);
     }
@@ -323,11 +343,16 @@ function WebsitePageContent() {
   function applyDrawerMode(next: DrawerMode) {
     setDrawerMode(next);
     if (next === "content" || next === "appearance") setSectionPanelMode(next);
-    if ((next === "content" || next === "appearance") && isStandaloneTextEditingTarget(inlineEditingTarget)) setInlineEditingTarget(null);
+    if (
+      (next === "content" || next === "appearance") &&
+      isStandaloneTextEditingTarget(inlineEditingTarget)
+    )
+      setInlineEditingTarget(null);
   }
 
   function changePreviewMode(next: ResponsiveViewport) {
-    if (isStandaloneTextEditingTarget(inlineEditingTarget)) setInlineEditingTarget(null);
+    if (isStandaloneTextEditingTarget(inlineEditingTarget))
+      setInlineEditingTarget(null);
     setPreviewMode(next);
   }
 
@@ -352,7 +377,6 @@ function WebsitePageContent() {
       setAppearanceOverride(null);
       setDesignOverride(null);
       setInlineEditingTarget(null);
-      setSelectedNarrativeBlockId(null);
     }
   }
 
@@ -396,14 +420,19 @@ function WebsitePageContent() {
     setContentOverride(null);
     setAppearanceOverride(null);
     setSelectedChild(null);
-    setSelectedNarrativeBlockId(null);
-    setStoryHeaderSelection(null);
     setSelectedId(sectionId);
-    setCanvasSelectionRequest({ kind: "section", id: sectionId, requestId: ++canvasSelectionRequestId.current });
+    setCanvasSelectionRequest({
+      kind: "section",
+      id: sectionId,
+      requestId: ++canvasSelectionRequestId.current,
+    });
   }
 
   async function createBlankSection() {
-    if (globalDirty || !draft) { setListError("Save or discard current changes before adding a Section."); return; }
+    if (globalDirty || !draft) {
+      setListError("Save or discard current changes before adding a Section.");
+      return;
+    }
     setListPending(true);
     setListError(null);
     try {
@@ -412,70 +441,115 @@ function WebsitePageContent() {
       const created = updated.sections.find(({ id }) => !existing.has(id));
       if (!created) throw new Error("The new Section could not be identified.");
       selectCanonicalSection(updated, created.id);
-    } catch (createError) { setListError(messageFor(createError)); }
-    finally { setListPending(false); }
+    } catch (createError) {
+      setListError(messageFor(createError));
+    } finally {
+      setListPending(false);
+    }
   }
 
-  async function renameBlankSection(section: WebsiteSection, requested: string): Promise<boolean> {
-    if (globalDirty) { setListError("Save or discard current changes before renaming a Section."); return false; }
+  async function renameBlankSection(
+    section: WebsiteSection,
+    requested: string,
+  ): Promise<boolean> {
+    if (globalDirty) {
+      setListError(
+        "Save or discard current changes before renaming a Section.",
+      );
+      return false;
+    }
     const editorName = requested.trim().replace(/\s+/gu, " ");
-    if (!editorName || Array.from(editorName).length > 80) { setListError("Section name must contain 1 to 80 characters."); return false; }
-    setListPending(true);
-    setListError(null);
-    try { selectCanonicalSection(await renameWebsiteSection(event.id, projectId, section.id, editorName), section.id); return true; }
-    catch (renameError) { setListError(messageFor(renameError)); return false; }
-    finally { setListPending(false); }
-  }
-
-  async function duplicateBlankSection(section: WebsiteSection) {
-    if (globalDirty) { setListError("Save or discard current changes before duplicating a Section."); return; }
+    if (!editorName || Array.from(editorName).length > 80) {
+      setListError("Section name must contain 1 to 80 characters.");
+      return false;
+    }
     setListPending(true);
     setListError(null);
     try {
-      const updated = await duplicateWebsiteSection(event.id, projectId, section.id);
-      const sourceIndex = updated.sections.findIndex(({ id }) => id === section.id);
+      selectCanonicalSection(
+        await renameWebsiteSection(event.id, projectId, section.id, editorName),
+        section.id,
+      );
+      return true;
+    } catch (renameError) {
+      setListError(messageFor(renameError));
+      return false;
+    } finally {
+      setListPending(false);
+    }
+  }
+
+  async function duplicateBlankSection(section: WebsiteSection) {
+    if (globalDirty) {
+      setListError(
+        "Save or discard current changes before duplicating a Section.",
+      );
+      return;
+    }
+    setListPending(true);
+    setListError(null);
+    try {
+      const updated = await duplicateWebsiteSection(
+        event.id,
+        projectId,
+        section.id,
+      );
+      const sourceIndex = updated.sections.findIndex(
+        ({ id }) => id === section.id,
+      );
       const duplicate = updated.sections[sourceIndex + 1];
-      if (!duplicate || duplicate.id === section.id) throw new Error("The duplicated Section could not be identified.");
+      if (!duplicate || duplicate.id === section.id)
+        throw new Error("The duplicated Section could not be identified.");
       selectCanonicalSection(updated, duplicate.id);
-    } catch (duplicateError) { setListError(messageFor(duplicateError)); }
-    finally { setListPending(false); }
+    } catch (duplicateError) {
+      setListError(messageFor(duplicateError));
+    } finally {
+      setListPending(false);
+    }
   }
 
   async function deleteBlankSection(section: WebsiteSection): Promise<boolean> {
-    if (globalDirty || !draft) { setListError("Save or discard current changes before deleting a Section."); return false; }
+    if (globalDirty || !draft) {
+      setListError(
+        "Save or discard current changes before deleting a Section.",
+      );
+      return false;
+    }
     setListPending(true);
     setListError(null);
     try {
       const index = draft.sections.findIndex(({ id }) => id === section.id);
-      const updated = await deleteWebsiteSection(event.id, projectId, section.id);
-      const next = updated.sections[Math.min(index, updated.sections.length - 1)];
+      const updated = await deleteWebsiteSection(
+        event.id,
+        projectId,
+        section.id,
+      );
+      const next =
+        updated.sections[Math.min(index, updated.sections.length - 1)];
       setDraft(updated);
       setSectionStructureOverride(null);
       setContentOverride(null);
       setAppearanceOverride(null);
       setSelectedChild(null);
       setSelectedId(next?.id ?? null);
-      if (next) setCanvasSelectionRequest({ kind: "section", id: next.id, requestId: ++canvasSelectionRequestId.current });
+      if (next)
+        setCanvasSelectionRequest({
+          kind: "section",
+          id: next.id,
+          requestId: ++canvasSelectionRequestId.current,
+        });
       return true;
-    } catch (deleteError) { setListError(messageFor(deleteError)); return false; }
-    finally { setListPending(false); }
+    } catch (deleteError) {
+      setListError(messageFor(deleteError));
+      return false;
+    } finally {
+      setListPending(false);
+    }
   }
 
   function updateWorkingContent(content: Record<string, unknown>) {
     if (effectiveSelectedId) {
       setContentOverride({ sectionId: effectiveSelectedId, content });
-      if (selectedNarrativeBlockId) {
-        const exists =
-          (
-            content.elements as
-              | import("../../features/websiteEditor/types").StoryBlock[]
-              | undefined
-          )?.some(({ id }) => id === selectedNarrativeBlockId) ?? false;
-        if (!exists) {
-          setSelectedNarrativeBlockId(null);
-          setInlineEditingTarget(null);
-        }
-      }
     }
   }
 
@@ -486,88 +560,26 @@ function WebsitePageContent() {
     setAppearanceError(null);
     setContentError(null);
     setMediaOverrides({});
-    if (selectedNarrativeBlockId && authoritativeSelected?.type === "story") {
-      const exists = (
-        authoritativeSelected.content as import("../../features/websiteEditor/types").StoryContent
-      ).elements.some(({ id }) => id === selectedNarrativeBlockId);
-      if (!exists) setSelectedNarrativeBlockId(null);
-    }
   }
 
-  function selectNarrativeBlock(
-    blockId: string | null,
-    requestCanvasScroll = false,
-  ) {
-    if (blockId && requestCanvasScroll) {
-      setCanvasSelectionRequest({
-        kind: "narrative",
-        id: blockId,
-        requestId: ++canvasSelectionRequestId.current,
-      });
-    }
-    setInlineEditingTarget(null);
-    setStoryHeaderSelection(null);
-    setSelectedChild(null);
-    setSelectedNarrativeBlockId(blockId);
-    if (!blockId || activeNarrativeSlot?.blockId !== blockId) setActiveNarrativeSlot(null);
-  }
-
-  function selectNarrativeSlot(blockId: string, slot: NarrativeSlotKey) {
-    setSelectedNarrativeBlockId(blockId);
-    setActiveNarrativeSlot({ blockId, slot });
-    if (sectionPanelMode === "content") setNarrativeContentDisclosure(slot);
-    else if (isNarrativeTypographySlot(slot)) setNarrativeAppearanceDisclosure(slot);
-  }
-
-  function openNarrativeSlotFromInspector(slot: NarrativeSlotKey | null, appearance = false) {
-    if (appearance) setNarrativeAppearanceDisclosure(slot && isNarrativeTypographySlot(slot) ? slot : null);
-    else setNarrativeContentDisclosure(slot);
-    if (!slot || !selectedNarrativeBlockId) { if (!slot) setActiveNarrativeSlot(null); return; }
-    setActiveNarrativeSlot({ blockId: selectedNarrativeBlockId, slot });
-    setCanvasSelectionRequest({ kind: "narrativeSlot", id: selectedNarrativeBlockId, slot, requestId: ++canvasSelectionRequestId.current });
-  }
-
-  function selectStoryHeader(
+  function selectChild(
     sectionId: string,
-    field: StoryHeaderField,
+    reference: SectionChildReference,
     requestCanvasScroll = false,
   ) {
-    if (requestCanvasScroll) {
-      setCanvasSelectionRequest({
-        kind: "storyField",
-        id: field,
-        sectionId,
-        requestId: ++canvasSelectionRequestId.current,
-      });
-    }
-    const target = { sectionId, field, requestId: ++storyHeaderRequestId.current, focusInspector: true };
-    const changingSection = sectionId !== effectiveSelectedId;
-    if ((changingSection && sectionDirty) || (mode === "design" && designDirty)) {
-      if (changingSection) setPendingSelection(sectionId);
-      setPendingMode("content");
-      setPendingDrawerMode(sectionPanelMode);
-      setPendingStoryHeaderSelection(target);
-      return;
-    }
-    if (changingSection) {
-      setSelectedId(sectionId);
-      setContentOverride(null);
-      setAppearanceOverride(null);
-    }
-    setMode("content");
-    applyDrawerMode(sectionPanelMode);
-    setInlineEditingTarget(null);
-    setSelectedNarrativeBlockId(null);
-    setSelectedChild(null);
-    setStoryHeaderSelection(target);
-  }
-
-  function selectChild(sectionId: string, reference: SectionChildReference, requestCanvasScroll = false) {
     const target = { sectionId, reference };
     const section = workingSections.find(({ id }) => id === sectionId);
-    const flow = (section?.content as { childFlow?: SectionChildFlow } | undefined)?.childFlow;
-    const selectedElement = reference.kind === "element" ? findSectionElement(flow, reference.id) : undefined;
-    const canvasEditedTextSelected = selectedElement?.type === "text" || selectedElement?.type === "richText" || selectedElement?.type === "divider" || selectedElement?.type === "compositionGroup";
+    const flow = (
+      section?.content as { childFlow?: SectionChildFlow } | undefined
+    )?.childFlow;
+    const selectedElement =
+      reference.kind === "element"
+        ? findSectionElement(flow, reference.id)
+        : undefined;
+    const canvasEditedTextSelected =
+      selectedElement?.type === "text" ||
+      selectedElement?.type === "divider" ||
+      selectedElement?.type === "compositionGroup";
     if (sectionId !== effectiveSelectedId && sectionDirty) {
       setPendingSelection(sectionId);
       setPendingChildSelection({ ...target, requestCanvasScroll });
@@ -579,42 +591,64 @@ function WebsitePageContent() {
       setAppearanceOverride(null);
     }
     setInlineEditingTarget(null);
-    setSelectedNarrativeBlockId(null);
-    setStoryHeaderSelection(null);
     setSelectedChild(target);
     if (requestCanvasScroll && selectedElement && !selectedElement.isHidden) {
-      setCanvasSelectionRequest({ kind: "element", id: selectedElement.id, sectionId, requestId: ++canvasSelectionRequestId.current });
+      setCanvasSelectionRequest({
+        kind: "element",
+        id: selectedElement.id,
+        sectionId,
+        requestId: ++canvasSelectionRequestId.current,
+      });
     }
     setMode("content");
     setSectionPanelMode(canvasEditedTextSelected ? "appearance" : "content");
     applyDrawerMode(canvasEditedTextSelected ? "appearance" : "content");
   }
 
-  function changeChildFlow(sectionId: string, flow: SectionChildFlow | undefined, selection?: SectionChildReference) {
+  function changeChildFlow(
+    sectionId: string,
+    flow: SectionChildFlow | undefined,
+    selection?: SectionChildReference,
+  ) {
     const section = workingSections.find(({ id }) => id === sectionId);
     if (!section) return false;
     if (sectionId !== effectiveSelectedId && sectionDirty) {
       setPendingSelection(sectionId);
-      if (selection) setPendingChildSelection({ sectionId, reference: selection });
+      if (selection)
+        setPendingChildSelection({ sectionId, reference: selection });
       return false;
     }
-    const content = structuredClone(sectionId === effectiveSelectedId && workingContent ? workingContent : section.content as Record<string, unknown>);
-    if (flow) content.childFlow = flow; else delete content.childFlow;
+    const content = structuredClone(
+      sectionId === effectiveSelectedId && workingContent
+        ? workingContent
+        : (section.content as Record<string, unknown>),
+    );
+    if (flow) content.childFlow = flow;
+    else delete content.childFlow;
     if (sectionId !== effectiveSelectedId) {
       setSelectedId(sectionId);
       setAppearanceOverride(null);
     }
     setContentOverride({ sectionId, content });
     setInlineEditingTarget(null);
-    setSelectedNarrativeBlockId(null);
-    setStoryHeaderSelection(null);
     if (selection) {
       setSelectedChild({ sectionId, reference: selection });
-      const selectedElement = selection.kind === "element" ? findSectionElement(flow, selection.id) : undefined;
+      const selectedElement =
+        selection.kind === "element"
+          ? findSectionElement(flow, selection.id)
+          : undefined;
       if (selectedElement && !selectedElement.isHidden) {
-        setCanvasSelectionRequest({ kind: "element", id: selectedElement.id, sectionId, requestId: ++canvasSelectionRequestId.current });
+        setCanvasSelectionRequest({
+          kind: "element",
+          id: selectedElement.id,
+          sectionId,
+          requestId: ++canvasSelectionRequestId.current,
+        });
       }
-      const canvasEditedTextSelected = selectedElement?.type === "text" || selectedElement?.type === "richText" || selectedElement?.type === "divider" || selectedElement?.type === "compositionGroup";
+      const canvasEditedTextSelected =
+        selectedElement?.type === "text" ||
+        selectedElement?.type === "divider" ||
+        selectedElement?.type === "compositionGroup";
       if (canvasEditedTextSelected) {
         setSectionPanelMode("appearance");
         applyDrawerMode("appearance");
@@ -623,17 +657,25 @@ function WebsitePageContent() {
     return true;
   }
 
-  async function saveChildRename(sectionId: string, flow: SectionChildFlow): Promise<string | null> {
+  async function saveChildRename(
+    sectionId: string,
+    flow: SectionChildFlow,
+  ): Promise<string | null> {
     const section = workingSections.find(({ id }) => id === sectionId);
     if (!section) return "Unable to find this section. Please try again.";
     const content = structuredClone(
       sectionId === effectiveSelectedId && workingContent
         ? workingContent
-        : section.content as Record<string, unknown>,
+        : (section.content as Record<string, unknown>),
     );
     content.childFlow = flow;
-    const parsed = validateSectionContent(section.type, content, draft?.template?.key);
-    if (!parsed.success) return "Review this section and enter valid content before saving the block name.";
+    const parsed = validateSectionContent(
+      section.type,
+      content,
+      draft?.template?.key,
+    );
+    if (!parsed.success)
+      return "Review this section and enter valid content before saving the block name.";
     setListPending(true);
     setContentError(null);
     try {
@@ -648,7 +690,7 @@ function WebsitePageContent() {
       return null;
     } catch (saveError) {
       return saveError instanceof ApiError
-        ? saveError.validationErrors.content?.[0] ?? saveError.message
+        ? (saveError.validationErrors.content?.[0] ?? saveError.message)
         : "Unable to save the block name. Please try again.";
     } finally {
       setListPending(false);
@@ -658,18 +700,11 @@ function WebsitePageContent() {
   function requestInlineEdit(target: InlineEditingTarget) {
     if (target.sectionId !== effectiveSelectedId) return;
     setInlineEditingTarget(target);
-    if (target.narrativeBlockId) {
-      setSelectedNarrativeBlockId(target.narrativeBlockId);
-    } else if (target.elementId) {
-      setSelectedNarrativeBlockId(null);
-      setStoryHeaderSelection(null);
-      setSelectedChild({ sectionId: target.sectionId, reference: { kind: "element", id: target.elementId } });
-    } else {
-      setSelectedNarrativeBlockId(null);
-      const field = target.path[0];
-      if (workingSelected?.type === "story" && (field === "eyebrow" || field === "heading" || field === "intro")) {
-        setStoryHeaderSelection({ sectionId: target.sectionId, field, requestId: ++storyHeaderRequestId.current, focusInspector: false });
-      }
+    if (target.elementId) {
+      setSelectedChild({
+        sectionId: target.sectionId,
+        reference: { kind: "element", id: target.elementId },
+      });
     }
   }
 
@@ -683,44 +718,13 @@ function WebsitePageContent() {
     setContentOverride(null);
     setInlineEditingTarget(null);
     setMediaOverrides({});
-    if (selectedNarrativeBlockId) {
-      const section = updated.sections.find(({ id }) => id === effectiveSelectedId);
-      const exists =
-        section?.type === "story" &&
-        (
-          section.content as import("../../features/websiteEditor/types").StoryContent
-        ).elements.some(({ id }) => id === selectedNarrativeBlockId);
-      if (!exists) setSelectedNarrativeBlockId(null);
-    }
   }
 
   function updateInlineValue(target: InlineEditingTarget, value: string) {
     if (target.sectionId !== effectiveSelectedId || !workingContent) return;
     const next = structuredClone(workingContent);
-    let path: InlineFieldPath = target.path;
-    if (target.narrativeBlockId) {
-      const elementIndex =
-        (
-          next.elements as
-            | import("../../features/websiteEditor/types").StoryBlock[]
-            | undefined
-        )?.findIndex(({ id }) => id === target.narrativeBlockId) ?? -1;
-      if (elementIndex < 0) {
-        setInlineEditingTarget(null);
-        setSelectedNarrativeBlockId(null);
-        return;
-      }
-      path = ["elements", elementIndex, "slots", target.slot, "text"];
-    } else if (target.elementId) {
-      const flow = (next as { childFlow?: SectionChildFlow }).childFlow;
-      const updatedFlow = flow ? updateSectionTextElement(flow, target.elementId, value) : null;
-      if (!updatedFlow) {
-        setInlineEditingTarget(null);
-        setSelectedChild(null);
-        return;
-      }
-      (next as { childFlow: SectionChildFlow }).childFlow = updatedFlow;
-      setContentOverride({ sectionId: target.sectionId, content: next });
+    const path: InlineFieldPath = target.path;
+    if (target.elementId) {
       return;
     }
     let cursor: unknown = next;
@@ -770,8 +774,7 @@ function WebsitePageContent() {
 
   async function saveEditorChanges() {
     if (!draft) return;
-    let domain: "structure" | "content" | "appearance" | "design" =
-      "structure";
+    let domain: "structure" | "content" | "appearance" | "design" = "structure";
     let latestDraft = draft;
     const desiredStructure = structureFor(workingSections);
     setListPending(true);
@@ -789,7 +792,9 @@ function WebsitePageContent() {
         setDraft(latestDraft);
       }
       for (const sectionId of desiredStructure.order) {
-        const persisted = latestDraft.sections.find(({ id }) => id === sectionId);
+        const persisted = latestDraft.sections.find(
+          ({ id }) => id === sectionId,
+        );
         const desiredEnabled = desiredStructure.enabledById[sectionId];
         if (!persisted || persisted.isEnabled === desiredEnabled) continue;
         latestDraft = await setWebsiteSectionEnabled(
@@ -804,11 +809,19 @@ function WebsitePageContent() {
 
       if (contentDirty && selected && workingContent) {
         domain = "content";
-        const parsed = validateSectionContent(selected.type, workingContent, draft?.template?.key);
+        const parsed = validateSectionContent(
+          selected.type,
+          workingContent,
+          draft?.template?.key,
+        );
         if (!parsed.success) {
           const issue = parsed.error?.issues[0];
           const field = issue?.path.length ? issue.path.join(".") : "content";
-          setContentError(issue ? `${field}: ${issue.message}` : "Review this section and enter valid content before saving.");
+          setContentError(
+            issue
+              ? `${field}: ${issue.message}`
+              : "Review this section and enter valid content before saving.",
+          );
           return;
         }
         latestDraft = await updateWebsiteSectionContent(
@@ -847,7 +860,7 @@ function WebsitePageContent() {
       else if (domain === "content") {
         setContentError(
           saveError instanceof ApiError
-            ? saveError.validationErrors.content?.[0] ?? saveError.message
+            ? (saveError.validationErrors.content?.[0] ?? saveError.message)
             : "Unable to save this section. Please try again.",
         );
       } else if (domain === "appearance") {
@@ -894,13 +907,19 @@ function WebsitePageContent() {
         ...draft!,
         designSettings: { ...draft!.designSettings, customColors },
       });
-      setDesignOverride((current) => current ? { ...current, customColors } : null);
+      setDesignOverride((current) =>
+        current ? { ...current, customColors } : null,
+      );
       const added = customColors.at(-1);
-      if (!added) throw new Error("The color was saved but could not be loaded.");
+      if (!added)
+        throw new Error("The color was saved but could not be loaded.");
       return added;
     } catch (addError) {
       if (addError instanceof ApiError) {
-        throw new Error(addError.validationErrors.value?.[0] ?? addError.message, { cause: addError });
+        throw new Error(
+          addError.validationErrors.value?.[0] ?? addError.message,
+          { cause: addError },
+        );
       }
       throw addError;
     }
@@ -930,32 +949,43 @@ function WebsitePageContent() {
     <SectionNavigator
       sections={workingSections}
       selectedId={effectiveSelectedId}
-      selectedNarrativeBlockId={selectedNarrativeBlockId}
-      selectedStoryHeaderField={storyHeaderSelection?.sectionId === effectiveSelectedId ? storyHeaderSelection.field : null}
-      workingStory={selected?.type === "story" && workingContent ? { sectionId: selected.id, content: workingContent as import("../../features/websiteEditor/types").StoryContent } : null}
-      workingChildFlow={selected && workingContent && selected.type === "blank" ? { sectionId: selected.id, flow: (workingContent as { childFlow?: SectionChildFlow }).childFlow } : null}
+      workingChildFlow={
+        selected &&
+        workingContent &&
+        (selected.type === "blank" || selected.type === "hero")
+          ? {
+              sectionId: selected.id,
+              flow: (workingContent as { childFlow?: SectionChildFlow })
+                .childFlow,
+            }
+          : null
+      }
       selectedChild={selectedChild}
-      genericChildTypesBySectionType={Object.fromEntries((draft.template?.capabilities.sections ?? []).map(({ id, elements }) => [id, elements?.allowedTypes.filter((type): type is import("../../features/websiteElements/blockIdentity").GenericBlockType => type === "text" || type === "richText" || type === "date" || type === "accordion" || type === "schedule" || type === "people" || type === "divider" || type === "media" || type === "compositionGroup") ?? []]))}
+      genericChildTypesBySectionType={Object.fromEntries(
+        (draft.template?.capabilities.sections ?? []).map(
+          ({ id, elements }) => [
+            id,
+            elements?.allowedTypes.filter(
+              (
+                type,
+              ): type is import("../../features/websiteElements/blockIdentity").GenericBlockType =>
+                type === "text" ||
+                type === "date" ||
+                type === "accordion" ||
+                type === "schedule" ||
+                type === "people" ||
+                type === "divider" ||
+                type === "media" ||
+                type === "compositionGroup",
+            ) ?? [],
+          ],
+        ),
+      )}
       pending={listPending}
       onSelect={selectSection}
-      onNarrativeBlockSelect={selectNarrativeBlock}
-      onStoryHeaderSelect={selectStoryHeader}
-      onStoryChange={(sectionId, content) => {
-        if (sectionId === effectiveSelectedId) {
-          updateWorkingContent(content);
-          return true;
-        }
-        if (sectionDirty) {
-          setPendingSelection(sectionId);
-          return false;
-        }
-        setSelectedId(sectionId);
-        setContentOverride({ sectionId, content });
-        setAppearanceOverride(null);
-        setInlineEditingTarget(null);
-        return true;
-      }}
-      onChildSelect={(sectionId, reference) => selectChild(sectionId, reference, true)}
+      onChildSelect={(sectionId, reference) =>
+        selectChild(sectionId, reference, true)
+      }
       onChildFlowChange={changeChildFlow}
       onChildRenameSave={saveChildRename}
       onToggle={toggle}
@@ -991,11 +1021,11 @@ function WebsitePageContent() {
         workingContent={workingContent}
         workingAppearance={workingAppearance}
         targetViewport={previewMode}
-        selectedNarrativeBlockId={selectedNarrativeBlockId}
-        selectedChild={selectedChild && selectedChild.sectionId === selected?.id ? selectedChild.reference : null}
-        narrativeContentDisclosure={narrativeContentDisclosure}
-        narrativeAppearanceDisclosure={narrativeAppearanceDisclosure}
-        storyHeaderFocus={storyHeaderSelection?.sectionId === selected?.id ? storyHeaderSelection : null}
+        selectedChild={
+          selectedChild && selectedChild.sectionId === selected?.id
+            ? selectedChild.reference
+            : null
+        }
         panelMode={sectionPanelMode}
         showModeSwitch
         appearanceDirty={appearanceDirty}
@@ -1003,8 +1033,6 @@ function WebsitePageContent() {
         sectionDesignSaving={sectionDesignSaving}
         sectionDesignError={sectionDesignError}
         onPanelModeChange={(next) => applyDrawerMode(next)}
-        onNarrativeContentDisclosureChange={(slot) => openNarrativeSlotFromInspector(slot)}
-        onNarrativeAppearanceDisclosureChange={(slot) => openNarrativeSlotFromInspector(slot, true)}
         projectColors={designSettings.customColors}
         onAddColor={addProjectColor}
         onContentChange={updateWorkingContent}
@@ -1019,7 +1047,10 @@ function WebsitePageContent() {
     );
   const mobileDrawerPanel =
     drawerMode === "sections" ? (
-      <div className="h-full overflow-y-auto overscroll-contain" data-structure-scroll-container>
+      <div
+        className="h-full overflow-y-auto overscroll-contain"
+        data-structure-scroll-container
+      >
         {sectionRail}
       </div>
     ) : drawerMode === "design" && draft.template ? (
@@ -1045,11 +1076,11 @@ function WebsitePageContent() {
         workingContent={workingContent}
         workingAppearance={workingAppearance}
         targetViewport={previewMode}
-        selectedNarrativeBlockId={selectedNarrativeBlockId}
-        selectedChild={selectedChild && selectedChild.sectionId === selected?.id ? selectedChild.reference : null}
-        narrativeContentDisclosure={narrativeContentDisclosure}
-        narrativeAppearanceDisclosure={narrativeAppearanceDisclosure}
-        storyHeaderFocus={storyHeaderSelection?.sectionId === selected?.id ? storyHeaderSelection : null}
+        selectedChild={
+          selectedChild && selectedChild.sectionId === selected?.id
+            ? selectedChild.reference
+            : null
+        }
         panelMode={drawerMode === "appearance" ? "appearance" : "content"}
         showModeSwitch={false}
         appearanceDirty={appearanceDirty}
@@ -1057,8 +1088,6 @@ function WebsitePageContent() {
         sectionDesignSaving={sectionDesignSaving}
         sectionDesignError={sectionDesignError}
         onPanelModeChange={(next) => applyDrawerMode(next)}
-        onNarrativeContentDisclosureChange={(slot) => openNarrativeSlotFromInspector(slot)}
-        onNarrativeAppearanceDisclosureChange={(slot) => openNarrativeSlotFromInspector(slot, true)}
         projectColors={designSettings.customColors}
         onAddColor={addProjectColor}
         onContentChange={updateWorkingContent}
@@ -1120,11 +1149,7 @@ function WebsitePageContent() {
           }
         >
           <ExternalLink aria-hidden="true" size={15} />
-          <span>
-            {globalDirty
-              ? "Preview saved draft"
-              : "Preview Website"}
-          </span>
+          <span>{globalDirty ? "Preview saved draft" : "Preview Website"}</span>
         </Link>
         <div className="hidden xl:block">
           <SegmentedControl
@@ -1216,15 +1241,15 @@ function WebsitePageContent() {
                   }
                 : null
             }
-            selectedNarrativeBlockId={selectedNarrativeBlockId}
-            selectedChild={selectedChild?.sectionId === effectiveSelectedId ? selectedChild.reference : null}
-            activeNarrativeSlot={activeNarrativeSlot}
-            selectedStoryHeaderField={storyHeaderSelection?.sectionId === effectiveSelectedId ? storyHeaderSelection.field : null}
+            selectedChild={
+              selectedChild?.sectionId === effectiveSelectedId
+                ? selectedChild.reference
+                : null
+            }
             selectionRequest={canvasSelectionRequest}
-            onNarrativeBlockSelect={selectNarrativeBlock}
             onChildSelect={selectChild}
             onChildFlowChange={changeChildFlow}
-            onNarrativeSlotSelect={selectNarrativeSlot}
+            onAddColor={addProjectColor}
             onSectionSelect={selectSection}
           />
           <aside
@@ -1241,8 +1266,8 @@ function WebsitePageContent() {
               drawerMode === "sections"
                 ? "Sections"
                 : drawerMode === "design"
-                  ? "Website · Design"
-                  : `${selected?.type === "story" && storyHeaderSelection?.sectionId === selected.id ? storyHeaderSelection.field === "eyebrow" ? "Eyebrow" : storyHeaderSelection.field === "heading" ? "Heading" : "Intro" : selected?.editorName ?? selected?.displayName ?? "Section"} · ${drawerMode === "appearance" ? "Appearance" : "Content"}`
+                  ? "Website Â· Design"
+                  : `${selected?.editorName ?? selected?.displayName ?? "Section"} Â· ${drawerMode === "appearance" ? "Appearance" : "Content"}`
             }
             onSnapChange={setDrawerSnap}
             onModeChange={changeDrawerMode}
@@ -1258,7 +1283,6 @@ function WebsitePageContent() {
           setPendingSelection(null);
           setPendingMode(null);
           setPendingDrawerMode(null);
-          setPendingStoryHeaderSelection(null);
           setPendingChildSelection(null);
         }}
         onDiscard={() => {
@@ -1267,23 +1291,43 @@ function WebsitePageContent() {
           if (pendingDrawerMode) applyDrawerMode(pendingDrawerMode);
           if (pendingSelection || pendingMode) {
             setInlineEditingTarget(null);
-            setSelectedNarrativeBlockId(null);
-            setStoryHeaderSelection(null);
           }
-          if (pendingStoryHeaderSelection) setStoryHeaderSelection(pendingStoryHeaderSelection);
           if (pendingChildSelection) {
-            setSelectedChild({ sectionId: pendingChildSelection.sectionId, reference: pendingChildSelection.reference });
-            const pendingSection = workingSections.find(({ id }) => id === pendingChildSelection.sectionId);
-            const pendingFlow = (pendingSection?.content as { childFlow?: SectionChildFlow } | undefined)?.childFlow;
-            const pendingElement = pendingChildSelection.reference.kind === "element" ? findSectionElement(pendingFlow, pendingChildSelection.reference.id) : undefined;
-            if (pendingChildSelection.requestCanvasScroll && pendingElement && !pendingElement.isHidden) {
-              setCanvasSelectionRequest({ kind: "element", id: pendingElement.id, sectionId: pendingChildSelection.sectionId, requestId: ++canvasSelectionRequestId.current });
+            setSelectedChild({
+              sectionId: pendingChildSelection.sectionId,
+              reference: pendingChildSelection.reference,
+            });
+            const pendingSection = workingSections.find(
+              ({ id }) => id === pendingChildSelection.sectionId,
+            );
+            const pendingFlow = (
+              pendingSection?.content as
+                | { childFlow?: SectionChildFlow }
+                | undefined
+            )?.childFlow;
+            const pendingElement =
+              pendingChildSelection.reference.kind === "element"
+                ? findSectionElement(
+                    pendingFlow,
+                    pendingChildSelection.reference.id,
+                  )
+                : undefined;
+            if (
+              pendingChildSelection.requestCanvasScroll &&
+              pendingElement &&
+              !pendingElement.isHidden
+            ) {
+              setCanvasSelectionRequest({
+                kind: "element",
+                id: pendingElement.id,
+                sectionId: pendingChildSelection.sectionId,
+                requestId: ++canvasSelectionRequestId.current,
+              });
             }
           }
           setPendingSelection(null);
           setPendingMode(null);
           setPendingDrawerMode(null);
-          setPendingStoryHeaderSelection(null);
           setPendingChildSelection(null);
           setContentOverride(null);
           setAppearanceOverride(null);
@@ -1295,8 +1339,23 @@ function WebsitePageContent() {
           setListError(null);
         }}
       />
-      {renameSectionTarget && <BlankSectionRenameDialog key={renameSectionTarget.id} section={renameSectionTarget} pending={listPending} onClose={() => setRenameSectionTarget(null)} onRename={(name) => renameBlankSection(renameSectionTarget, name)} />}
-      {deleteSectionTarget && <BlankSectionDeleteDialog section={deleteSectionTarget} pending={listPending} onClose={() => setDeleteSectionTarget(null)} onDelete={() => deleteBlankSection(deleteSectionTarget)} />}
+      {renameSectionTarget && (
+        <BlankSectionRenameDialog
+          key={renameSectionTarget.id}
+          section={renameSectionTarget}
+          pending={listPending}
+          onClose={() => setRenameSectionTarget(null)}
+          onRename={(name) => renameBlankSection(renameSectionTarget, name)}
+        />
+      )}
+      {deleteSectionTarget && (
+        <BlankSectionDeleteDialog
+          section={deleteSectionTarget}
+          pending={listPending}
+          onClose={() => setDeleteSectionTarget(null)}
+          onDelete={() => deleteBlankSection(deleteSectionTarget)}
+        />
+      )}
     </div>
   );
 }
@@ -1519,7 +1578,9 @@ function MobileBuilderDrawer({
               : undefined
           }
         >
-          <div className="mx-auto h-full min-h-0 max-w-2xl overflow-hidden">{children}</div>
+          <div className="mx-auto h-full min-h-0 max-w-2xl overflow-hidden">
+            {children}
+          </div>
         </div>
       )}
     </aside>
@@ -1535,15 +1596,11 @@ function PreviewCanvas({
   previewMode,
   unsaved,
   inlineValue,
-  selectedNarrativeBlockId,
   selectedChild,
-  activeNarrativeSlot,
-  selectedStoryHeaderField,
   selectionRequest,
-  onNarrativeBlockSelect,
   onChildSelect,
   onChildFlowChange,
-  onNarrativeSlotSelect,
+  onAddColor,
   onSectionSelect,
 }: {
   event: ReturnType<typeof useEventWorkspace>;
@@ -1554,31 +1611,42 @@ function PreviewCanvas({
   previewMode: ResponsiveViewport;
   unsaved: boolean;
   inlineValue: React.ComponentProps<typeof InlineEditProvider>["value"];
-  selectedNarrativeBlockId: string | null;
   selectedChild: SectionChildReference | null;
-  activeNarrativeSlot: { blockId: string; slot: NarrativeSlotKey } | null;
-  selectedStoryHeaderField: StoryHeaderField | null;
   selectionRequest: CanvasSelectionRequest | null;
-  onNarrativeBlockSelect: (blockId: string) => void;
   onChildSelect: (sectionId: string, reference: SectionChildReference) => void;
-  onChildFlowChange: (sectionId: string, flow: SectionChildFlow | undefined, selection?: SectionChildReference) => boolean;
-  onNarrativeSlotSelect: (blockId: string, slot: NarrativeSlotKey) => void;
+  onChildFlowChange: (
+    sectionId: string,
+    flow: SectionChildFlow | undefined,
+    selection?: SectionChildReference,
+  ) => boolean;
+  onAddColor: (value: string) => Promise<ProjectColor>;
   onSectionSelect: (id: string) => void;
 }) {
   const previewAreaRef = useRef<HTMLDivElement>(null);
-  const [availableWidth, setAvailableWidth] = useState(0);
-  const [zoomPreferences, setZoomPreferences] = useState<EditorZoomPreferences>(() =>
-    loadEditorZoomPreferences(browserEditorZoomStorage()),
+  const [availableSize, setAvailableSize] = useState({ width: 0, height: 0 });
+  const [zoomPreferences, setZoomPreferences] = useState<EditorZoomPreferences>(
+    () => loadEditorZoomPreferences(browserEditorZoomStorage()),
   );
   const zoomPreference = zoomPreferences[previewMode];
-  const semanticWidth = previewMode === "desktop" ? 1280 : PREVIEW_WIDTHS[previewMode];
-  const fitScale = computeFitScale(availableWidth || semanticWidth, semanticWidth);
-  const effectiveScale = zoomPreference.type === "fit" ? fitScale : zoomPreference.scale;
+  const viewport = EDITOR_DEVICE_VIEWPORTS[previewMode];
+  const fitScale = computeFitScale(
+    availableSize.width || viewport.width,
+    availableSize.height || viewport.height,
+    viewport.width,
+    viewport.height,
+  );
+  const effectiveScale =
+    zoomPreference.type === "fit" ? fitScale : zoomPreference.scale;
+  const canvasGeometry = resolveEditorCanvasGeometry(viewport, effectiveScale);
 
   useLayoutEffect(() => {
     const element = previewAreaRef.current;
     if (!element) return;
-    const measure = () => setAvailableWidth(element.clientWidth);
+    const measure = () =>
+      setAvailableSize({
+        width: element.clientWidth,
+        height: element.clientHeight,
+      });
     measure();
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);
@@ -1597,29 +1665,15 @@ function PreviewCanvas({
     const selector =
       selectionRequest.kind === "section"
         ? `[data-preview-section="${CSS.escape(selectionRequest.id)}"]`
-        : selectionRequest.kind === "storyField"
-          ? `[data-editor-story-field="${CSS.escape(selectionRequest.id)}"]`
-          : selectionRequest.kind === "element"
-            ? `[data-editor-website-element="${CSS.escape(selectionRequest.id)}"]`
-          : selectionRequest.kind === "narrativeSlot"
-            ? `[data-editor-narrative-block="${CSS.escape(selectionRequest.id)}"] [data-editor-narrative-slot="${CSS.escape(selectionRequest.slot)}"]`
-            : `[data-editor-narrative-block="${CSS.escape(selectionRequest.id)}"]`;
+        : `[data-editor-website-element="${CSS.escape(selectionRequest.id)}"]`;
     const documents = [
       document,
-      ...Array.from(document.querySelectorAll("iframe")).flatMap(
-        (frame) => (frame.contentDocument ? [frame.contentDocument] : []),
+      ...Array.from(document.querySelectorAll("iframe")).flatMap((frame) =>
+        frame.contentDocument ? [frame.contentDocument] : [],
       ),
     ];
-    let target = findEditorTarget(documents, selector);
-        if (!target && selectionRequest.kind === "storyField") {
-          const storySelector = `[data-preview-section="${CSS.escape(selectionRequest.sectionId)}"] [data-section-content]`;
-          target = findEditorTarget(documents, storySelector);
-        }
-        if (!target && selectionRequest.kind === "narrativeSlot") {
-          const blockSelector = `[data-editor-narrative-block="${CSS.escape(selectionRequest.id)}"]`;
-          target = findEditorTarget(documents, blockSelector);
-        }
-        if (!target) return;
+    const target = findEditorTarget(documents, selector);
+    if (!target) return;
     revealEditorTarget(target);
   }, [editorMode, selectionRequest]);
 
@@ -1636,35 +1690,65 @@ function PreviewCanvas({
           <p className="text-[11px] text-foreground-muted">
             {editorMode === "edit"
               ? "Changes appear before saving."
-              : "All enabled sections · non-editable"}
+              : "All enabled sections Â· non-editable"}
           </p>
         </div>
-        <div className="ml-auto flex shrink-0 items-center gap-1" aria-label="Canvas zoom controls">
+        <div
+          className="ml-auto flex shrink-0 items-center gap-1"
+          aria-label="Canvas zoom controls"
+        >
           <button
             type="button"
             className="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-border bg-background text-foreground hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
             aria-label="Zoom out"
-            disabled={zoomPreference.type === "custom" && zoomPreference.scale === EDITOR_ZOOM_STEPS[0]}
-            onClick={() => setZoomPreference(stepEditorZoom(zoomPreference, effectiveScale, -1))}
+            disabled={
+              zoomPreference.type === "custom" &&
+              zoomPreference.scale === EDITOR_ZOOM_STEPS[0]
+            }
+            onClick={() =>
+              setZoomPreference(
+                stepEditorZoom(zoomPreference, effectiveScale, -1),
+              )
+            }
           >
             <Minus size={14} aria-hidden="true" />
           </button>
           <Select
             className="w-[76px]"
             aria-label="Canvas zoom"
-            value={zoomPreference.type === "fit" ? "fit" : String(zoomPreference.scale)}
+            value={
+              zoomPreference.type === "fit"
+                ? "fit"
+                : String(zoomPreference.scale)
+            }
             options={[
               { value: "fit", label: "Fit" },
-              ...EDITOR_ZOOM_STEPS.map((scale) => ({ value: String(scale), label: `${Math.round(scale * 100)}%` })),
+              ...EDITOR_ZOOM_STEPS.map((scale) => ({
+                value: String(scale),
+                label: `${Math.round(scale * 100)}%`,
+              })),
             ]}
-            onChange={(value) => setZoomPreference(value === "fit" ? { type: "fit" } : { type: "custom", scale: Number(value) })}
+            onChange={(value) =>
+              setZoomPreference(
+                value === "fit"
+                  ? { type: "fit" }
+                  : { type: "custom", scale: Number(value) },
+              )
+            }
           />
           <button
             type="button"
             className="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-border bg-background text-foreground hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
             aria-label="Zoom in"
-            disabled={zoomPreference.type === "custom" && zoomPreference.scale === EDITOR_ZOOM_STEPS.at(-1)}
-            onClick={() => setZoomPreference(stepEditorZoom(zoomPreference, effectiveScale, 1))}
+            disabled={
+              zoomPreference.type === "custom" &&
+              zoomPreference.scale === EDITOR_ZOOM_STEPS.at(-1)
+            }
+            onClick={() =>
+              setZoomPreference(
+                stepEditorZoom(zoomPreference, effectiveScale, 1),
+              )
+            }
           >
             <Plus size={14} aria-hidden="true" />
           </button>
@@ -1675,87 +1759,114 @@ function PreviewCanvas({
           </span>
         )}
       </div>
-      <div ref={previewAreaRef} className="min-h-0 flex-1 overflow-auto rounded-xl bg-background/45 p-2">
+      <div
+        ref={previewAreaRef}
+        className="min-h-0 flex-1 overflow-auto rounded-xl bg-background/45 p-2"
+      >
         <div
           className="relative mx-auto h-full shrink-0"
           data-editor-zoom-viewport={previewMode}
           data-editor-zoom-mode={zoomPreference.type}
-          style={{ width: semanticWidth * effectiveScale }}
+          style={{
+            width: canvasGeometry.displayWidth,
+            height: canvasGeometry.displayHeight,
+          }}
         >
-        <div
-          className="absolute left-0 top-0"
-          style={{ width: semanticWidth, height: `${100 / effectiveScale}%`, transform: `scale(${effectiveScale})`, transformOrigin: "top left" }}
-        >
-        <PreviewViewport viewport={previewMode}>
-          <InlineEditProvider
-            value={editorMode === "edit" ? inlineValue : null}
+          <div
+            className="absolute left-0 top-0"
+            style={{
+              width: canvasGeometry.viewportWidth,
+              height: canvasGeometry.viewportHeight,
+              transform: `scale(${canvasGeometry.scale})`,
+              transformOrigin: "top left",
+            }}
           >
-            <EditorSelectionContext.Provider value={editorMode === "edit" ? selectedStoryHeaderField : null}>
-            <NarrativeSlotFocusContext.Provider value={{ active: activeNarrativeSlot, onSelect: onNarrativeSlotSelect }}>
-            <WebsiteRenderer
-              event={event}
-              website={draft}
-              mode={editorMode === "edit" ? "editor" : "public"}
-              selectedSectionId={
-                editorMode === "edit" && mode === "content" ? selectedId : null
-              }
-              onSectionSelect={
-                editorMode === "edit" ? onSectionSelect : undefined
-              }
-              selectedNarrativeBlockId={
-                editorMode === "edit" ? selectedNarrativeBlockId : null
-              }
-              onNarrativeBlockSelect={
-                editorMode === "edit" ? onNarrativeBlockSelect : undefined
-              }
-              selectedElementId={
-                editorMode === "edit" && selectedChild?.kind === "element" ? selectedChild.id : null
-              }
-              onElementSelect={
-                editorMode === "edit" ? (sectionId, elementId) => onChildSelect(sectionId, { kind: "element", id: elementId }) : undefined
-              }
-              onElementEdit={
-                editorMode === "edit"
-                  ? (sectionId, elementId) => inlineValue?.requestEdit({
-                      sectionId,
-                      elementId,
-                      path: ["childFlow", "elements"],
-                      label: "Text",
-                    })
-                  : undefined
-              }
-              onElementChange={
-                editorMode === "edit"
-                  ? (sectionId: string, element: WebsiteElement) => {
-                      const section = draft.sections.find(({ id }) => id === sectionId);
-                      const flow = (section?.content as { childFlow?: SectionChildFlow } | undefined)?.childFlow;
-                      if (flow) onChildFlowChange(sectionId, updateSectionElement(flow, element), { kind: "element", id: element.id });
-                    }
-                  : undefined
-              }
-              onRichTextDocumentChange={
-                editorMode === "edit"
-                  ? (sectionId, elementId, document) => {
-                      const section = draft.sections.find(({ id }) => id === sectionId);
-                      const flow = (section?.content as { childFlow?: SectionChildFlow } | undefined)?.childFlow;
-                      if (!flow) return;
-                      const next = updateSectionRichTextDocument(flow, elementId, document);
-                      if (next) onChildFlowChange(sectionId, next, { kind: "element", id: elementId });
-                    }
-                  : undefined
-              }
-              targetViewport={previewMode}
-              scope={
-                editorMode === "edit" && selectedId
-                  ? { kind: "single-section", sectionId: selectedId }
-                  : { kind: "full" }
-              }
-            />
-            </NarrativeSlotFocusContext.Provider>
-            </EditorSelectionContext.Provider>
-          </InlineEditProvider>
-        </PreviewViewport>
-        </div>
+            <PreviewViewport viewport={previewMode}>
+              <InlineEditProvider
+                value={editorMode === "edit" ? inlineValue : null}
+              >
+                <WebsiteRenderer
+                  event={event}
+                  website={draft}
+                  mode={editorMode === "edit" ? "editor" : "public"}
+                  selectedSectionId={
+                    editorMode === "edit" && mode === "content"
+                      ? selectedId
+                      : null
+                  }
+                  onSectionSelect={
+                    editorMode === "edit" ? onSectionSelect : undefined
+                  }
+                  selectedElementId={
+                    editorMode === "edit" && selectedChild?.kind === "element"
+                      ? selectedChild.id
+                      : null
+                  }
+                  onElementSelect={
+                    editorMode === "edit"
+                      ? (sectionId, elementId) =>
+                          onChildSelect(sectionId, {
+                            kind: "element",
+                            id: elementId,
+                          })
+                      : undefined
+                  }
+                  onElementChange={
+                    editorMode === "edit"
+                      ? (sectionId: string, element: WebsiteElement) => {
+                          const section = draft.sections.find(
+                            ({ id }) => id === sectionId,
+                          );
+                          const flow = (
+                            section?.content as
+                              | { childFlow?: SectionChildFlow }
+                              | undefined
+                          )?.childFlow;
+                          if (flow)
+                            onChildFlowChange(
+                              sectionId,
+                              updateSectionElement(flow, element),
+                              { kind: "element", id: element.id },
+                            );
+                        }
+                      : undefined
+                  }
+                  onTextDocumentChange={
+                    editorMode === "edit"
+                      ? (sectionId, elementId, document) => {
+                          const section = draft.sections.find(
+                            ({ id }) => id === sectionId,
+                          );
+                          const flow = (
+                            section?.content as
+                              | { childFlow?: SectionChildFlow }
+                              | undefined
+                          )?.childFlow;
+                          if (!flow) return;
+                          const next = updateSectionTextDocument(
+                            flow,
+                            elementId,
+                            document,
+                          );
+                          if (next)
+                            onChildFlowChange(sectionId, next, {
+                              kind: "element",
+                              id: elementId,
+                            });
+                        }
+                      : undefined
+                  }
+                  onAddColor={editorMode === "edit" ? onAddColor : undefined}
+                  targetViewport={previewMode}
+                  scope={
+                    editorMode === "edit" && selectedId
+                      ? { kind: "single-section", sectionId: selectedId }
+                      : { kind: "full" }
+                  }
+                />
+              </InlineEditProvider>
+            </PreviewViewport>
+          </div>
         </div>
       </div>
     </main>
@@ -1778,21 +1889,15 @@ function PreviewViewport({
     const sync = () => syncEditorPreviewTheme(document.documentElement, target);
     sync();
     const observer = new MutationObserver(sync);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme"] });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "data-theme"],
+    });
     return () => observer.disconnect();
   }, [mount]);
 
-  if (viewport === "desktop")
-    return (
-      <div data-editor-preview-scroll className="h-full min-h-0 w-full overflow-y-auto rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)]">
-        {children}
-      </div>
-    );
-
   return (
-    <div
-      className="h-full w-full overflow-hidden rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)]"
-    >
+    <div className="h-full w-full overflow-hidden rounded-lg bg-white shadow-[0_16px_50px_rgb(35_24_18/16%)]">
       <iframe
         ref={frameRef}
         className="h-full w-full border-0"
@@ -1802,11 +1907,16 @@ function PreviewViewport({
           const documentTarget = event.currentTarget.contentDocument;
           if (!documentTarget) return;
           document
-            .querySelectorAll('style, link[rel="stylesheet"]:not([data-font-preview])')
+            .querySelectorAll(
+              'style, link[rel="stylesheet"]:not([data-font-preview])',
+            )
             .forEach((node) =>
               documentTarget.head.appendChild(node.cloneNode(true)),
             );
-          syncEditorPreviewTheme(document.documentElement, documentTarget.documentElement);
+          syncEditorPreviewTheme(
+            document.documentElement,
+            documentTarget.documentElement,
+          );
           documentTarget.body.style.margin = "0";
           const root = documentTarget.getElementById("responsive-preview-root");
           if (root) setMount(root);
@@ -1827,11 +1937,7 @@ function SectionInspector({
   workingContent,
   workingAppearance,
   targetViewport,
-  selectedNarrativeBlockId,
   selectedChild,
-  narrativeContentDisclosure,
-  narrativeAppearanceDisclosure,
-  storyHeaderFocus,
   panelMode,
   showModeSwitch,
   appearanceDirty,
@@ -1839,8 +1945,6 @@ function SectionInspector({
   sectionDesignSaving,
   sectionDesignError,
   onPanelModeChange,
-  onNarrativeContentDisclosureChange,
-  onNarrativeAppearanceDisclosureChange,
   projectColors,
   onAddColor,
   onContentChange,
@@ -1856,11 +1960,7 @@ function SectionInspector({
   workingContent?: Record<string, unknown>;
   workingAppearance?: WebsiteSectionAppearance;
   targetViewport: ResponsiveViewport;
-  selectedNarrativeBlockId: string | null;
   selectedChild: SectionChildReference | null;
-  narrativeContentDisclosure: NarrativeSlotKey | null;
-  narrativeAppearanceDisclosure: NarrativeTypographySlotKey | null;
-  storyHeaderFocus: { field: StoryHeaderField; requestId: number; focusInspector: boolean } | null;
   panelMode: SectionPanelMode;
   showModeSwitch: boolean;
   appearanceDirty: boolean;
@@ -1868,8 +1968,6 @@ function SectionInspector({
   sectionDesignSaving: boolean;
   sectionDesignError: string | null;
   onPanelModeChange: (mode: SectionPanelMode) => void;
-  onNarrativeContentDisclosureChange: (slot: NarrativeSlotKey | null) => void;
-  onNarrativeAppearanceDisclosureChange: (slot: NarrativeTypographySlotKey | null) => void;
   projectColors: ProjectColor[];
   onAddColor: (value: string) => Promise<ProjectColor>;
   onContentChange: (content: Record<string, unknown>) => void;
@@ -1880,42 +1978,60 @@ function SectionInspector({
   const capability = capabilities
     ? sectionCapability(capabilities, selected.type)
     : undefined;
-  const narrativeElements =
-    selected.type === "story"
-      ? (workingContent.elements as
-          import("../../features/websiteEditor/types").StoryBlock[] | undefined)
+  const childFlow = (workingContent as { childFlow?: SectionChildFlow })
+    .childFlow;
+  const selectedElement =
+    selectedChild?.kind === "element"
+      ? findSectionElement(childFlow, selectedChild.id)
       : undefined;
-  const narrativeIndex = selectedNarrativeBlockId
-    ? (narrativeElements?.findIndex(({ id }) => id === selectedNarrativeBlockId) ?? -1)
-    : -1;
-  const narrativeBlock =
-    narrativeIndex >= 0 ? (narrativeElements?.[narrativeIndex] ?? null) : null;
-  const childFlow = (workingContent as { childFlow?: SectionChildFlow }).childFlow;
-  const selectedElement = selectedChild?.kind === "element" ? findSectionElement(childFlow, selectedChild.id) : undefined;
-  const selectedText = selectedElement?.type === "text" ? selectedElement : null;
-  const selectedRichText = selectedElement?.type === "richText" ? selectedElement : null;
-  const selectedDate = selectedElement?.type === "date" ? selectedElement : null;
-  const selectedAccordion = selectedElement?.type === "accordion" ? selectedElement : null;
-  const selectedSchedule = selectedElement?.type === "schedule" ? selectedElement : null;
-  const selectedPeople = selectedElement?.type === "people" ? selectedElement : null;
-  const selectedGroup = selectedElement?.type === "compositionGroup" ? selectedElement : null;
-  const selectedDivider = selectedElement?.type === "divider" ? selectedElement : null;
-  const selectedMedia = selectedElement?.type === "media" ? selectedElement : null;
-  const narrativeCapability = capabilities
-    ? templateElementCapability(capabilities, "narrativeBlock")
-    : undefined;
+  const selectedText =
+    selectedElement?.type === "text" ? selectedElement : null;
+  const selectedDate =
+    selectedElement?.type === "date" ? selectedElement : null;
+  const selectedAccordion =
+    selectedElement?.type === "accordion" ? selectedElement : null;
+  const selectedSchedule =
+    selectedElement?.type === "schedule" ? selectedElement : null;
+  const selectedPeople =
+    selectedElement?.type === "people" ? selectedElement : null;
+  const selectedGroup =
+    selectedElement?.type === "compositionGroup" ? selectedElement : null;
+  const selectedDivider =
+    selectedElement?.type === "divider" ? selectedElement : null;
+  const selectedMedia =
+    selectedElement?.type === "media" ? selectedElement : null;
   const textCapability = capabilities
     ? templateElementCapability(capabilities, "text")
     : undefined;
-  const textFontIds = textCapability?.appearance?.typography.find(({ role }) => role === "body")?.allowedFontIds ?? [];
-  const textColorIds = textCapability?.appearance?.colors.find(({ role }) => role === "textColor")?.allowedColorIds ?? [];
+  const textFontIds =
+    textCapability?.appearance?.typography.find(({ role }) => role === "body")
+      ?.allowedFontIds ?? [];
+  const textColorIds =
+    textCapability?.appearance?.colors.find(({ role }) => role === "textColor")
+      ?.allowedColorIds ?? [];
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="hidden shrink-0 border-b border-border xl:mb-4 xl:block xl:px-0 xl:pb-3 xl:pt-0">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Heading className="xl:text-base!" level={2} variant="panel">
-              {selectedRichText ? "Rich Text" : selectedText ? "Text" : selectedDate ? "Date" : selectedAccordion ? "Accordion" : selectedSchedule ? "Schedule" : selectedPeople ? "People" : selectedGroup ? "Group" : selectedDivider ? "Divider" : selectedMedia ? "Media" : narrativeBlock ? "Narrative Block" : selected.type === "story" && storyHeaderFocus ? storyHeaderFocus.field === "eyebrow" ? "Eyebrow" : storyHeaderFocus.field === "heading" ? "Heading" : "Intro" : selected.editorName ?? selected.displayName}
+              {selectedText
+                ? "Text"
+                : selectedDate
+                  ? "Date"
+                  : selectedAccordion
+                    ? "Accordion"
+                    : selectedSchedule
+                      ? "Schedule"
+                      : selectedPeople
+                        ? "People"
+                        : selectedGroup
+                          ? "Group"
+                          : selectedDivider
+                            ? "Divider"
+                            : selectedMedia
+                              ? "Media"
+                              : (selected.editorName ?? selected.displayName)}
             </Heading>
             {!selected.isEnabled && (
               <span className="rounded-full bg-surface-muted px-2 py-1 text-[10px] text-foreground-muted">
@@ -1923,115 +2039,217 @@ function SectionInspector({
               </span>
             )}
           </div>
-          {showModeSwitch && !selectedRichText && !selectedText && !selectedDate && !selectedAccordion && !selectedSchedule && !selectedPeople && !selectedGroup && !selectedDivider && (
-            <SegmentedControl
-              value={panelMode}
-              options={[
-                { value: "content", label: "Content" },
-                { value: "appearance", label: "Appearance" },
-              ]}
-              label="Section editor mode"
-              onChange={onPanelModeChange}
-            />
-          )}
+          {showModeSwitch &&
+            !selectedText &&
+            !selectedDate &&
+            !selectedAccordion &&
+            !selectedSchedule &&
+            !selectedPeople &&
+            !selectedGroup &&
+            !selectedDivider && (
+              <SegmentedControl
+                value={panelMode}
+                options={[
+                  { value: "content", label: "Content" },
+                  { value: "appearance", label: "Appearance" },
+                ]}
+                label="Section editor mode"
+                onChange={onPanelModeChange}
+              />
+            )}
         </div>
-        {!(panelMode === "content" && selected.type === "story" && storyHeaderFocus) && <Text className="mt-2 xl:mt-1" variant="helper">
-          {selectedRichText || selectedText
-            ? "Edit content directly on the canvas. Customize this element’s appearance here."
-            : selectedGroup ? "Arrange this Group’s children and responsive layout." 
-            : panelMode === "content"
-            ? narrativeBlock
-              ? "Edit this Narrative Block’s canonical content and visibility."
-              : "Edit semantic content."
-            : "Customize this Section’s presentation."}
-        </Text>}
+        <Text className="mt-2 xl:mt-1" variant="helper">
+          {selectedText
+            ? "Edit content directly on the canvas. Customize this element's appearance here."
+            : selectedGroup
+              ? "Arrange this Group's children and responsive layout."
+              : panelMode === "content"
+                ? "Edit semantic content."
+                : "Customize this Section's presentation."}
+        </Text>
       </div>
+      {(selectedText ?? selectedDate ?? selectedAccordion ?? selectedSchedule ?? selectedPeople ?? selectedDivider ?? selectedMedia) && childFlow && <GenericBlockOuterSpacingEditor element={(selectedText ?? selectedDate ?? selectedAccordion ?? selectedSchedule ?? selectedPeople ?? selectedDivider ?? selectedMedia)!} viewport={targetViewport} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} />}
       {selectedAccordion && childFlow ? (
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><AccordionElementEditor element={selectedAccordion} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></div>
-      ) : selectedSchedule && childFlow ? (
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><ScheduleElementEditor element={selectedSchedule} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></div>
-      ) : selectedPeople && childFlow ? (
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><PeopleEditor section={selected} content={selectedPeople} resolvedMedia={resolvedMedia} onMediaResolved={onMediaResolved} hideHeading itemMediaEnabled onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element as typeof selectedPeople) })} /></div>
-      ) : selectedDate && childFlow && capabilities ? (
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><ColorPreviewScopeContext key={selected.id} value={selected.id}><DateElementEditor element={selectedDate} viewport={targetViewport} templateKey={templateKey} library={capabilities.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></ColorPreviewScopeContext></div>
-      ) : selectedRichText && childFlow && capabilities ? (
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><ColorPreviewScopeContext key={selected.id} value={selected.id}><RichTextElementEditor element={selectedRichText} viewport={targetViewport} library={capabilities.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onAppearanceChange={(appearance) => { const next = updateSectionRichTextAppearance(childFlow, selectedRichText.id, appearance); if (next) onContentChange({ ...workingContent, childFlow: next }); }} /></ColorPreviewScopeContext></div>
-      ) : selectedText && childFlow && capabilities ? (
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><ColorPreviewScopeContext key={selected.id} value={selected.id}><TextElementEditor element={selectedText} viewport={targetViewport} templateKey={templateKey} library={capabilities.designLibrary} allowedFontIds={textFontIds} allowedColorIds={textColorIds} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></ColorPreviewScopeContext></div>
-      ) : selectedDivider && childFlow && capabilities ? (
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><ColorPreviewScopeContext key={selected.id} value={selected.id}><DividerElementEditor context={selected.resolvedDesignContext} element={selectedDivider} templateKey={templateKey} library={capabilities.designLibrary} allowedColorIds={textColorIds} projectColors={projectColors} onAddColor={onAddColor} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></ColorPreviewScopeContext></div>
-      ) : selectedMedia && childFlow ? (
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><MediaElementEditor element={selectedMedia} eventId={eventId} viewport={targetViewport} mode={panelMode} resolvedMedia={resolvedMedia} onMediaResolved={onMediaResolved} onChange={(element) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, element) })} /></div>
-      ) : selectedGroup && childFlow ? (
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0"><ColorPreviewScopeContext key={selected.id} value={selected.id}><GroupElementEditor group={selectedGroup} viewport={targetViewport} templateKey={templateKey} capability={narrativeCapability?.narrativeBlock ?? undefined} library={capabilities?.designLibrary} projectColors={projectColors} onAddColor={onAddColor} onChange={(group) => onContentChange({ ...workingContent, childFlow: updateSectionElement(childFlow, group) })} onUngroup={() => { const next = ungroupSectionElement(childFlow, selectedGroup.id); onContentChange({ ...workingContent, childFlow: next }); }} /></ColorPreviewScopeContext></div>
-      ) : panelMode === "content" ? (
-        narrativeBlock && selected.type === "story" ? (
-          <NarrativeBlockContentPanel
-            block={narrativeBlock}
-            content={
-              workingContent as import("../../features/websiteEditor/types").StoryContent
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
+          <AccordionElementEditor
+            element={selectedAccordion}
+            onChange={(element) =>
+              onContentChange({
+                ...workingContent,
+                childFlow: updateSectionElement(childFlow, element),
+              })
             }
+          />
+        </div>
+      ) : selectedSchedule && childFlow ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
+          <ScheduleElementEditor
+            element={selectedSchedule}
+            onChange={(element) =>
+              onContentChange({
+                ...workingContent,
+                childFlow: updateSectionElement(childFlow, element),
+              })
+            }
+          />
+        </div>
+      ) : selectedPeople && childFlow ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
+          <PeopleEditor
+            section={selected}
+            content={selectedPeople}
             resolvedMedia={resolvedMedia}
             onMediaResolved={onMediaResolved}
-            activeDisclosure={narrativeContentDisclosure}
-            onDisclosureChange={onNarrativeContentDisclosureChange}
-            onChange={onContentChange}
+            hideHeading
+            itemMediaEnabled
+            onChange={(element) =>
+              onContentChange({
+                ...workingContent,
+                childFlow: updateSectionElement(
+                  childFlow,
+                  element as typeof selectedPeople,
+                ),
+              })
+            }
           />
-        ) : (
-          <div className="min-h-0 flex-1">
-            <SectionEditor
-              key={`${selected.id}:${storyHeaderFocus?.requestId ?? 0}`}
-              section={selected}
-              content={workingContent}
-              onChange={onContentChange}
+        </div>
+      ) : selectedDate && childFlow && capabilities ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
+          <ColorPreviewScopeContext key={selected.id} value={selected.id}>
+            <DateElementEditor
+              element={selectedDate}
+              viewport={targetViewport}
+              templateKey={templateKey}
+              library={capabilities.designLibrary}
+              allowedFontIds={textFontIds}
+              allowedColorIds={textColorIds}
+              projectColors={projectColors}
+              context={selected.resolvedDesignContext}
+              onAddColor={onAddColor}
+              onChange={(element) =>
+                onContentChange({
+                  ...workingContent,
+                  childFlow: updateSectionElement(childFlow, element),
+                })
+              }
+            />
+          </ColorPreviewScopeContext>
+        </div>
+      ) : selectedText && childFlow && capabilities ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
+          <ColorPreviewScopeContext key={selected.id} value={selected.id}>
+            <TextElementEditor
+              element={selectedText}
+              viewport={targetViewport}
+              library={capabilities.designLibrary}
+              allowedFontIds={textFontIds}
+              allowedColorIds={textColorIds}
+              projectColors={projectColors}
+              context={selected.resolvedDesignContext}
+              onAddColor={onAddColor}
+              onAppearanceChange={(appearance) => {
+                const next = updateSectionTextAppearance(
+                  childFlow,
+                  selectedText.id,
+                  appearance,
+                );
+                if (next)
+                  onContentChange({ ...workingContent, childFlow: next });
+              }}
+            />
+          </ColorPreviewScopeContext>
+        </div>
+      ) : selectedDivider && childFlow && capabilities ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
+          <ColorPreviewScopeContext key={selected.id} value={selected.id}>
+            <DividerElementEditor
+              context={selected.resolvedDesignContext}
+              element={selectedDivider}
+              templateKey={templateKey}
+              library={capabilities.designLibrary}
+              allowedColorIds={textColorIds}
+              projectColors={projectColors}
+              onAddColor={onAddColor}
+              onChange={(element) =>
+                onContentChange({
+                  ...workingContent,
+                  childFlow: updateSectionElement(childFlow, element),
+                })
+              }
+            />
+          </ColorPreviewScopeContext>
+        </div>
+      ) : selectedMedia && childFlow ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
+          <MediaElementEditor
+            element={selectedMedia}
+            eventId={eventId}
+            viewport={targetViewport}
+            mode={panelMode}
+            resolvedMedia={resolvedMedia}
+            onMediaResolved={onMediaResolved}
+            onChange={(element) =>
+              onContentChange({
+                ...workingContent,
+                childFlow: updateSectionElement(childFlow, element),
+              })
+            }
+          />
+        </div>
+      ) : selectedGroup && childFlow ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
+          <ColorPreviewScopeContext key={selected.id} value={selected.id}>
+            <GroupElementEditor
+              group={selectedGroup}
+              viewport={targetViewport}
               resolvedMedia={resolvedMedia}
               onMediaResolved={onMediaResolved}
-              storyHeaderFocus={storyHeaderFocus}
+              templateKey={templateKey}
+              capability={capability?.decorativeAppearance ?? undefined}
+              library={capabilities?.designLibrary}
+              projectColors={projectColors}
+              onAddColor={onAddColor}
+              onChange={(group) =>
+                onContentChange({
+                  ...workingContent,
+                  childFlow: updateSectionElement(childFlow, group),
+                })
+              }
+              onUngroup={() => {
+                const next = ungroupSectionElement(childFlow, selectedGroup.id);
+                onContentChange({ ...workingContent, childFlow: next });
+              }}
             />
-          </div>
-        )
+          </ColorPreviewScopeContext>
+        </div>
+      ) : panelMode === "content" ? (
+        <div className="min-h-0 flex-1">
+          <SectionEditor
+            viewport={targetViewport}
+            section={selected}
+            content={workingContent}
+            onChange={onContentChange}
+            resolvedMedia={resolvedMedia}
+            onMediaResolved={onMediaResolved}
+          />
+        </div>
       ) : capability ? (
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-6 xl:px-0">
-            {narrativeBlock && narrativeCapability && capabilities ? (
-              <NarrativeBlockAppearancePanel
-                block={narrativeBlock}
+            <>
+              <AppearancePanel
+                appearance={workingAppearance}
                 templateKey={templateKey}
-                viewport={targetViewport}
-                capability={narrativeCapability}
-                library={capabilities.designLibrary}
+                sectionCapability={capability}
+                targetViewport={targetViewport}
+                error={appearanceError}
+                library={capabilities!.designLibrary}
                 projectColors={projectColors}
-                context={selected.resolvedDesignContext}
-                activeDisclosure={narrativeAppearanceDisclosure}
-                onDisclosureChange={onNarrativeAppearanceDisclosureChange}
                 onAddColor={onAddColor}
-                onChange={(block) => {
-                  const next = structuredClone(workingContent);
-                  next.elements = (
-                    next.elements as import("../../features/websiteEditor/types").StoryBlock[]
-                  ).map((element) =>
-                    element.id === block.id ? block : element,
-                  );
-                  onContentChange(next);
-                }}
+                onChange={onAppearanceChange}
               />
-            ) : selected.type === "story" && storyHeaderFocus && narrativeCapability && capabilities ? (
-              <StorySingletonAppearancePanel field={storyHeaderFocus.field} content={workingContent as import("../../features/websiteEditor/types").StoryContent} sectionAppearance={resolveSectionAppearanceForViewport(workingAppearance, targetViewport, capability)} viewport={targetViewport} capability={narrativeCapability} library={capabilities.designLibrary} projectColors={projectColors} context={selected.resolvedDesignContext} onAddColor={onAddColor} onChange={onContentChange} />
-            ) : (
-              <>
-                <AppearancePanel
-                  key={`${selected.id}:${storyHeaderFocus?.requestId ?? 0}`}
-                  appearance={workingAppearance}
-                  templateKey={templateKey}
-                  sectionCapability={capability}
-                  targetViewport={targetViewport}
-                  error={appearanceError}
-                  library={capabilities!.designLibrary}
-                  projectColors={projectColors}
-                  onAddColor={onAddColor}
-                  onChange={onAppearanceChange}
-                />
-                {selected.type !== "story" && selected.type !== "blank" && <SectionDesignDefaultsPanel
+              {selected.type !== "blank" && (
+                <SectionDesignDefaultsPanel
                   appearance={workingAppearance}
                   capability={capability}
                   defaults={selected.designDefaults}
@@ -2041,9 +2259,9 @@ function SectionInspector({
                   disabled={appearanceDirty}
                   error={sectionDesignError}
                   onChange={onSectionDesignChange}
-                />}
-              </>
-            )}
+                />
+              )}
+            </>
           </div>
         </div>
       ) : (
@@ -2116,6 +2334,31 @@ function EditorError({
     </div>
   );
 }
+function GenericBlockOuterSpacingEditor({ element, viewport, onChange }: { element: Exclude<WebsiteElement, { type: "compositionGroup" }>; viewport: ResponsiveViewport; onChange: (element: WebsiteElement) => void }) {
+  const appearance = ("appearance" in element ? element.appearance : undefined) as { outerSpacing?: FourSidedSpacing; responsive?: Partial<Record<"tablet" | "mobile", { outerSpacing?: FourSidedSpacing }>> } | undefined;
+  const effective = resolveFourSidedSpacing(appearance?.outerSpacing, viewport === "desktop" ? undefined : appearance?.responsive?.[viewport]?.outerSpacing);
+  const update = (side: keyof FourSidedSpacing, value: SpacingPreset) => {
+    const next = structuredClone(element) as WebsiteElement & { appearance?: typeof appearance };
+    const nextAppearance = { ...appearance };
+    if (viewport === "desktop") {
+      const outerSpacing = { ...nextAppearance.outerSpacing };
+      if (value === "none") delete outerSpacing[side]; else outerSpacing[side] = value;
+      if (Object.keys(outerSpacing).length) nextAppearance.outerSpacing = outerSpacing; else delete nextAppearance.outerSpacing;
+    } else {
+      const responsive = { ...nextAppearance.responsive };
+      const branch = { ...responsive[viewport] };
+      const outerSpacing = { ...branch.outerSpacing };
+      if (value === (nextAppearance.outerSpacing?.[side] ?? "none")) delete outerSpacing[side]; else outerSpacing[side] = value;
+      if (Object.keys(outerSpacing).length) branch.outerSpacing = outerSpacing; else delete branch.outerSpacing;
+      if (Object.keys(branch).length) responsive[viewport] = branch; else delete responsive[viewport];
+      if (Object.keys(responsive).length) nextAppearance.responsive = responsive; else delete nextAppearance.responsive;
+    }
+    if (Object.keys(nextAppearance).length) next.appearance = nextAppearance; else delete next.appearance;
+    onChange(next);
+  };
+  return <div className="border-b border-border px-1 pb-5"><p className="mb-2 text-sm font-semibold">Outer spacing · {viewport}</p><FourSidedSpacingControl spacing={effective} subject="Block" kind="Outer" onChange={update} /></div>;
+}
+
 function EmptyEditor() {
   return (
     <div className="grid min-h-0 flex-1 place-items-center p-6">

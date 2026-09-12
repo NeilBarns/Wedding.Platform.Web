@@ -1,15 +1,41 @@
 import type { CompositionGroup } from "./types";
 import type { ResponsiveViewport } from "../websiteEditor/types";
+import { SPACING_PRESETS, SPACING_PRESET_CSS, resolveFourSidedSpacing, type FourSidedSpacing, type SpacingPreset } from "./spacing";
 
 export type GroupLayout = NonNullable<CompositionGroup["layout"]>;
 export type GroupLayoutOverride = NonNullable<NonNullable<GroupLayout["responsive"]>["mobile"]>;
 export const GROUP_DIRECTIONS = ["vertical", "horizontal"] as const;
-export const GROUP_GAPS = ["none", "xs", "s", "m", "l", "xl"] as const;
+export const GROUP_GAPS = SPACING_PRESETS;
+export type InnerSpacingPreset = SpacingPreset;
+export type InnerSpacing = FourSidedSpacing;
+export const INNER_SPACING_CSS = SPACING_PRESET_CSS;
+
+export function resolveInnerSpacing(base: InnerSpacing | undefined, override: InnerSpacing | undefined): InnerSpacing {
+  return resolveFourSidedSpacing(base, override);
+}
 export const GROUP_ALIGNMENTS = ["start", "center", "end", "stretch"] as const;
-export const GROUP_COLUMNS = ["equal-2", "content-wide", "content-narrow", "equal-3"] as const;
+export const GROUP_DIVISIONS = ["50-50", "60-40", "40-60", "thirds"] as const;
+export const GROUP_DIVISION_TEMPLATES = { "50-50": "repeat(2,minmax(0,1fr))", "60-40": "minmax(0,3fr) minmax(0,2fr)", "40-60": "minmax(0,2fr) minmax(0,3fr)", "thirds": "repeat(3,minmax(0,1fr))" } as const;
+
+export function setGroupBackgroundMedia(group: CompositionGroup, backgroundMedia: CompositionGroup["backgroundMedia"]): CompositionGroup {
+  const next = { ...group };
+  if (backgroundMedia == null) delete next.backgroundMedia;
+  else next.backgroundMedia = backgroundMedia;
+  return next;
+}
+
+export function setGroupBackgroundImageOpacity(group: CompositionGroup, opacity: number): CompositionGroup {
+  const appearance = { ...group.appearance };
+  if (opacity === 100) delete appearance.backgroundImageOpacity;
+  else appearance.backgroundImageOpacity = opacity;
+  const next = { ...group };
+  if (Object.keys(appearance).length) next.appearance = appearance;
+  else delete next.appearance;
+  return next;
+}
 export const GROUP_WIDTHS = ["full", "wide", "medium", "narrow"] as const;
 export const GROUP_SHADOWS = ["none", "soft", "medium", "strong"] as const;
-export const GROUP_LAYOUT_DEFAULTS = { width: "full", direction: "vertical", gap: "none", alignment: "stretch", columns: "equal-2" } as const;
+export const GROUP_LAYOUT_DEFAULTS = { width: "full", direction: "vertical", gap: "none", alignment: "stretch", division: "50-50", contentPosition: "center" } as const;
 
 export function setGroupShadow(group: CompositionGroup, shadow: NonNullable<CompositionGroup["appearance"]>["shadow"]): CompositionGroup {
   return { ...group, appearance: { ...group.appearance, shadow } };
@@ -62,10 +88,10 @@ export function setGroupLayoutProperty<K extends keyof GroupLayoutOverride>(layo
   return next;
 }
 
-type GroupScalarLayoutKey = "width" | "direction" | "gap" | "alignment" | "columns";
+type GroupScalarLayoutKey = "width" | "direction" | "gap" | "alignment" | "division" | "contentPosition";
 
 export function selectGroupLayoutProperty<K extends GroupScalarLayoutKey>(layout: GroupLayout, viewport: ResponsiveViewport, key: K, value: NonNullable<GroupLayout[K]>): GroupLayout {
-  if (viewport === "desktop") return setGroupLayoutProperty(layout, viewport, key, value);
+  if (viewport === "desktop") return setGroupLayoutProperty(layout, viewport, key, key === "contentPosition" && value === "center" ? undefined : value);
   const desktopValue = layout[key] ?? GROUP_LAYOUT_DEFAULTS[key];
   return setGroupLayoutProperty(layout, viewport, key, value === desktopValue ? undefined : value);
 }

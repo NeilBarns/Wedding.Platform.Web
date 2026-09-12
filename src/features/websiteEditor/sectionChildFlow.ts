@@ -1,9 +1,8 @@
 import { z } from "zod";
 import { createSemanticId } from "./createSemanticId";
 import { websiteElementTreeSchema } from "../websiteElements/schemas";
-import type { CompositionGroup, DateElement, DividerElement, MediaElement, RichTextElement, TextElement, WebsiteElement } from "../websiteElements/types";
-import { canonicalizeRichTextDocument } from "../websiteElements/richText";
-import { normalizeTextContent } from "../websiteElements/text";
+import type { CompositionGroup, DateElement, DividerElement, MediaElement, TextElement, WebsiteElement } from "../websiteElements/types";
+import { canonicalizeTextDocument } from "../websiteElements/textDocument";
 import { GENERIC_BLOCK_LABELS, isGenericBlock, normalizeEditorName, type GenericBlockType } from "../websiteElements/blockIdentity";
 
 export const SECTION_SPECIALIZED_REFERENCE = { kind: "specialized", key: "content" } as const;
@@ -45,13 +44,13 @@ export const genericSectionChildFlowSchema = childFlowShapeSchema.superRefine((f
 
 export const textSectionChildFlowSchema = sectionChildFlowSchema.superRefine((flow, context) => {
   flow.elements.forEach((element, index) => {
-    if (element.type !== "text" && element.type !== "richText" && element.type !== "date" && element.type !== "accordion" && element.type !== "schedule" && element.type !== "people" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
+    if (element.type !== "text" && element.type !== "date" && element.type !== "accordion" && element.type !== "schedule" && element.type !== "people" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
   });
 });
 
 export const genericTextSectionChildFlowSchema = genericSectionChildFlowSchema.superRefine((flow, context) => {
   flow.elements.forEach((element, index) => {
-    if (element.type !== "text" && element.type !== "richText" && element.type !== "date" && element.type !== "accordion" && element.type !== "schedule" && element.type !== "people" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
+    if (element.type !== "text" && element.type !== "date" && element.type !== "accordion" && element.type !== "schedule" && element.type !== "people" && element.type !== "divider" && element.type !== "media" && element.type !== "compositionGroup") context.addIssue({ code: "custom", path: ["elements", index, "type"], message: `Element type ${element.type} is not allowed in this Section.` });
   });
 });
 
@@ -73,12 +72,12 @@ export function resolveSectionChildOrder(flow?: SectionChildFlow): SectionChildR
 }
 
 /**
- * Remove transient browser/editor fields from Rich Text before it crosses the
- * API boundary. This also applies to Rich Text nested within Groups.
+ * Remove transient browser/editor fields from Text before it crosses the API
+ * boundary. This also applies to Text nested within Groups.
  */
-export function canonicalizeSectionChildFlowRichText(flow: SectionChildFlow): SectionChildFlow {
-  const canonicalize = (element: WebsiteElement): WebsiteElement => element.type === "richText"
-    ? { ...element, document: canonicalizeRichTextDocument(element.document) }
+export function canonicalizeSectionChildFlowText(flow: SectionChildFlow): SectionChildFlow {
+  const canonicalize = (element: WebsiteElement): WebsiteElement => element.type === "text"
+    ? { ...element, document: canonicalizeTextDocument(element.document) }
     : element.type === "compositionGroup"
       ? { ...element, children: element.children.map(canonicalize) } as WebsiteElement
       : element;
@@ -95,7 +94,7 @@ export function visitGenericBlocks(elements: readonly WebsiteElement[], visitor:
 }
 
 function automaticNameState(flow?: SectionChildFlow): Record<GenericBlockType, number> {
-  const state = { text: 0, richText: 0, date: 0, accordion: 0, schedule: 0, people: 0, media: 0, divider: 0, compositionGroup: 0 };
+  const state = { text: 0, date: 0, accordion: 0, schedule: 0, people: 0, media: 0, divider: 0, compositionGroup: 0 };
   if (!flow) return state;
   visitGenericBlocks(flow.elements, (element) => {
     const match = new RegExp(`^${GENERIC_BLOCK_LABELS[element.type].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} ([1-9]\\d*)$`).exec(element.editorName);
@@ -110,11 +109,7 @@ function nextAutomaticName(type: GenericBlockType, state: Record<GenericBlockTyp
 }
 
 export function createTextElement(editorName: string): TextElement {
-  return { id: createSemanticId("text"), type: "text", editorName, text: "" };
-}
-
-export function createRichTextElement(editorName: string): RichTextElement {
-  return { id: createSemanticId("rich-text"), type: "richText", editorName, document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "" }] }] } };
+  return { id: createSemanticId("text"), type: "text", editorName, document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "" }] }] } };
 }
 
 export function createDateElement(editorName: string): DateElement {
@@ -148,7 +143,6 @@ export function createGroupElement(editorName: string): CompositionGroup {
 export function createSectionElement(flow: SectionChildFlow | undefined, type: GenericBlockType, mediaId?: string): WebsiteElement & { editorName: string } {
   const editorName = nextAutomaticName(type, automaticNameState(flow));
   if (type === "text") return createTextElement(editorName);
-  if (type === "richText") return createRichTextElement(editorName);
   if (type === "date") return createDateElement(editorName);
   if (type === "accordion") return createAccordionElement(editorName);
   if (type === "schedule") return createScheduleElement(editorName);
@@ -199,23 +193,18 @@ export function findSectionElement(flow: SectionChildFlow | undefined, id: strin
   return flow?.elements.map(visit).find(Boolean);
 }
 
-export function updateSectionTextElement(flow: SectionChildFlow, elementId: string, text: string): SectionChildFlow | null {
-  const element = findSectionElement(flow, elementId);
-  return element?.type === "text" ? updateSectionElement(flow, { ...element, text: normalizeTextContent(text) }) : null;
-}
-
-export function updateSectionRichTextAppearance(flow: SectionChildFlow, elementId: string, appearance: RichTextElement["appearance"]): SectionChildFlow | null {
+export function updateSectionTextAppearance(flow: SectionChildFlow, elementId: string, appearance: TextElement["appearance"]): SectionChildFlow | null {
   const current = findSectionElement(flow, elementId);
-  if (current?.type !== "richText") return null;
+  if (current?.type !== "text") return null;
   const next = { ...current };
   if (appearance === undefined) delete next.appearance;
   else next.appearance = appearance;
   return updateSectionElement(flow, next);
 }
 
-export function updateSectionRichTextDocument(flow: SectionChildFlow, elementId: string, document: RichTextElement["document"]): SectionChildFlow | null {
+export function updateSectionTextDocument(flow: SectionChildFlow, elementId: string, document: TextElement["document"]): SectionChildFlow | null {
   const current = findSectionElement(flow, elementId);
-  return current?.type === "richText" ? updateSectionElement(flow, { ...current, document }) : null;
+  return current?.type === "text" ? updateSectionElement(flow, { ...current, document }) : null;
 }
 
 export function addGroupChild(flow: SectionChildFlow, groupId: string, child: WebsiteElement): SectionChildFlow {
@@ -246,6 +235,13 @@ export function deleteSectionElement(flow: SectionChildFlow, elementId: string):
   const order = flow.order.filter((reference) => !(reference.kind === "element" && reference.id === elementId));
   const elements = flow.elements.filter(({ id }) => id !== elementId);
   return { flow: elements.length ? { elements, order } : undefined, selection: order[Math.min(Math.max(index, 0), order.length - 1)] ?? SECTION_SPECIALIZED_REFERENCE };
+}
+
+export function deleteGenericSectionElement(flow: SectionChildFlow, elementId: string): { flow: SectionChildFlow; selection?: SectionChildReference } {
+  const result = deleteSectionElement(flow, elementId);
+  return result.flow
+    ? { flow: result.flow, selection: result.selection }
+    : { flow: { elements: [], order: [] } };
 }
 
 export function duplicateSectionElement(flow: SectionChildFlow, elementId: string): { flow: SectionChildFlow; elementId: string } | null {

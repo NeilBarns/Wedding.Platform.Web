@@ -32,7 +32,6 @@ import {
   Minus,
   MoveRight,
   Pencil,
-  Pilcrow,
   Plus,
   Trash2,
   Type,
@@ -89,7 +88,6 @@ const sortableId = (reference: SectionChildReference) =>
     : `section-child:element:${reference.id}`;
 const GENERIC_BLOCK_ICONS = {
   text: Type,
-  richText: Pilcrow,
   date: CalendarDays,
   accordion: ListCollapse,
   schedule: CalendarClock,
@@ -956,7 +954,6 @@ function GroupAddControl({
   const [open, setOpen] = useState(false);
   const labels: Record<GroupAddKind, string> = {
     text: "Text",
-    richText: "Rich Text",
     date: "Date",
     accordion: "Accordion",
     schedule: "Schedule",

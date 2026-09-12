@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { resolveMediaCropGeometry } from '../websiteElements/mediaCrop'
+import { resolveBackgroundMediaGeometry, resolveMediaCropGeometry } from '../websiteElements/mediaCrop'
 
 type Size = { width: number; height: number }
 
-export function ZoomedMediaImage({ alt = '', className = '', fill = false, height, reference, src, width }: { alt?: string; className?: string; fill?: boolean; height: number; reference: { focalPoint?: { x: number; y: number }; zoom?: number }; src: string; width: number }) {
+export function ZoomedMediaImage({ alt = '', allowZoomOut = false, className = '', fill = false, height, reference, src, width }: { alt?: string; allowZoomOut?: boolean; className?: string; fill?: boolean; height: number; reference: { focalPoint?: { x: number; y: number }; zoom?: number }; src: string; width: number }) {
   const containerRef = useRef<HTMLSpanElement>(null)
   const [container, setContainer] = useState<Size>({ width: 0, height: 0 })
   const point = reference.focalPoint ?? { x: 0.5, y: 0.5 }
@@ -19,9 +19,9 @@ export function ZoomedMediaImage({ alt = '', className = '', fill = false, heigh
     return () => observer.disconnect()
   }, [])
 
-  const geometry = container.width && container.height ? resolveMediaCropGeometry(container, { width, height }, point, zoom) : null
+  const geometry = container.width && container.height ? (allowZoomOut ? resolveBackgroundMediaGeometry : resolveMediaCropGeometry)(container, { width, height }, point, zoom) : null
 
-  return <span ref={containerRef} data-media-focal-x={geometry?.point.x ?? point.x} data-media-focal-y={geometry?.point.y ?? point.y} data-media-zoom={geometry?.zoom ?? zoom} className={`${fill ? 'absolute inset-0' : 'relative'} block overflow-hidden ${className}`}>
+  return <span ref={containerRef} data-media-focal-x={geometry?.point.x ?? point.x} data-media-focal-y={geometry?.point.y ?? point.y} data-media-zoom={geometry?.zoom ?? zoom} data-background-minimum-zoom={allowZoomOut && geometry && 'minimumZoom' in geometry ? geometry.minimumZoom : undefined} className={`${fill ? 'absolute inset-0' : 'relative'} block overflow-hidden ${className}`}>
     <img className="invisible block h-full w-full object-cover" src={src} alt="" aria-hidden="true" />
     <img
       className={geometry ? 'absolute max-w-none' : 'absolute inset-0 h-full w-full object-cover object-center'}

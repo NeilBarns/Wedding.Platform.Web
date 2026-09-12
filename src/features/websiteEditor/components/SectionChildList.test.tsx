@@ -10,7 +10,7 @@ const nestedGroup: CompositionGroup = {
   id: "nested-group",
   type: "compositionGroup", editorName: "A deeply nested Group name that must truncate without displacing its actions",
   isHidden: true,
-  children: [{ id: "hidden-child", type: "text", editorName: "Text 1", text: "Hidden child", isHidden: true }],
+  children: [{ id: "hidden-child", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Hidden child" }] }] }, isHidden: true }],
   layout: {},
 };
 
@@ -19,8 +19,8 @@ const topGroup: CompositionGroup = {
   type: "compositionGroup", editorName: "Group 1",
   children: [
     nestedGroup as CompositionGroup["children"][number],
-    { id: "long-label", type: "text", editorName: "A very long editor name that must remain available after visual truncation", text: "Content must not become the label" },
-    { id: "rich", type: "richText", editorName: "Rich Text 1", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "Copy" }] }] } },
+    { id: "long-label", type: "text", editorName: "A very long editor name that must remain available after visual truncation", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Content must not become the label"  }] }] }},
+    { id: "rich", type: "text", editorName: "Text 1", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Copy" }] }] } },
     { id: "date", type: "date", editorName: "Date 1" },
     { id: "media", type: "media", editorName: "Media 1", items: [] },
     { id: "divider", type: "divider", editorName: "Divider 1" },
@@ -119,10 +119,10 @@ describe("SectionChildList dense Group hierarchy", () => {
 
   it("uses the shared bounded icon, name, and action layout for every generic leaf row", () => {
     const html = renderList();
-    for (const label of ["Text block", "Rich Text block", "Date block", "Media block", "Divider block"]) {
+    for (const label of ["Text block", "Text block", "Date block", "Media block", "Divider block"]) {
       expect(html).toContain(`${label}:`);
     }
-    for (const icon of ["lucide-type", "lucide-pilcrow", "lucide-calendar-days", "lucide-images", "lucide-minus"]) {
+    for (const icon of ["lucide-type", "lucide-calendar-days", "lucide-images", "lucide-minus"]) {
       expect(html).toContain(icon);
     }
     expect(html.match(/data-structure-label="true"/g)?.length).toBeGreaterThanOrEqual(6);
@@ -147,9 +147,9 @@ describe("SectionChildList dense Group hierarchy", () => {
 
   it("reorders Text, Media, nested Group, and Divider siblings in a Blank Group without changing state", () => {
     const children: CompositionGroup["children"] = [
-      { id: "text-child", type: "text", editorName: "Welcome", text: "Keep copy", isHidden: true, appearance: { fontSize: "l" } },
+      { id: "text-child", type: "text", editorName: "Welcome", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Keep copy" }] }] }, isHidden: true, appearance: { fontSize: "l" } },
       { id: "media-child", type: "media", editorName: "Portrait", items: [{ id: "media-item", type: "image", mediaId: "01M0Q08NQ9XJB9A7B5SGC45YD9", alt: "Portrait" }] },
-      { id: "nested-child", type: "compositionGroup", editorName: "Nested details", children: [{ id: "descendant", type: "text", editorName: "Descendant", text: "Preserved" }], layout: { gap: "m" } },
+      { id: "nested-child", type: "compositionGroup", editorName: "Nested details", children: [{ id: "descendant", type: "text", editorName: "Descendant", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Preserved"  }] }] }}], layout: { gap: "m" } },
       { id: "divider-child", type: "divider", editorName: "Divider", appearance: { width: "large" } },
     ] as CompositionGroup["children"];
     const blank: SectionChildFlow = {
@@ -186,11 +186,11 @@ describe("SectionChildList dense Group hierarchy", () => {
   it("reorders every Blank root block pairing through canonical order without changing element state", () => {
     const blank: SectionChildFlow = {
       elements: [
-        { id: "text", type: "text", editorName: "Welcome", text: "Copy", isHidden: true, appearance: { fontSize: "l" } },
-        { id: "rich", type: "richText", editorName: "Details", document: { type: "doc", children: [{ type: "paragraph", children: [{ text: "Rich copy", marks: { bold: true } }] }] } },
+        { id: "text", type: "text", editorName: "Welcome", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Copy" }] }] }, isHidden: true, appearance: { fontSize: "l" } },
+        { id: "rich", type: "text", editorName: "Details", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Rich copy", marks: { bold: true } }] }] } },
         { id: "media", type: "media", editorName: "Portraits", items: [{ id: "media-item", kind: "image", mediaId: "01M0Q08NQ9XJB9A7B5SGC45YD9", alt: "Portrait" }] },
         { id: "divider", type: "divider", editorName: "Pause", appearance: { width: "wide" } },
-        { id: "group", type: "compositionGroup", editorName: "Details group", children: [{ id: "nested", type: "text", editorName: "Nested", text: "Keep me" }], layout: { gap: "l" } },
+        { id: "group", type: "compositionGroup", editorName: "Details group", children: [{ id: "nested", type: "text", editorName: "Nested", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Keep me"  }] }] }}], layout: { gap: "l" } },
       ] as SectionChildFlow["elements"],
       order: ["text", "rich", "media", "divider", "group"].map((id) => ({ kind: "element" as const, id })),
     };
@@ -206,7 +206,7 @@ describe("SectionChildList dense Group hierarchy", () => {
   });
 
   it("supports first-to-last, last-to-first, repeated Blank root drops, and canonical save/reload", () => {
-    const elements = ["text", "rich", "media", "divider", "group"].map((id) => ({ id, type: "text" as const, editorName: `${id} name`, text: `${id} content`, isHidden: id === "media" }));
+    const elements = ["text", "rich", "media", "divider", "group"].map((id) => ({ id, type: "text" as const, editorName: `${id} name`, document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: `${id} content` }] }] }, isHidden: id === "media" }));
     const blank: SectionChildFlow = { elements, order: elements.map(({ id }) => ({ kind: "element", id })) };
     const firstToLast = reorderRootSectionElement(blank, "text", blank.order.at(-1)!);
     expect(firstToLast.order.map((reference) => reference.kind === "element" && reference.id)).toEqual(["rich", "media", "divider", "group", "text"]);
@@ -221,8 +221,8 @@ describe("SectionChildList dense Group hierarchy", () => {
   it("retains specialized root DnD ordering without fabricating or removing its sentinel", () => {
     const specialized: SectionChildFlow = {
       elements: [
-        { id: "before", type: "text", editorName: "Before", text: "Before" },
-        { id: "after", type: "text", editorName: "After", text: "After" },
+        { id: "before", type: "text", editorName: "Before", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Before"  }] }] }},
+        { id: "after", type: "text", editorName: "After", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "After"  }] }] }},
       ],
       order: [{ kind: "element", id: "before" }, { kind: "specialized", key: "content" }, { kind: "element", id: "after" }],
     };
@@ -232,7 +232,7 @@ describe("SectionChildList dense Group hierarchy", () => {
   });
 
   it("applies cross-parent drops and keeps the moved block selected with identity intact", () => {
-    const hidden = { id: "move-me", type: "text" as const, editorName: "Renamed hidden block", text: "Authored", isHidden: true, appearance: { fontSize: "l" as const } };
+    const hidden = { id: "move-me", type: "text" as const, editorName: "Renamed hidden block", document: { type: "doc" as const, children: [{ type: "paragraph" as const, children: [{ text: "Authored" }] }] }, isHidden: true, appearance: { fontSize: "l" as const } };
     const candidate: SectionChildFlow = {
       elements: [hidden, { id: "left", type: "compositionGroup", editorName: "Left", children: [] }, { id: "right", type: "compositionGroup", editorName: "Right", children: [] }],
       order: [{ kind: "specialized", key: "content" }, { kind: "element", id: hidden.id }, { kind: "element", id: "left" }, { kind: "element", id: "right" }],
@@ -298,7 +298,7 @@ describe("SectionChildList dense Group hierarchy", () => {
   });
 
   it("does not offer a third Group nesting level and keeps all non-Group child choices", () => {
-    expect(groupAddKinds(1)).toEqual(["text", "richText", "date", "accordion", "schedule", "people", "divider", "media", "group"]);
-    expect(groupAddKinds(2)).toEqual(["text", "richText", "date", "accordion", "schedule", "people", "divider", "media"]);
+    expect(groupAddKinds(1)).toEqual(["text", "date", "accordion", "schedule", "people", "divider", "media", "group"]);
+    expect(groupAddKinds(2)).toEqual(["text", "date", "accordion", "schedule", "people", "divider", "media"]);
   });
 });

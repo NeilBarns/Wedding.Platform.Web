@@ -5,6 +5,7 @@ import {
   computeFitScale,
   loadEditorZoomPreferences,
   parseEditorZoomPreferences,
+  resolveEditorCanvasGeometry,
   saveEditorZoomPreferences,
   stepEditorZoom,
 } from "./editorZoom";
@@ -54,16 +55,29 @@ describe("editor zoom preferences", () => {
 });
 
 describe("editor zoom geometry", () => {
+  it.each([
+    ["desktop0", { width: 1280, height: 800 }],
+    ["tablet", { width: 768, height: 1024 }],
+    ["mobile", { width: 390, height: 844 }],
+  ])("keeps the %s CSS viewport fixed at every visual scale", (_device, viewport) => {
+    for (const scale of [1, .9, .75, .5, .67]) {
+      const geometry = resolveEditorCanvasGeometry(viewport, scale);
+      expect({ width: geometry.viewportWidth, height: geometry.viewportHeight }).toEqual(viewport);
+      expect(geometry.displayWidth).toBeCloseTo(viewport.width * scale);
+      expect(geometry.displayHeight).toBeCloseTo(viewport.height * scale);
+    }
+  });
   it("computes Fit from measured width and inset and caps it at 100%", () => {
-    expect(computeFitScale(916, 1280, 20)).toBe(0.7);
-    expect(computeFitScale(2000, 1280)).toBe(1);
+    expect(computeFitScale(916, 2000, 1280, 800, 20)).toBe(0.7);
+    expect(computeFitScale(2000, 2000, 1280, 800)).toBe(1);
+    expect(computeFitScale(1000, 438, 390, 844, 16)).toBe(0.5);
   });
 
   it("recomputes remembered Fit rather than restoring a percentage", () => {
     const restored = parseEditorZoomPreferences(JSON.stringify({ desktop: { type: "fit", scale: 0.5 } }));
     expect(restored.desktop).toEqual({ type: "fit" });
-    expect(computeFitScale(656, 1280, 16)).toBe(0.5);
-    expect(computeFitScale(1296, 1280, 16)).toBe(1);
+    expect(computeFitScale(656, 1000, 1280, 800, 16)).toBe(0.5);
+    expect(computeFitScale(1296, 816, 1280, 800, 16)).toBe(1);
   });
 
   it("steps deterministically from Fit and custom values", () => {

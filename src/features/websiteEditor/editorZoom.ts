@@ -16,6 +16,17 @@ export const DEFAULT_EDITOR_ZOOM_PREFERENCES: EditorZoomPreferences = {
   mobile: { type: "custom", scale: 1 },
 };
 
+export function resolveEditorCanvasGeometry(viewport: Readonly<{ width: number; height: number }>, scale: number) {
+  const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  return {
+    viewportWidth: viewport.width,
+    viewportHeight: viewport.height,
+    displayWidth: viewport.width * safeScale,
+    displayHeight: viewport.height * safeScale,
+    scale: safeScale,
+  };
+}
+
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
 export function browserEditorZoomStorage(): StorageLike | undefined {
@@ -81,11 +92,13 @@ export function saveEditorZoomPreferences(
 
 export function computeFitScale(
   availableWidth: number,
-  semanticWidth: number,
+  availableHeight: number,
+  viewportWidth: number,
+  viewportHeight: number,
   inset = EDITOR_ZOOM_FIT_INSET,
 ): number {
-  if (!Number.isFinite(availableWidth) || !Number.isFinite(semanticWidth) || semanticWidth <= 0) return 1;
-  return Math.min(Math.max((availableWidth - inset) / semanticWidth, 0.01), 1);
+  if (![availableWidth, availableHeight, viewportWidth, viewportHeight].every(Number.isFinite) || viewportWidth <= 0 || viewportHeight <= 0) return 1;
+  return Math.min(Math.max(Math.min((availableWidth - inset) / viewportWidth, (availableHeight - inset) / viewportHeight), 0.01), 1);
 }
 
 export function stepEditorZoom(

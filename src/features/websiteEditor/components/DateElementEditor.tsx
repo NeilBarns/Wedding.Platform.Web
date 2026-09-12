@@ -11,6 +11,8 @@ import { InspectorSection } from "./InspectorPrimitives";
 import { InspectorVisualChoiceGroup } from "./InspectorVisualChoice";
 import { IconChoices, LineHeightIcon } from "./TextElementEditor";
 import { WebsiteColorSwatchControl } from "./WebsiteColorSwatchControl";
+import { setTextEffect, type TextEffectStrength } from "../../websiteElements/text";
+import { ElementEffectsControl } from "./ElementEffectsControl";
 
 type DateAppearance = NonNullable<DateElement["appearance"]>;
 type Props = { element: DateElement; viewport: ResponsiveViewport; templateKey: string; library: TemplateDesignLibrary; allowedFontIds: readonly string[]; allowedColorIds: readonly string[]; projectColors: readonly ProjectColor[]; context?: ResolvedDesignContext | null; onAddColor: (value: string) => Promise<ProjectColor>; onChange: (element: DateElement) => void };
@@ -60,6 +62,7 @@ export function DateElementEditor({ element, viewport, templateKey, library, all
     <Field label="Letter spacing"><IconChoices label="Letter spacing" value={appearance.letterSpacing ?? "normal"} options={TEXT_LETTER_SPACINGS.map((value) => ({ value, label: title(value), icon: <span className="text-xs font-medium leading-none" style={{ letterSpacing: value === "tight" ? "-0.12em" : value === "wide" ? "0.22em" : "0" }}>AV</span> }))} onChange={(value) => update(selectTextGlobalAppearanceProperty(appearance, "letterSpacing", value as TextAppearance["letterSpacing"], "normal") as DateAppearance)} /></Field>
     <Field label={`Alignment · ${viewport}`}><IconChoices label={`Alignment · ${viewport}`} value={effective.alignment} options={TEXT_ALIGNMENTS.map((value) => ({ value, label: title(value), icon: value === "start" ? <AlignLeft size={17} /> : value === "center" ? <AlignCenter size={17} /> : <AlignRight size={17} /> }))} onChange={(value) => setResponsive("alignment", value)} /></Field>
     <Field label="Color"><WebsiteColorSwatchControl key={element.id} previewTarget={`${element.id}:color`} label="Date color" colorId={appearance.colorId ?? context?.headingColorId} allowedTemplateColorIds={curatedColors.map(({ id }) => id)} templateColors={curatedColors} projectColors={projectColors} showInheritChoice={!context?.headingColorId} onChange={(value) => update(selectTextGlobalAppearanceProperty(appearance, "colorId", value, context?.headingColorId) as DateAppearance)} onAddColor={onAddColor} /></Field>
+    <ElementEffectsControl elementId={element.id} shadowLabel="Text Shadow" state={{ shadow: appearance.textShadow, shadowColorId: appearance.textShadowColorId, glow: appearance.glow, glowColorId: appearance.glowColorId }} colors={curatedColors} projectColors={projectColors} onAddColor={onAddColor} onEffectChange={(effect, value) => update(setTextEffect(appearance, effect === "shadow" ? "textShadow" : "glow", value as TextEffectStrength) as DateAppearance)} onColorChange={(field, value) => set(field === "shadowColorId" ? "textShadowColorId" : "glowColorId", value)} />
   </InspectorSection></div>;
 }
 
